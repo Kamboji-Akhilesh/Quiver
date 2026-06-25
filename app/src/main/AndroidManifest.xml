@@ -1,12 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- Calendar exact-time alerts. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:ignore="ScopedStorage"/>
 
@@ -21,16 +26,41 @@
         android:theme="@style/Theme.ScreenshotCleaner">
 
         <!-- UI Activities -->
+        <!-- Bento hub is the launcher; it links to the mini-apps. -->
         <activity
-            android:name=".ui.MainActivity"
-            android:exported="true">
+            android:name=".hub.HubActivity"
+            android:exported="true"
+            android:theme="@style/Theme.ScreenshotCleaner">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
         <activity
-            android:name=".ui.DeleteConfirmActivity"
+            android:name=".currency.CurrencyActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ScreenshotCleaner"/>
+        <activity
+            android:name=".calendar.CalendarActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ScreenshotCleaner"/>
+        <activity
+            android:name=".calendar.EventCallActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true"
+            android:launchMode="singleInstance"
+            android:taskAffinity=""
+            android:theme="@style/Theme.ScreenshotCleaner"/>
+        <receiver
+            android:name=".calendar.alert.AlertReceiver"
+            android:exported="false"/>
+        <activity
+            android:name=".screenshots.ui.MainActivity"
+            android:exported="false"/>
+        <activity
+            android:name=".screenshots.ui.DeleteConfirmActivity"
             android:theme="@style/Theme.ScreenshotCleaner.Dialog"
             android:excludeFromRecents="true"
             android:showOnLockScreen="true"
@@ -38,30 +68,30 @@
             android:launchMode="singleInstance"
             android:taskAffinity=""/>
         <activity
-            android:name=".ui.EditDelayActivity"
+            android:name=".screenshots.ui.EditDelayActivity"
             android:theme="@style/Theme.ScreenshotCleaner.Dialog"
             android:excludeFromRecents="true"
             android:taskAffinity=""/>
         <activity
-            android:name=".ui.HistoryActivity"
+            android:name=".screenshots.ui.HistoryActivity"
             android:theme="@style/Theme.ScreenshotCleaner"
             android:exported="false"
-            android:parentActivityName=".ui.MainActivity"/>
+            android:parentActivityName=".screenshots.ui.MainActivity"/>
         <activity
-            android:name=".ui.ImagePreviewActivity"
+            android:name=".screenshots.ui.ImagePreviewActivity"
             android:theme="@style/Theme.ScreenshotCleaner"
             android:exported="false"
-            android:parentActivityName=".ui.HistoryActivity"/>
+            android:parentActivityName=".screenshots.ui.HistoryActivity"/>
 
         <!-- Broadcast Receivers -->
-        <receiver android:name=".receiver.CancelReceiver"/>
-        <receiver android:name=".receiver.DeleteRequestReceiver" android:exported="false">
+        <receiver android:name=".screenshots.receiver.CancelReceiver"/>
+        <receiver android:name=".screenshots.receiver.DeleteRequestReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="REQUEST_DELETE"/>
             </intent-filter>
         </receiver>
         <receiver
-            android:name=".receiver.BootReceiver"
+            android:name=".screenshots.receiver.BootReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
@@ -70,7 +100,7 @@
 
         <!-- Services -->
         <service
-            android:name=".service.ScreenshotService"
+            android:name=".screenshots.service.ScreenshotService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 

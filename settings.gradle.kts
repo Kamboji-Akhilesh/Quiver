@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Screenshot Cleaner"
+rootProject.name = "Quiver"
 include(":app")
