@@ -1,6 +1,8 @@
 package com.kamboji.quiver.ui
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -9,7 +11,9 @@ import android.provider.Settings
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import com.kamboji.quiver.R
@@ -26,6 +30,8 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.materialswitch.MaterialSwitch
 import kotlinx.coroutines.launch
 
+private const val KEY_PROMPTED_ALL_FILES = "prompted_all_files"
+
 class MainActivity : AppCompatActivity() {
 
     private lateinit var statusText: TextView
@@ -36,6 +42,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var chipGroup: ChipGroup
     private lateinit var themeChipGroup: ChipGroup
     private lateinit var serviceToggle: MaterialSwitch
+
+    private val permissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+            updateStatus()
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Apply saved theme before super.onCreate
@@ -151,7 +162,44 @@ class MainActivity : AppCompatActivity() {
 
         // Ensure old trash is pruned on a schedule, not only when History opens.
         CleanupWorker.schedule(this)
+
+        // Proactively request permissions instead of making the user dig through
+        // app settings (issue #2).
+        requestPermissionsOnLaunch()
     }
+
+    /**
+     * Requests the runtime permissions (notifications, media read) up front, and
+     * auto-opens the "All files access" prompt once on first launch — rather
+     * than requiring the user to enable everything manually in settings.
+     */
+    private fun requestPermissionsOnLaunch() {
+        val needed = buildList {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (!granted(Manifest.permission.POST_NOTIFICATIONS)) {
+                    add(Manifest.permission.POST_NOTIFICATIONS)
+                }
+                if (!granted(Manifest.permission.READ_MEDIA_IMAGES)) {
+                    add(Manifest.permission.READ_MEDIA_IMAGES)
+                }
+            }
+        }
+        if (needed.isNotEmpty()) permissionLauncher.launch(needed.toTypedArray())
+
+        // "All files access" can't be a runtime dialog (OS opens a settings
+        // screen), so auto-prompt it once on first launch.
+        val prefs = getSharedPreferences("settings", MODE_PRIVATE)
+        val needsAllFiles = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+            !Environment.isExternalStorageManager()
+        if (needsAllFiles && !prefs.getBoolean(KEY_PROMPTED_ALL_FILES, false)) {
+            prefs.edit().putBoolean(KEY_PROMPTED_ALL_FILES, true).apply()
+            requestStoragePermission()
+        }
+    }
+
+    private fun granted(permission: String): Boolean =
+        ContextCompat.checkSelfPermission(this, permission) ==
+            PackageManager.PERMISSION_GRANTED
 
     private fun startScreenshotService() {
         val intent = Intent(this, ScreenshotService::class.java)

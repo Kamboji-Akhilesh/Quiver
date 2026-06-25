@@ -44,6 +44,9 @@ class ScreenshotService : Service() {
     override fun onDestroy() {
         Log.d("SS_APP", "ScreenshotService destroyed")
         contentResolver.unregisterContentObserver(observer)
+        // Remove the foreground notification immediately so pausing actually
+        // looks (and is) stopped (issue #1).
+        stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }
 
