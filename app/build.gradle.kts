@@ -13,14 +13,28 @@ android {
         applicationId = "com.kamboji.quiver"
         minSdk = 29
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        // CI overrides these per build (via the GitHub Actions run number) so each
+        // release has a higher versionCode and installs as an update.
+        versionCode = (System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1)
+        versionName = System.getenv("VERSION_NAME") ?: "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildFeatures {
         compose = true
+    }
+
+    signingConfigs {
+        // Fixed, checked-in debug keystore so every build (local and CI) is
+        // signed with the SAME key — required for installing updates over a
+        // previous version without uninstalling. Debug-only; not sensitive.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
