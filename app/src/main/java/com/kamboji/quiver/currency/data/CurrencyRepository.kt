@@ -9,11 +9,16 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 import java.io.IOException
+import java.time.LocalDate
+import java.time.ZoneId
 
 /** Data + provenance: tells the UI whether rates are fresh or stale (offline). */
 data class Cached<T>(val data: T, val fetchedAtMillis: Long?, val isStale: Boolean)
 
 data class Currency(val symbol: String, val name: String, val rate: Double)
+
+/** A single (date, rate) sample from the historical time-series endpoint. */
+data class RatePoint(val dateMillis: Long, val rate: Double)
 
 data class LatestRates(val base: String, val date: String, val rates: Map<String, Double>) {
     fun rateFor(quote: String): Double? = if (quote == base) 1.0 else rates[quote]
@@ -67,6 +72,25 @@ class CurrencyRepository(
             .map { Currency(it.key, names.data[it.key] ?: it.key, it.value) }
             .sortedBy { it.name }
         return Cached(list, rates.fetchedAtMillis, rates.isStale || names.isStale)
+    }
+
+    /** Historical [from] -> [to] rates for the last [days] days. */
+    suspend fun timeSeries(from: String, to: String, days: Int): Cached<List<RatePoint>> {
+        val today = LocalDate.now()
+        val start = today.minusDays(days.toLong())
+        return fetch("series.$from.$to.$days", "$base/$start..$today?from=$from&to=$to") { json ->
+            val rates = json.getJSONObject("rates")
+            val points = mutableListOf<RatePoint>()
+            for (date in rates.keys()) {
+                val day = rates.getJSONObject(date)
+                if (day.has(to)) {
+                    val millis = LocalDate.parse(date)
+                        .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    points.add(RatePoint(millis, day.getDouble(to)))
+                }
+            }
+            points.sortedBy { it.dateMillis }
+        }
     }
 
     private suspend fun latestRates(from: String): Cached<LatestRates> =

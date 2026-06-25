@@ -7,58 +7,92 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kamboji.quiver.currency.data.Cached
+import com.kamboji.quiver.currency.data.Connectivity
 import com.kamboji.quiver.currency.data.Currency
 import com.kamboji.quiver.currency.data.CurrencyRepository
+import com.kamboji.quiver.currency.data.RatePoint
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-sealed interface CurrencyUi {
-    data object Loading : CurrencyUi
-    data class Error(val message: String) : CurrencyUi
-    data class Data(val cached: Cached<List<Currency>>) : CurrencyUi
+/** Generic async UI state. */
+sealed interface Ui<out T> {
+    data object Loading : Ui<Nothing>
+    data class Error(val message: String) : Ui<Nothing>
+    data class Data<T>(val value: T) : Ui<T>
+}
+
+enum class HistoryRange(val days: Int, val label: String) {
+    D30(30, "30 days"),
+    D60(60, "60 days"),
+    D90(90, "90 days"),
 }
 
 class CurrencyViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = CurrencyRepository(app)
 
-    var from by mutableStateOf("INR")
+    // --- Converter tab ---
+    var amount by mutableStateOf("250")
+    var from by mutableStateOf("USD")
         private set
-    var to by mutableStateOf("USD")
-    var amount by mutableStateOf("100")
+    var to by mutableStateOf("EUR")
+        private set
+    var range by mutableStateOf(HistoryRange.D30)
+        private set
 
-    private val _ui = MutableStateFlow<CurrencyUi>(CurrencyUi.Loading)
-    val ui = _ui.asStateFlow()
+    private val _converter = MutableStateFlow<Ui<Cached<List<Currency>>>>(Ui.Loading)
+    val converter = _converter.asStateFlow()
+    private val _series = MutableStateFlow<Ui<Cached<List<RatePoint>>>>(Ui.Loading)
+    val series = _series.asStateFlow()
 
-    init { load() }
+    // --- Rates tab ---
+    var ratesBase by mutableStateOf("INR")
+        private set
+    private val _rates = MutableStateFlow<Ui<Cached<List<Currency>>>>(Ui.Loading)
+    val rates = _rates.asStateFlow()
 
-    fun selectFrom(value: String) {
-        from = value
-        load()
+    init {
+        loadConverter()
+        loadSeries()
+        loadRates()
     }
 
-    fun swap() {
-        val f = from
-        from = to
-        to = f
-        load()
+    fun selectFrom(code: String) { from = code; loadConverter(); loadSeries() }
+    fun selectTo(code: String) { to = code; loadSeries() }
+    fun swap() { val f = from; from = to; to = f; loadConverter(); loadSeries() }
+    fun selectRange(r: HistoryRange) { range = r; loadSeries() }
+    fun selectRatesBase(code: String) { ratesBase = code; loadRates() }
+
+    fun loadConverter() {
+        _converter.value = Ui.Loading
+        viewModelScope.launch { _converter.value = attempt { repo.ratesWithNames(from) } }
     }
 
-    fun load() {
-        viewModelScope.launch {
-            _ui.value = CurrencyUi.Loading
-            _ui.value = try {
-                CurrencyUi.Data(repo.ratesWithNames(from))
-            } catch (e: Exception) {
-                CurrencyUi.Error(e.message ?: "Couldn't load rates.")
-            }
+    fun loadSeries() {
+        _series.value = Ui.Loading
+        viewModelScope.launch { _series.value = attempt { repo.timeSeries(from, to, range.days) } }
+    }
+
+    fun loadRates() {
+        _rates.value = Ui.Loading
+        viewModelScope.launch { _rates.value = attempt { repo.ratesWithNames(ratesBase) } }
+    }
+
+    /** Pull-to-refresh: reload without flashing the full-screen spinner. */
+    suspend fun refreshRates() {
+        _rates.value = attempt { repo.ratesWithNames(ratesBase) }
+    }
+
+    fun online(): Boolean = Connectivity.isOnline(getApplication())
+
+    /** Rate of 1 [from] in [to], from the loaded converter list. */
+    fun rateOf(to: String, list: List<Currency>): Double? =
+        if (to == from) 1.0 else list.firstOrNull { it.symbol == to }?.rate
+
+    private suspend fun <T> attempt(block: suspend () -> T): Ui<T> =
+        try {
+            Ui.Data(block())
+        } catch (e: Exception) {
+            Ui.Error(e.message ?: "Couldn't load rates.")
         }
-    }
-
-    /** Converted value for the current amount/to, from the loaded rates. */
-    fun convert(currencies: List<Currency>): Double? {
-        val amt = amount.toDoubleOrNull() ?: return null
-        val rate = if (to == from) 1.0 else currencies.firstOrNull { it.symbol == to }?.rate
-        return rate?.let { amt * it }
-    }
 }
