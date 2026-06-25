@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.screenshotcleaner"
+    namespace = "com.kamboji.quiver"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.screenshotcleaner"
+        applicationId = "com.kamboji.quiver"
         minSdk = 29
         targetSdk = 36
         versionCode = 1
