@@ -23,6 +23,18 @@ android {
         compose = true
     }
 
+    signingConfigs {
+        // Fixed, checked-in debug keystore so every build (local and CI) is
+        // signed with the SAME key — required for installing updates over a
+        // previous version without uninstalling. Debug-only; not sensitive.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
