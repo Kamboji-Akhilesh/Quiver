@@ -28,7 +28,7 @@
         <!-- UI Activities -->
         <!-- Bento hub is the launcher; it links to the mini-apps. -->
         <activity
-            android:name=".ui.hub.HubActivity"
+            android:name=".hub.HubActivity"
             android:exported="true"
             android:theme="@style/Theme.ScreenshotCleaner">
             <intent-filter>
@@ -37,15 +37,15 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".ui.currency.CurrencyActivity"
+            android:name=".currency.CurrencyActivity"
             android:exported="false"
             android:theme="@style/Theme.ScreenshotCleaner"/>
         <activity
-            android:name=".ui.calendar.CalendarActivity"
+            android:name=".calendar.CalendarActivity"
             android:exported="false"
             android:theme="@style/Theme.ScreenshotCleaner"/>
         <activity
-            android:name=".ui.calendar.EventCallActivity"
+            android:name=".calendar.EventCallActivity"
             android:exported="false"
             android:excludeFromRecents="true"
             android:showOnLockScreen="true"
@@ -54,13 +54,13 @@
             android:taskAffinity=""
             android:theme="@style/Theme.ScreenshotCleaner"/>
         <receiver
-            android:name=".ui.calendar.alert.AlertReceiver"
+            android:name=".calendar.alert.AlertReceiver"
             android:exported="false"/>
         <activity
-            android:name=".ui.MainActivity"
+            android:name=".screenshots.ui.MainActivity"
             android:exported="false"/>
         <activity
-            android:name=".ui.DeleteConfirmActivity"
+            android:name=".screenshots.ui.DeleteConfirmActivity"
             android:theme="@style/Theme.ScreenshotCleaner.Dialog"
             android:excludeFromRecents="true"
             android:showOnLockScreen="true"
@@ -68,30 +68,30 @@
             android:launchMode="singleInstance"
             android:taskAffinity=""/>
         <activity
-            android:name=".ui.EditDelayActivity"
+            android:name=".screenshots.ui.EditDelayActivity"
             android:theme="@style/Theme.ScreenshotCleaner.Dialog"
             android:excludeFromRecents="true"
             android:taskAffinity=""/>
         <activity
-            android:name=".ui.HistoryActivity"
+            android:name=".screenshots.ui.HistoryActivity"
             android:theme="@style/Theme.ScreenshotCleaner"
             android:exported="false"
-            android:parentActivityName=".ui.MainActivity"/>
+            android:parentActivityName=".screenshots.ui.MainActivity"/>
         <activity
-            android:name=".ui.ImagePreviewActivity"
+            android:name=".screenshots.ui.ImagePreviewActivity"
             android:theme="@style/Theme.ScreenshotCleaner"
             android:exported="false"
-            android:parentActivityName=".ui.HistoryActivity"/>
+            android:parentActivityName=".screenshots.ui.HistoryActivity"/>
 
         <!-- Broadcast Receivers -->
-        <receiver android:name=".receiver.CancelReceiver"/>
-        <receiver android:name=".receiver.DeleteRequestReceiver" android:exported="false">
+        <receiver android:name=".screenshots.receiver.CancelReceiver"/>
+        <receiver android:name=".screenshots.receiver.DeleteRequestReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="REQUEST_DELETE"/>
             </intent-filter>
         </receiver>
         <receiver
-            android:name=".receiver.BootReceiver"
+            android:name=".screenshots.receiver.BootReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
@@ -100,7 +100,7 @@
 
         <!-- Services -->
         <service
-            android:name=".service.ScreenshotService"
+            android:name=".screenshots.service.ScreenshotService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
