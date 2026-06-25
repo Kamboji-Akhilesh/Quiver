@@ -13,50 +13,49 @@ class ScreenshotObserver(
     handler: Handler
 ) : ContentObserver(handler) {
 
-    private var lastHandled = 0L
+    // Highest MediaStore _ID we've already handled. Dedupes the multiple
+    // onChange callbacks fired per insert WITHOUT dropping genuinely new
+    // screenshots (the previous time-based debounce dropped rapid captures).
+    private var lastHandledId = -1L
 
     override fun onChange(selfChange: Boolean, uri: Uri?) {
         super.onChange(selfChange, uri)
         Log.d("SS_APP", "ScreenshotObserver: onChange uri=$uri")
-        checkLatestImage()
+        checkRecentScreenshots()
     }
 
-    private fun checkLatestImage() {
+    private fun checkRecentScreenshots() {
+        val nowSec = System.currentTimeMillis() / 1000
+        // Only look at the last few seconds, and only the Screenshots folder,
+        // so we never re-scan the whole gallery.
+        val selection =
+            "${MediaStore.Images.Media.DATE_ADDED} >= ? AND " +
+                "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?"
+        val selectionArgs = arrayOf((nowSec - 3).toString(), "%Screenshots%")
+
         val cursor = context.contentResolver.query(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            arrayOf(
-                MediaStore.Images.Media._ID,
-                MediaStore.Images.Media.RELATIVE_PATH,
-                MediaStore.Images.Media.DATE_ADDED
-            ),
-            null,
-            null,
-            "${MediaStore.Images.Media.DATE_ADDED} DESC"
+            arrayOf(MediaStore.Images.Media._ID),
+            selection,
+            selectionArgs,
+            // Oldest first so a burst is handled in capture order.
+            "${MediaStore.Images.Media.DATE_ADDED} ASC"
         ) ?: return
 
         cursor.use {
-            if (!it.moveToFirst()) return
+            val idCol = it.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            while (it.moveToNext()) {
+                val id = it.getLong(idCol)
+                if (id <= lastHandledId) continue // already handled this one
+                lastHandledId = id
 
-            val id = it.getLong(0)
-            val path = it.getString(1)
-            val date = it.getLong(2)
-
-            val nowSec = System.currentTimeMillis() / 1000
-            if (nowSec - date > 3) return
-            if (!path.contains("Screenshots", true)) return
-
-            val now = System.currentTimeMillis()
-            if (now - lastHandled < 1500) return
-            lastHandled = now
-
-            val uri = Uri.withAppendedPath(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                id.toString()
-            )
-
-            Log.d("SS_APP", "ScreenshotObserver: detected screenshot uri=$uri path=$path")
-            ScreenshotNotification.handleScreenshot(context, uri)
+                val uri = Uri.withAppendedPath(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    id.toString()
+                )
+                Log.d("SS_APP", "ScreenshotObserver: detected new screenshot uri=$uri")
+                ScreenshotNotification.handleScreenshot(context, uri)
+            }
         }
     }
 }
-

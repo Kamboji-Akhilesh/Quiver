@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import com.example.screenshotcleaner.service.ScreenshotService
+import com.example.screenshotcleaner.worker.CleanupWorker
 
 /**
  * Receiver that starts the ScreenshotService when the device boots up.
@@ -22,6 +23,9 @@ class BootReceiver : BroadcastReceiver() {
             } else {
                 context.startService(serviceIntent)
             }
+
+            // Re-arm the periodic trash cleanup after reboot.
+            CleanupWorker.schedule(context)
         }
     }
 }

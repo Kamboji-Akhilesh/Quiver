@@ -19,6 +19,7 @@ import com.example.screenshotcleaner.data.db.AppDatabase
 import com.example.screenshotcleaner.data.models.DeleteDelay
 import com.example.screenshotcleaner.data.models.DelayUnit
 import com.example.screenshotcleaner.service.ScreenshotService
+import com.example.screenshotcleaner.worker.CleanupWorker
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.chip.ChipGroup
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -147,6 +148,9 @@ class MainActivity : AppCompatActivity() {
 
         // Check permission on first launch
         checkStoragePermission()
+
+        // Ensure old trash is pruned on a schedule, not only when History opens.
+        CleanupWorker.schedule(this)
     }
 
     private fun startScreenshotService() {
