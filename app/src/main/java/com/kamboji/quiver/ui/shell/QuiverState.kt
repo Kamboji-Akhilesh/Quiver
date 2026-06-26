@@ -38,13 +38,11 @@ class QuiverState {
         call = CallPhase.Ringing
     }
 
-    /** Bento personalization: tile span (1 or 2 columns) and pinned-to-top. */
+    /**
+     * Bento personalization: pinned tiles sort to the top AND render as the
+     * large featured size; unpinned tiles are small and pair into rows.
+     */
     var editMode by mutableStateOf(false)
-    val tileSize = mutableStateMapOf(
-        AppKey.Screenshots to 2,
-        AppKey.Currency to 1,
-        AppKey.Calendar to 1,
-    )
     val pinned = mutableStateMapOf(
         AppKey.Screenshots to true,
         AppKey.Currency to false,

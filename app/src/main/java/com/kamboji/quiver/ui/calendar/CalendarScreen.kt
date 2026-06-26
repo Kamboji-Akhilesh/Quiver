@@ -52,6 +52,7 @@ import com.kamboji.quiver.calendar.data.AlertLead
 import com.kamboji.quiver.calendar.data.AlertStyle
 import com.kamboji.quiver.calendar.data.CalendarEntry
 import com.kamboji.quiver.calendar.data.EntryType
+import com.kamboji.quiver.ui.components.QuiverModalSheet
 import com.kamboji.quiver.ui.components.QvIconButton
 import com.kamboji.quiver.ui.components.QvTopBar
 import com.kamboji.quiver.ui.components.glass
@@ -182,11 +183,10 @@ fun CalendarScreen(state: QuiverState) {
                         alertLead = AlertLead.MIN10, createdAtMillis = System.currentTimeMillis(),
                     ),
                 )
-                sheet = null
                 state.toast("Added to ${month.month.name.lowercase().replaceFirstChar { c -> c.uppercase() }.take(3)} ${selected.dayOfMonth}", ToastKind.Success)
             }
             is CalSheet.View -> EventViewSheet(s.entry, ac, onDismiss = { sheet = null }) {
-                vm.delete(s.entry.id); sheet = null; state.toast("Event deleted", ToastKind.Error)
+                vm.delete(s.entry.id); state.toast("Event deleted", ToastKind.Error)
             }
             null -> Unit
         }
@@ -314,23 +314,14 @@ private sealed interface CalSheet {
 }
 
 @Composable
-private fun SheetScaffold(onDismiss: () -> Unit, title: String, content: @Composable () -> Unit) {
+private fun SheetScaffold(onDismiss: () -> Unit, title: String, content: @Composable (hide: () -> Unit) -> Unit) {
     val colors = Quiver.colors
-    Box(
-        Modifier.fillMaxSize().background(Color(0x8C04040A)).clickable(remember { MutableInteractionSource() }, null, onClick = onDismiss),
-        contentAlignment = Alignment.BottomCenter,
-    ) {
+    QuiverModalSheet(onDismiss) { hide ->
         Column(
-            Modifier.fillMaxWidth().clickable(remember { MutableInteractionSource() }, null) {}
-                .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                .background(if (colors.dark) Color(0xF012121C) else Color(0xF5FAFBFE))
-                .border(1.dp, colors.border, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
         ) {
-            Box(Modifier.padding(bottom = 16.dp).size(width = 40.dp, height = 5.dp).clip(RoundedCornerShape(4.dp)).background(colors.border2))
             Text(title, fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp))
-            content()
+            content(hide)
         }
     }
 }
@@ -340,7 +331,7 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onA
     val colors = Quiver.colors
     var title by remember { mutableStateOf("") }
     var kind by remember { mutableStateOf(Kind.Event) }
-    SheetScaffold(onDismiss, "New ${kind.name.lowercase()}") {
+    SheetScaffold(onDismiss, "New ${kind.name.lowercase()}") { hide ->
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 15.dp),
@@ -359,7 +350,7 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onA
             }
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(ac.a, ac.b)))
-                    .clickable(enabled = title.isNotBlank()) { onAdd(if (kind == Kind.Task) EntryType.TASK else EntryType.EVENT, kind, title.trim()) }
+                    .clickable(enabled = title.isNotBlank()) { onAdd(if (kind == Kind.Task) EntryType.TASK else EntryType.EVENT, kind, title.trim()); hide() }
                     .padding(vertical = 15.dp),
                 contentAlignment = Alignment.Center,
             ) { Text("Add ${kind.name.lowercase()}", color = Color(0xFF06121A), fontSize = 15.sp, fontWeight = FontWeight.Bold) }
@@ -393,7 +384,7 @@ private fun TypeChip(label: String, value: Kind, current: Kind, ac: Accent, modi
 @Composable
 private fun EventViewSheet(e: CalendarEntry, ac: Accent, onDismiss: () -> Unit, onDelete: () -> Unit) {
     val colors = Quiver.colors
-    SheetScaffold(onDismiss, e.title) {
+    SheetScaffold(onDismiss, e.title) { hide ->
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(16.dp)).padding(15.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(ac.a.copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
@@ -405,10 +396,10 @@ private fun EventViewSheet(e: CalendarEntry, ac: Accent, onDismiss: () -> Unit, 
                 }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(14.dp)).clickable(onClick = onDismiss).padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(14.dp)).clickable { hide() }.padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
                     Text("Close", color = colors.text, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
                 }
-                Box(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(CallPink.copy(alpha = 0.12f)).border(1.dp, CallPink.copy(alpha = 0.4f), RoundedCornerShape(14.dp)).clickable(onClick = onDelete).padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(CallPink.copy(alpha = 0.12f)).border(1.dp, CallPink.copy(alpha = 0.4f), RoundedCornerShape(14.dp)).clickable { onDelete(); hide() }.padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
                     Text("Delete", color = CallPink, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
                 }
             }

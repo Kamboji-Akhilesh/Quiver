@@ -1,5 +1,11 @@
 package com.kamboji.quiver.ui.shell
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,6 +38,22 @@ import com.kamboji.quiver.ui.theme.QuiverTheme
 fun QuiverApp() {
     val state = remember { QuiverState() }
     val accent = Accents.of(state.app)
+
+    // System back: unwind overlays/screens instead of leaving the app. Disabled
+    // (falls through to exit) only when sitting on the Hub with nothing open.
+    val onHubIdle = state.app == AppKey.Hub && !state.searchOpen && !state.aiOpen &&
+        !state.launcherOpen && state.call == null
+    BackHandler(enabled = !onHubIdle) {
+        when {
+            state.call != null -> state.call = null
+            state.searchOpen -> state.searchOpen = false
+            state.aiOpen -> state.aiOpen = false
+            state.launcherOpen -> state.launcherOpen = false
+            state.app == AppKey.Screenshots && state.screenshotsScreen == "history" -> state.screenshotsScreen = "home"
+            state.app != AppKey.Hub -> state.go(AppKey.Hub)
+        }
+    }
+
     QuiverTheme(dark = state.dark, accent = accent) {
         val colors = Quiver.colors
         Box(Modifier.fillMaxSize().background(colors.bg)) {
@@ -47,16 +69,20 @@ fun QuiverApp() {
                 }
             }
 
-            // Dock
-            Dock(
-                state,
-                Modifier
+            // Dock — only on Home, so sub-screen sheets are never covered by it.
+            AnimatedVisibility(
+                visible = state.app == AppKey.Hub,
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut(),
+                modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
                     .padding(bottom = 8.dp),
-            )
+            ) {
+                Dock(state)
+            }
 
-            // Overlays (each draws its own scrim / sheet)
+            // Overlays (each draws its own scrim / sheet, above the dock)
             if (state.launcherOpen) Launcher(state)
             if (state.searchOpen) SearchOverlay(state)
             if (state.aiOpen) AiPanel(state)

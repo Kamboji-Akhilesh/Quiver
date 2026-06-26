@@ -1,5 +1,6 @@
 package com.kamboji.quiver.ui.components
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -8,6 +9,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -15,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -144,7 +147,7 @@ fun Pill(
     }
 }
 
-/** Pill toggle with the accent gradient when on. */
+/** Pill toggle with the accent gradient when on; the knob slides on change. */
 @Composable
 fun QvToggle(
     on: Boolean,
@@ -153,18 +156,15 @@ fun QvToggle(
     modifier: Modifier = Modifier,
 ) {
     val colors = Quiver.colors
+    val knobShift by animateDpAsState(if (on) 24.dp else 0.dp, label = "knob")
+    val trackOff = if (colors.dark) Color(0x24FFFFFF) else Color(0x2412162D)
     Box(
         modifier
             .size(width = 56.dp, height = 32.dp)
             .clip(CircleShape)
             .background(
                 if (on) Brush.linearGradient(listOf(accent.a, accent.b))
-                else Brush.linearGradient(
-                    listOf(
-                        if (colors.dark) Color(0x24FFFFFF) else Color(0x2412162D),
-                        if (colors.dark) Color(0x24FFFFFF) else Color(0x2412162D),
-                    ),
-                ),
+                else Brush.linearGradient(listOf(trackOff, trackOff)),
             )
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
@@ -172,10 +172,11 @@ fun QvToggle(
                 onClick = onToggle,
             )
             .padding(3.dp),
-        contentAlignment = if (on) Alignment.CenterEnd else Alignment.CenterStart,
+        contentAlignment = Alignment.CenterStart,
     ) {
         Box(
             Modifier
+                .offset(x = knobShift)
                 .size(26.dp)
                 .clip(CircleShape)
                 .background(Color.White),

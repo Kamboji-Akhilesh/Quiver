@@ -1,5 +1,6 @@
 package com.kamboji.quiver.ui.currency
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -40,9 +41,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -50,9 +56,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kamboji.quiver.currency.CurrencyViewModel
+import com.kamboji.quiver.currency.HistoryRange
 import com.kamboji.quiver.currency.Ui
 import com.kamboji.quiver.currency.data.Cached
 import com.kamboji.quiver.currency.data.Currency
+import com.kamboji.quiver.ui.components.QuiverModalSheet
 import com.kamboji.quiver.ui.components.QvTopBar
 import com.kamboji.quiver.ui.components.SectionLabel
 import com.kamboji.quiver.ui.components.glass
@@ -103,10 +111,7 @@ fun CurrencyScreen(state: QuiverState) {
             CurrencyPicker(
                 vm = vm,
                 forFrom = pickerFor == "from",
-                onPick = { code ->
-                    if (pickerFor == "from") vm.selectFrom(code) else vm.selectTo(code)
-                    pickerFor = null
-                },
+                onPick = { code -> if (pickerFor == "from") vm.selectFrom(code) else vm.selectTo(code) },
                 onDismiss = { pickerFor = null },
             )
         }
@@ -213,6 +218,84 @@ private fun ConvertTab(vm: CurrencyViewModel, ac: Accent, openPicker: (String) -
                 fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = if (stale) Color(0xFFFBBF24) else colors.dim,
             )
         }
+
+        // real historical trend for the from→to pair
+        Spacer(Modifier.height(16.dp))
+        TrendSection(vm, ac)
+    }
+}
+
+@Composable
+private fun TrendSection(vm: CurrencyViewModel, ac: Accent) {
+    val colors = Quiver.colors
+    val seriesUi by vm.series.collectAsState()
+    val points = (seriesUi as? Ui.Data)?.value?.data ?: emptyList()
+    val first = points.firstOrNull()?.rate
+    val last = points.lastOrNull()?.rate
+    val changePct = if (first != null && last != null && first != 0.0) (last - first) / first * 100 else null
+    val up = (changePct ?: 0.0) >= 0
+    val lineColor = if (up) Color(0xFF34D399) else Color(0xFFFB7185)
+
+    Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Column {
+                Text("${vm.from} → ${vm.to}", fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+                Text("${vm.range.label} trend", fontSize = 11.5.sp, color = colors.dim)
+            }
+            if (changePct != null) {
+                Text(
+                    (if (up) "▲ " else "▼ ") + "%.2f%%".format(kotlin.math.abs(changePct)),
+                    fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = lineColor,
+                )
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        if (points.size < 2) {
+            Box(Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
+                Text(if (seriesUi is Ui.Loading) "Loading trend…" else "No trend data", color = colors.faint, fontSize = 12.sp)
+            }
+        } else {
+            Sparkline(points.map { it.rate }, lineColor, Modifier.fillMaxWidth().height(80.dp))
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            HistoryRange.entries.forEach { r ->
+                val sel = vm.range == r
+                Box(
+                    Modifier.clip(RoundedCornerShape(100.dp))
+                        .background(if (sel) ac.a.copy(alpha = 0.18f) else Color.Transparent)
+                        .border(1.dp, if (sel) ac.a.copy(alpha = 0.4f) else colors.border, RoundedCornerShape(100.dp))
+                        .clickable { vm.selectRange(r) }.padding(horizontal = 13.dp, vertical = 6.dp),
+                ) { Text(r.label, color = if (sel) ac.txt(colors.dark) else colors.dim, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Sparkline(values: List<Double>, color: Color, modifier: Modifier) {
+    val fill = color.copy(alpha = 0.14f)
+    Canvas(modifier) {
+        val min = values.min()
+        val max = values.max()
+        val span = (max - min).takeIf { it > 0 } ?: 1.0
+        val w = size.width
+        val h = size.height
+        val dx = if (values.size > 1) w / (values.size - 1) else w
+        fun pt(i: Int): Offset {
+            val norm = ((values[i] - min) / span).toFloat()
+            return Offset(i * dx, h - norm * (h * 0.86f) - h * 0.07f)
+        }
+        val line = Path().apply {
+            moveTo(pt(0).x, pt(0).y)
+            for (i in 1 until values.size) lineTo(pt(i).x, pt(i).y)
+        }
+        val area = Path().apply {
+            addPath(line)
+            lineTo(w, h); lineTo(0f, h); close()
+        }
+        drawPath(area, brush = Brush.verticalGradient(listOf(fill, Color.Transparent)))
+        drawPath(line, color = color, style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 }
 
@@ -313,28 +396,17 @@ private fun CurrencyPicker(vm: CurrencyViewModel, forFrom: Boolean, onPick: (Str
     val current = if (forFrom) vm.from else vm.to
     val ac = Accents.Currency
 
-    Box(
-        Modifier.fillMaxSize().background(Color(0x8C04040A)).clickable(remember { MutableInteractionSource() }, null, onClick = onDismiss),
-        contentAlignment = Alignment.BottomCenter,
-    ) {
-        Column(
-            Modifier.fillMaxWidth().clickable(remember { MutableInteractionSource() }, null) {}
-                .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                .background(if (colors.dark) Color(0xF012121C) else Color(0xF5FAFBFE))
-                .border(1.dp, colors.border, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Box(Modifier.padding(bottom = 16.dp).size(width = 40.dp, height = 5.dp).clip(RoundedCornerShape(4.dp)).background(colors.border2))
+    QuiverModalSheet(onDismiss) { hide ->
+        Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 24.dp)) {
             Text("Select currency", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text, modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp))
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 380.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 items(codes, key = { it.symbol }) { c ->
                     val sel = c.symbol == current
                     Row(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
                             .background(if (sel) ac.a.copy(alpha = 0.14f) else Color.Transparent)
                             .border(1.dp, if (sel) ac.a.copy(alpha = 0.4f) else Color.Transparent, RoundedCornerShape(16.dp))
-                            .clickable { onPick(c.symbol) }.padding(horizontal = 14.dp, vertical = 13.dp),
+                            .clickable { onPick(c.symbol); hide() }.padding(horizontal = 14.dp, vertical = 13.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp),
                     ) {
                         Text(flag(c.symbol), fontSize = 26.sp)

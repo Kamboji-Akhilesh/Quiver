@@ -36,6 +36,7 @@ import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,10 +48,17 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kamboji.quiver.calendar.CalendarViewModel
+import com.kamboji.quiver.currency.CurrencyViewModel
+import com.kamboji.quiver.currency.Ui
+import com.kamboji.quiver.screenshots.data.db.AppDatabase
+import com.kamboji.quiver.ui.components.QuiverModalSheet
 import com.kamboji.quiver.ui.components.SectionLabel
 import com.kamboji.quiver.ui.components.glass
 import com.kamboji.quiver.ui.theme.Accent
@@ -58,47 +66,20 @@ import com.kamboji.quiver.ui.theme.Accents
 import com.kamboji.quiver.ui.theme.AppKey
 import com.kamboji.quiver.ui.theme.Display
 import com.kamboji.quiver.ui.theme.Quiver
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
-/** Dimmed scrim that closes [onClose] on background tap; hosts a bottom panel. */
-@Composable
-private fun OverlayScrim(onClose: () -> Unit, content: @Composable () -> Unit) {
-    Box(
-        Modifier.fillMaxSize().background(Color(0x8C04040A))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClose,
-            ),
-        contentAlignment = Alignment.BottomCenter,
-    ) {
-        // Inner box swallows taps so they don't close the sheet.
-        Box(Modifier.clickable(remember { MutableInteractionSource() }, null) {}) { content() }
-    }
-}
-
-@Composable
-private fun SheetHandle() {
-    val colors = Quiver.colors
-    Box(
-        Modifier.padding(bottom = 16.dp).width(40.dp).height(5.dp)
-            .clip(RoundedCornerShape(4.dp)).background(colors.border2),
-    )
-}
 
 /** App launcher bottom sheet. */
 @Composable
 fun Launcher(state: QuiverState) {
     val colors = Quiver.colors
-    OverlayScrim({ state.launcherOpen = false }) {
+    QuiverModalSheet(onDismiss = { state.launcherOpen = false }) { _ ->
         Column(
-            Modifier.fillMaxWidth()
-                .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                .background(if (colors.dark) Color(0xDB10101A) else Color(0xEBF8F9FD))
-                .border(1.dp, colors.border, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 30.dp),
+            Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 30.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            SheetHandle()
             Text("Your apps", fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text, modifier = Modifier.fillMaxWidth())
             Text("Jump straight into any mini-app", fontSize = 13.sp, color = colors.dim, modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 18.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -221,26 +202,30 @@ fun SearchOverlay(state: QuiverState) {
 
 private data class Suggestion(val title: String, val sub: String, val icon: ImageVector, val app: AppKey)
 
-/** AI assistant bottom sheet. */
+/** AI assistant bottom sheet. Suggestions are built from real app state. */
 @Composable
 fun AiPanel(state: QuiverState) {
     val colors = Quiver.colors
-    val sug = remember {
-        listOf(
-            Suggestion("Free up 340 MB", "23 old screenshots can be cleaned", Icons.Outlined.Image, AppKey.Screenshots),
-            Suggestion("Rates moved", "EUR is up 0.4% since you last checked", Icons.Outlined.SwapHoriz, AppKey.Currency),
-            Suggestion("Reminder at 18:00", "Call Mom — want a call alert?", Icons.Outlined.Phone, AppKey.Calendar),
-        )
+    val context = LocalContext.current
+    val calVm: CalendarViewModel = viewModel()
+    val curVm: CurrencyViewModel = viewModel()
+    val entries by calVm.entries.collectAsState()
+    val todayCount = entries.count {
+        Instant.ofEpochMilli(it.startMillis).atZone(ZoneId.systemDefault()).toLocalDate() == LocalDate.now()
     }
-    OverlayScrim({ state.aiOpen = false }) {
-        Column(
-            Modifier.fillMaxWidth().fillMaxHeight(0.82f)
-                .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                .background(if (colors.dark) Color(0xF2141226) else Color(0xF5F8F9FD))
-                .border(1.dp, Color(0xFFA78BFA).copy(alpha = 0.35f), RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)),
-        ) {
-            Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                SheetHandle()
+    val dao = remember { AppDatabase.getDatabase(context).historyDao() }
+    val trash by remember { dao.getAllHistory() }.collectAsState(emptyList())
+    val converter by curVm.converter.collectAsState()
+    val rate = curVm.rateOf(curVm.to, (converter as? Ui.Data)?.value?.data ?: emptyList())
+    val sug = buildList {
+        if (trash.isNotEmpty()) add(Suggestion("Review your trash", "${trash.size} screenshot${if (trash.size == 1) "" else "s"} can be restored or cleared", Icons.Outlined.Image, AppKey.Screenshots))
+        if (todayCount > 0) add(Suggestion("Today's agenda", "$todayCount ${if (todayCount == 1) "item" else "items"} on your calendar today", Icons.Outlined.CalendarMonth, AppKey.Calendar))
+        if (rate != null) add(Suggestion("${curVm.from} → ${curVm.to}", "1 ${curVm.from} = ${"%.2f".format(rate)} ${curVm.to} right now", Icons.Outlined.SwapHoriz, AppKey.Currency))
+        if (isEmpty()) add(Suggestion("All caught up", "Nothing needs attention — explore your mini-apps", Icons.Filled.AutoAwesome, AppKey.Hub))
+    }
+    QuiverModalSheet(onDismiss = { state.aiOpen = false }) { hide ->
+        Column(Modifier.fillMaxWidth().fillMaxHeight(0.82f)) {
+            Column(Modifier.padding(start = 20.dp, end = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Box(Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(Brush.linearGradient(listOf(Color(0xFFA78BFA), Color(0xFF22D3EE)))), contentAlignment = Alignment.Center) {
                         Icon(Icons.Filled.AutoAwesome, null, Modifier.size(26.dp), tint = Color.White)
@@ -250,7 +235,7 @@ fun AiPanel(state: QuiverState) {
                         Text("● Online · understands all your apps", fontSize = 12.5.sp, color = Accents.Hub.txt(colors.dark), fontWeight = FontWeight.SemiBold)
                     }
                     Box(
-                        Modifier.size(38.dp).clip(CircleShape).background(colors.surf).border(1.dp, colors.border, CircleShape).clickable { state.aiOpen = false },
+                        Modifier.size(38.dp).clip(CircleShape).background(colors.surf).border(1.dp, colors.border, CircleShape).clickable { hide() },
                         contentAlignment = Alignment.Center,
                     ) { Icon(Icons.Filled.Close, null, Modifier.size(18.dp), tint = colors.text) }
                 }
@@ -258,7 +243,7 @@ fun AiPanel(state: QuiverState) {
             LazyColumn(Modifier.weight(1f).padding(horizontal = 20.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
                 item {
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(20.dp)).padding(16.dp)) {
-                        Text("Good morning, Aria. Here’s what I’d tackle first today — tap any card and I’ll do it for you.", fontSize = 14.5.sp, color = colors.text, lineHeight = 22.sp)
+                        Text("Here’s what stands out right now — tap any card and I’ll take you there.", fontSize = 14.5.sp, color = colors.text, lineHeight = 22.sp)
                     }
                     Spacer(Modifier.height(8.dp))
                     SectionLabel("Suggested for you")

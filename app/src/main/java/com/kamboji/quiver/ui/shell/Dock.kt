@@ -108,14 +108,14 @@ private fun DockItem(
     val colors = Quiver.colors
     Column(
         Modifier
-            .width(52.dp)
+            .width(58.dp)
             .clip(RoundedCornerShape(14.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick,
             )
-            .padding(vertical = 4.dp, horizontal = 6.dp),
+            .padding(vertical = 4.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(icon, label, Modifier.size(22.dp), tint = if (active) activeColor else colors.dim)
@@ -125,6 +125,8 @@ private fun DockItem(
             color = if (active) activeColor else colors.dim,
             fontSize = 9.5.sp,
             fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            softWrap = false,
         )
     }
 }

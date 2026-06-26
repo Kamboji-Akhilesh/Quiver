@@ -32,10 +32,10 @@ class CurrencyViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = CurrencyRepository(app)
 
     // --- Converter tab ---
-    var amount by mutableStateOf("250")
+    var amount by mutableStateOf("100")
     var from by mutableStateOf("USD")
         private set
-    var to by mutableStateOf("EUR")
+    var to by mutableStateOf("INR")
         private set
     var range by mutableStateOf(HistoryRange.D30)
         private set
