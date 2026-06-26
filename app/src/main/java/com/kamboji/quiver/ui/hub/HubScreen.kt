@@ -359,7 +359,7 @@ private fun BentoTile(
     val m = meta(app)
     Box(
         modifier
-            .height(if (big) 158.dp else 178.dp)
+            .height(if (big) 184.dp else 178.dp)
             .clip(RoundedCornerShape(28.dp))
             .background(
                 Brush.linearGradient(
