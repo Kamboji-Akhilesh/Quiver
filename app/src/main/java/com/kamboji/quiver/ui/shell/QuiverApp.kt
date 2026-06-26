@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.kamboji.quiver.ui.components.Aurora
+import com.kamboji.quiver.ui.currency.CurrencyScreen
 import com.kamboji.quiver.ui.hub.HubScreen
 import com.kamboji.quiver.ui.screenshots.ScreenshotsScreen
 import com.kamboji.quiver.ui.theme.Accents
@@ -39,7 +40,7 @@ fun QuiverApp() {
                 when (state.app) {
                     AppKey.Hub -> HubScreen(state)
                     AppKey.Screenshots -> ScreenshotsScreen(state)
-                    AppKey.Currency -> CurrencyPlaceholder(state)
+                    AppKey.Currency -> CurrencyScreen(state)
                     AppKey.Calendar -> CalendarPlaceholder(state)
                 }
             }
