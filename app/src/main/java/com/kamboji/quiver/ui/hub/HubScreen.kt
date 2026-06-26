@@ -203,7 +203,7 @@ fun HubScreen(state: QuiverState) {
         ) {
             QuickAction("Clean now", Icons.Outlined.Image, Accents.Screenshots) { state.go(AppKey.Screenshots) }
             QuickAction("Convert", Icons.Outlined.SwapHoriz, Accents.Currency) { state.go(AppKey.Currency) }
-            QuickAction("New event", Icons.Filled.Add, Accents.Calendar) { state.go(AppKey.Calendar) }
+            QuickAction("New event", Icons.Filled.Add, Accents.Calendar) { state.go(AppKey.Calendar); state.calendarStartNew = true }
             QuickAction("Ask AI", Icons.Filled.AutoAwesome, Accents.Hub) { state.closeOverlays(); state.aiOpen = true }
         }
 

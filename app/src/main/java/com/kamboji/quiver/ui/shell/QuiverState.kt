@@ -25,6 +25,9 @@ class QuiverState {
     /** Screenshots sub-screen: "home" or "history". */
     var screenshotsScreen by mutableStateOf("home")
 
+    /** One-shot: when true, the Calendar opens its new-entry composer on entry. */
+    var calendarStartNew by mutableStateOf(false)
+
     var searchOpen by mutableStateOf(false)
     var aiOpen by mutableStateOf(false)
     var launcherOpen by mutableStateOf(false)

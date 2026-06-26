@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -34,13 +35,17 @@ import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -119,6 +124,11 @@ fun CalendarScreen(state: QuiverState) {
     val dayItems = entries.filter { it.occursOn(selected) }
         .sortedWith(compareByDescending<CalendarEntry> { it.allDay }.thenBy { localTimeMin(it.startMillis) })
 
+    // Deep-link from Home's "New event" quick action.
+    LaunchedEffect(state.calendarStartNew) {
+        if (state.calendarStartNew) { sheet = CalSheet.New; state.calendarStartNew = false }
+    }
+
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 150.dp)) {
             QvTopBar(
@@ -188,7 +198,10 @@ fun CalendarScreen(state: QuiverState) {
         }
 
         when (val s = sheet) {
-            is CalSheet.New -> NewEventSheet(selected, ac, onDismiss = { sheet = null }) { draft ->
+            is CalSheet.New -> NewEventSheet(
+                selected, ac, onDismiss = { sheet = null },
+                onInvalid = { state.toast("Enter a title first", ToastKind.Info) },
+            ) { draft ->
                 vm.upsert(draft)
                 val d = localDate(draft.startMillis)
                 state.toast("Added to ${d.month.name.lowercase().replaceFirstChar { c -> c.uppercase() }.take(3)} ${d.dayOfMonth}", ToastKind.Success)
@@ -353,7 +366,7 @@ private fun SheetScaffold(onDismiss: () -> Unit, title: String, content: @Compos
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onAdd: (CalendarEntry) -> Unit) {
+private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onInvalid: () -> Unit, onAdd: (CalendarEntry) -> Unit) {
     val colors = Quiver.colors
     var title by remember { mutableStateOf("") }
     var type by remember { mutableStateOf(EntryType.EVENT) }
@@ -366,10 +379,12 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onA
     var repeatInterval by remember { mutableStateOf(1) }
     var showTime by remember { mutableStateOf(false) }
     var showDate by remember { mutableStateOf(false) }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 
     SheetScaffold(onDismiss, if (type == EntryType.TASK) "New task" else "New event") { hide ->
         Column(
-            Modifier.fillMaxWidth().heightIn(max = 540.dp).verticalScroll(rememberScrollState()),
+            Modifier.fillMaxWidth().heightIn(max = 540.dp).verticalScroll(rememberScrollState()).imePadding(),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             // title
@@ -377,7 +392,7 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onA
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 15.dp),
             ) {
                 if (title.isEmpty()) Text(if (type == EntryType.TASK) "Task title" else "Event title", color = colors.dim, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold)
-                BasicTextField(title, { title = it }, textStyle = TextStyle(color = colors.text, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold), cursorBrush = SolidColor(ac.a), singleLine = true, modifier = Modifier.fillMaxWidth())
+                BasicTextField(title, { title = it }, textStyle = TextStyle(color = colors.text, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold), cursorBrush = SolidColor(ac.a), singleLine = true, modifier = Modifier.fillMaxWidth().focusRequester(focus))
             }
             // type (Event / Task)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -419,9 +434,13 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onA
                 )
             }
             // add
+            val ready = title.isNotBlank()
             Box(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(ac.a, ac.b)))
-                    .clickable(enabled = title.isNotBlank()) {
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                    .background(Brush.linearGradient(listOf(ac.a, ac.b)))
+                    .alpha(if (ready) 1f else 0.5f)
+                    .clickable {
+                        if (!ready) { onInvalid(); return@clickable }
                         val start = date.atTime(hour, minute).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
                         onAdd(
                             CalendarEntry(
