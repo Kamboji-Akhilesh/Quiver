@@ -23,6 +23,7 @@ import com.kamboji.quiver.ui.calendar.CallAlert
 import com.kamboji.quiver.ui.components.Aurora
 import com.kamboji.quiver.ui.currency.CurrencyScreen
 import com.kamboji.quiver.ui.hub.HubScreen
+import com.kamboji.quiver.ui.ai.QuiverAiPanel
 import com.kamboji.quiver.ui.screenshots.ScreenshotsScreen
 import com.kamboji.quiver.ui.theme.Accents
 import com.kamboji.quiver.ui.theme.AppKey
@@ -85,7 +86,7 @@ fun QuiverApp() {
             // Overlays (each draws its own scrim / sheet, above the dock)
             if (state.launcherOpen) Launcher(state)
             if (state.searchOpen) SearchOverlay(state)
-            if (state.aiOpen) AiPanel(state)
+            if (state.aiOpen) QuiverAiPanel(onClose = { state.aiOpen = false })
 
             // Full-screen call alert sits above everything but the toast.
             if (state.call != null) CallAlert(state)

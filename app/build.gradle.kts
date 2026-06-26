@@ -87,6 +87,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.okhttp)
 
+    // On-device LLM (Quiver AI) — MediaPipe LLM Inference, runs Gemma locally.
+    implementation(libs.mediapipe.tasks.genai)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
