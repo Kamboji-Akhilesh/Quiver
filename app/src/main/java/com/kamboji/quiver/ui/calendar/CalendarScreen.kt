@@ -1,7 +1,5 @@
 package com.kamboji.quiver.ui.calendar
 
-import android.app.DatePickerDialog
-import android.app.TimePickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,10 +9,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -55,8 +56,12 @@ import com.kamboji.quiver.calendar.data.AlertLead
 import com.kamboji.quiver.calendar.data.AlertStyle
 import com.kamboji.quiver.calendar.data.CalendarEntry
 import com.kamboji.quiver.calendar.data.EntryType
+import com.kamboji.quiver.calendar.data.RepeatUnit
+import com.kamboji.quiver.ui.components.Pill
 import com.kamboji.quiver.ui.components.QuiverModalSheet
+import com.kamboji.quiver.ui.components.QvDatePickerDialog
 import com.kamboji.quiver.ui.components.QvIconButton
+import com.kamboji.quiver.ui.components.QvTimePickerDialog
 import com.kamboji.quiver.ui.components.QvTopBar
 import com.kamboji.quiver.ui.components.glass
 import com.kamboji.quiver.ui.shell.QuiverState
@@ -72,6 +77,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 private val CallPink = Color(0xFFFB7185)
@@ -87,6 +93,11 @@ private fun kindOf(e: CalendarEntry): Kind = when {
 
 private fun localDate(millis: Long): LocalDate =
     Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
+
+private fun localTimeMin(millis: Long): Int {
+    val t = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalTime()
+    return t.hour * 60 + t.minute
+}
 
 private fun timeLabel(e: CalendarEntry): String =
     if (e.allDay) "all-day"
@@ -105,9 +116,8 @@ fun CalendarScreen(state: QuiverState) {
     var sheet by remember { mutableStateOf<CalSheet?>(null) }
 
     val today = LocalDate.now()
-    val byDay = remember(entries) { entries.groupBy { localDate(it.startMillis) } }
-    val dayItems = (byDay[selected] ?: emptyList())
-        .sortedWith(compareByDescending<CalendarEntry> { it.allDay }.thenBy { it.startMillis })
+    val dayItems = entries.filter { it.occursOn(selected) }
+        .sortedWith(compareByDescending<CalendarEntry> { it.allDay }.thenBy { localTimeMin(it.startMillis) })
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 150.dp)) {
@@ -140,7 +150,7 @@ fun CalendarScreen(state: QuiverState) {
                         }
                     }
                     Spacer(Modifier.height(6.dp))
-                    MonthGrid(month, selected, today, byDay, ac) { selected = it }
+                    MonthGrid(month, selected, today, entries, ac) { selected = it }
                 }
 
                 // agenda header
@@ -159,14 +169,17 @@ fun CalendarScreen(state: QuiverState) {
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         dayItems.forEach { e ->
-                            EventRow(e, ac,
+                            EventRow(
+                                e, ac,
                                 onClick = {
-                                    when (kindOf(e)) {
-                                        Kind.Call -> state.startCall(e.title)
-                                        Kind.Task -> { vm.toggleDone(e.id); state.toast(if (!e.done) "Task completed ✓" else "Task reopened", if (!e.done) ToastKind.Success else ToastKind.Info) }
-                                        Kind.Event -> sheet = CalSheet.View(e)
+                                    if (e.isTask) {
+                                        vm.toggleDone(e.id)
+                                        state.toast(if (!e.done) "Task completed ✓" else "Task reopened", if (!e.done) ToastKind.Success else ToastKind.Info)
+                                    } else {
+                                        sheet = CalSheet.View(e)
                                     }
                                 },
+                                onCall = { state.startCall(e.title) },
                             )
                         }
                     }
@@ -175,17 +188,9 @@ fun CalendarScreen(state: QuiverState) {
         }
 
         when (val s = sheet) {
-            is CalSheet.New -> NewEventSheet(selected, ac, onDismiss = { sheet = null }) { type, kind, titleText, start ->
-                vm.upsert(
-                    CalendarEntry(
-                        id = 0, type = type, title = titleText, startMillis = start,
-                        endMillis = if (type == EntryType.EVENT) start + 3_600_000 else null,
-                        allDay = false, done = false,
-                        alertStyle = if (kind == Kind.Call) AlertStyle.CALL else AlertStyle.NOTIFICATION,
-                        alertLead = AlertLead.MIN10, createdAtMillis = System.currentTimeMillis(),
-                    ),
-                )
-                val d = localDate(start)
+            is CalSheet.New -> NewEventSheet(selected, ac, onDismiss = { sheet = null }) { draft ->
+                vm.upsert(draft)
+                val d = localDate(draft.startMillis)
                 state.toast("Added to ${d.month.name.lowercase().replaceFirstChar { c -> c.uppercase() }.take(3)} ${d.dayOfMonth}", ToastKind.Success)
             }
             is CalSheet.View -> EventViewSheet(s.entry, ac, onDismiss = { sheet = null }) {
@@ -201,11 +206,10 @@ private fun MonthGrid(
     month: YearMonth,
     selected: LocalDate,
     today: LocalDate,
-    byDay: Map<LocalDate, List<CalendarEntry>>,
+    entries: List<CalendarEntry>,
     ac: Accent,
     onSelect: (LocalDate) -> Unit,
 ) {
-    val colors = Quiver.colors
     val first = month.atDay(1)
     val lead = first.dayOfWeek.value % 7 // Sun-first leading blanks
     val days = month.lengthOfMonth()
@@ -219,7 +223,10 @@ private fun MonthGrid(
                 for (i in 0 until 7) {
                     val date = week.getOrNull(i)
                     Box(Modifier.weight(1f).aspectRatio(1f), contentAlignment = Alignment.Center) {
-                        if (date != null) DayCell(date, date == selected, date == today, byDay[date].orEmpty(), ac) { onSelect(date) }
+                        if (date != null) {
+                            val items = entries.filter { it.occursOn(date) }
+                            DayCell(date, date == selected, date == today, items, ac) { onSelect(date) }
+                        }
                     }
                 }
             }
@@ -259,10 +266,20 @@ private fun DayCell(date: LocalDate, isSel: Boolean, isToday: Boolean, items: Li
 }
 
 @Composable
-private fun EventRow(e: CalendarEntry, ac: Accent, onClick: () -> Unit) {
+private fun EventRow(e: CalendarEntry, ac: Accent, onClick: () -> Unit, onCall: () -> Unit) {
     val colors = Quiver.colors
-    val kind = kindOf(e)
-    val col = when (kind) { Kind.Call -> CallPink; Kind.Task -> TaskAmber; Kind.Event -> ac.a }
+    val col = if (e.alertStyle == AlertStyle.CALL) CallPink else if (e.isTask) TaskAmber else ac.a
+    val subtitle = when {
+        e.isTask && e.done -> "Completed"
+        else -> buildList {
+            if (e.repeats) add(e.repeatLabel())
+            when (e.alertStyle) {
+                AlertStyle.CALL -> add("Call reminder")
+                AlertStyle.NOTIFICATION -> add("Notification")
+                AlertStyle.NONE -> {}
+            }
+        }.joinToString(" · ").ifEmpty { if (e.isTask) "Tap to complete" else "Event" }
+    }
     Row(
         Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(14.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp),
@@ -270,9 +287,9 @@ private fun EventRow(e: CalendarEntry, ac: Accent, onClick: () -> Unit) {
         Box(Modifier.width(4.dp).height(40.dp).clip(RoundedCornerShape(4.dp)).background(col))
         Column(Modifier.width(46.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(timeLabel(e), fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
-            Text(kind.name.uppercase(), fontSize = 9.sp, fontWeight = FontWeight.Bold, color = colors.faint, letterSpacing = 0.5.sp)
+            Text(e.type.name, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = colors.faint, letterSpacing = 0.5.sp)
         }
-        if (kind == Kind.Task) {
+        if (e.isTask) {
             Box(
                 Modifier.size(24.dp).clip(RoundedCornerShape(8.dp))
                     .background(if (e.done) TaskAmber else Color.Transparent)
@@ -281,15 +298,20 @@ private fun EventRow(e: CalendarEntry, ac: Accent, onClick: () -> Unit) {
             ) { if (e.done) Icon(Icons.Filled.Check, null, Modifier.size(15.dp), tint = Color(0xFF1A1408)) }
         } else {
             Box(Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(col.copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
-                Icon(if (kind == Kind.Call) Icons.Outlined.Phone else Icons.Outlined.CalendarMonth, null, Modifier.size(18.dp), tint = col)
+                Icon(Icons.Outlined.CalendarMonth, null, Modifier.size(18.dp), tint = col)
             }
         }
         Column(Modifier.weight(1f)) {
             Text(e.title, fontSize = 14.5.sp, fontWeight = FontWeight.Bold, color = if (e.done) colors.dim else colors.text, textDecoration = if (e.done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null)
-            Text(
-                when (kind) { Kind.Call -> "Tap to preview call alert"; Kind.Task -> if (e.done) "Completed" else "Tap to complete"; Kind.Event -> "Event · Quiver Calendar" },
-                fontSize = 12.sp, color = colors.dim,
-            )
+            Text(subtitle, fontSize = 12.sp, color = colors.dim)
+        }
+        // Call alerts get a quick "preview" button.
+        if (e.alertStyle == AlertStyle.CALL) {
+            Box(
+                Modifier.size(34.dp).clip(androidx.compose.foundation.shape.CircleShape).background(CallPink)
+                    .clickable(onClick = onCall),
+                contentAlignment = Alignment.Center,
+            ) { Icon(Icons.Outlined.Phone, "Preview call", Modifier.size(17.dp), tint = Color.White) }
         }
     }
 }
@@ -329,54 +351,110 @@ private fun SheetScaffold(onDismiss: () -> Unit, title: String, content: @Compos
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onAdd: (EntryType, Kind, String, Long) -> Unit) {
+private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onAdd: (CalendarEntry) -> Unit) {
     val colors = Quiver.colors
-    val context = LocalContext.current
     var title by remember { mutableStateOf("") }
-    var kind by remember { mutableStateOf(Kind.Event) }
+    var type by remember { mutableStateOf(EntryType.EVENT) }
     var date by remember { mutableStateOf(day) }
-    var hour by remember { mutableStateOf(14) }
+    var hour by remember { mutableStateOf(9) }
     var minute by remember { mutableStateOf(0) }
+    var alert by remember { mutableStateOf(AlertStyle.NOTIFICATION) }
+    var lead by remember { mutableStateOf(AlertLead.AT_TIME) }
+    var repeatUnit by remember { mutableStateOf(RepeatUnit.NONE) }
+    var repeatInterval by remember { mutableStateOf(1) }
+    var showTime by remember { mutableStateOf(false) }
+    var showDate by remember { mutableStateOf(false) }
 
-    fun pickDate() {
-        DatePickerDialog(
-            context, { _, y, m, d -> date = LocalDate.of(y, m + 1, d) },
-            date.year, date.monthValue - 1, date.dayOfMonth,
-        ).show()
-    }
-    fun pickTime() {
-        TimePickerDialog(context, { _, h, mnt -> hour = h; minute = mnt }, hour, minute, true).show()
-    }
-
-    SheetScaffold(onDismiss, "New ${kind.name.lowercase()}") { hide ->
-        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    SheetScaffold(onDismiss, if (type == EntryType.TASK) "New task" else "New event") { hide ->
+        Column(
+            Modifier.fillMaxWidth().heightIn(max = 540.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            // title
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 15.dp),
             ) {
-                if (title.isEmpty()) Text("${kind.name} title", color = colors.dim, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold)
+                if (title.isEmpty()) Text(if (type == EntryType.TASK) "Task title" else "Event title", color = colors.dim, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold)
                 BasicTextField(title, { title = it }, textStyle = TextStyle(color = colors.text, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold), cursorBrush = SolidColor(ac.a), singleLine = true, modifier = Modifier.fillMaxWidth())
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                InfoChip(Icons.Outlined.CalendarMonth, "${date.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)} ${date.dayOfMonth}", ac, Modifier.weight(1f)) { pickDate() }
-                InfoChip(Icons.Outlined.Schedule, "%02d:%02d".format(hour, minute), ac, Modifier.weight(1f)) { pickTime() }
-            }
+            // type (Event / Task)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TypeChip("Event", Kind.Event, kind, ac, Modifier.weight(1f)) { kind = it }
-                TypeChip("Task", Kind.Task, kind, ac, Modifier.weight(1f)) { kind = it }
-                TypeChip("Call", Kind.Call, kind, ac, Modifier.weight(1f)) { kind = it }
+                SelectChip("Event", type == EntryType.EVENT, ac, Modifier.weight(1f)) { type = EntryType.EVENT }
+                SelectChip("Task", type == EntryType.TASK, ac, Modifier.weight(1f)) { type = EntryType.TASK }
             }
+            // date + time
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                InfoChip(Icons.Outlined.CalendarMonth, "${date.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)} ${date.dayOfMonth}", ac, Modifier.weight(1f)) { showDate = true }
+                InfoChip(Icons.Outlined.Schedule, "%02d:%02d".format(hour, minute), ac, Modifier.weight(1f)) { showTime = true }
+            }
+            // alert style
+            FieldLabel("Alert")
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SelectChip("None", alert == AlertStyle.NONE, ac, Modifier.weight(1f)) { alert = AlertStyle.NONE }
+                SelectChip("Notify", alert == AlertStyle.NOTIFICATION, ac, Modifier.weight(1f)) { alert = AlertStyle.NOTIFICATION }
+                SelectChip("Call", alert == AlertStyle.CALL, ac, Modifier.weight(1f)) { alert = AlertStyle.CALL }
+            }
+            // lead time
+            if (alert != AlertStyle.NONE) {
+                FieldLabel("Remind")
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AlertLead.entries.forEach { l -> Pill(l.label.replace(" before", ""), lead == l, ac, { lead = l }) }
+                }
+            }
+            // repeat
+            FieldLabel("Repeat")
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Pill("Never", repeatUnit == RepeatUnit.NONE, ac, { repeatUnit = RepeatUnit.NONE })
+                Pill("Daily", repeatUnit == RepeatUnit.DAILY, ac, { repeatUnit = RepeatUnit.DAILY })
+                Pill("Weekly", repeatUnit == RepeatUnit.WEEKLY, ac, { repeatUnit = RepeatUnit.WEEKLY })
+                Pill("Monthly", repeatUnit == RepeatUnit.MONTHLY, ac, { repeatUnit = RepeatUnit.MONTHLY })
+            }
+            if (repeatUnit != RepeatUnit.NONE) {
+                IntervalStepper(
+                    repeatInterval, repeatUnit, ac,
+                    onMinus = { if (repeatInterval > 1) repeatInterval-- },
+                    onPlus = { if (repeatInterval < 30) repeatInterval++ },
+                )
+            }
+            // add
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(ac.a, ac.b)))
                     .clickable(enabled = title.isNotBlank()) {
                         val start = date.atTime(hour, minute).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-                        onAdd(if (kind == Kind.Task) EntryType.TASK else EntryType.EVENT, kind, title.trim(), start); hide()
+                        onAdd(
+                            CalendarEntry(
+                                id = 0, type = type, title = title.trim(), startMillis = start,
+                                endMillis = if (type == EntryType.EVENT) start + 3_600_000 else null,
+                                allDay = false, done = false, alertStyle = alert, alertLead = lead,
+                                createdAtMillis = System.currentTimeMillis(),
+                                repeatUnit = repeatUnit, repeatInterval = repeatInterval,
+                            ),
+                        )
+                        hide()
                     }
                     .padding(vertical = 15.dp),
                 contentAlignment = Alignment.Center,
-            ) { Text("Add ${kind.name.lowercase()}", color = Color(0xFF06121A), fontSize = 15.sp, fontWeight = FontWeight.Bold) }
+            ) { Text(if (type == EntryType.TASK) "Add task" else "Add event", color = Color(0xFF06121A), fontSize = 15.sp, fontWeight = FontWeight.Bold) }
         }
     }
+
+    if (showTime) {
+        QvTimePickerDialog(hour, minute, ac, onConfirm = { h, m -> hour = h; minute = m }, onDismiss = { showTime = false })
+    }
+    if (showDate) {
+        QvDatePickerDialog(
+            date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(), ac,
+            onConfirm = { utc -> date = Instant.ofEpochMilli(utc).atZone(ZoneOffset.UTC).toLocalDate() },
+            onDismiss = { showDate = false },
+        )
+    }
+}
+
+@Composable
+private fun FieldLabel(text: String) {
+    Text(text.uppercase(), color = Quiver.colors.faint, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, modifier = Modifier.padding(start = 2.dp))
 }
 
 @Composable
@@ -393,17 +471,41 @@ private fun InfoChip(icon: ImageVector, label: String, ac: Accent, modifier: Mod
 }
 
 @Composable
-private fun TypeChip(label: String, value: Kind, current: Kind, ac: Accent, modifier: Modifier, onSelect: (Kind) -> Unit) {
+private fun SelectChip(label: String, selected: Boolean, ac: Accent, modifier: Modifier, onClick: () -> Unit) {
     val colors = Quiver.colors
-    val sel = value == current
     Row(
-        modifier.clip(RoundedCornerShape(14.dp)).background(if (sel) ac.a.copy(alpha = 0.14f) else Color.Transparent)
-            .border(1.dp, if (sel) ac.a.copy(alpha = 0.5f) else colors.border, RoundedCornerShape(14.dp))
-            .clickable { onSelect(value) }.padding(vertical = 12.dp),
+        modifier.clip(RoundedCornerShape(14.dp)).background(if (selected) ac.a.copy(alpha = 0.14f) else Color.Transparent)
+            .border(1.dp, if (selected) ac.a.copy(alpha = 0.5f) else colors.border, RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick).padding(vertical = 12.dp),
         horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, color = if (sel) ac.txt(colors.dark) else colors.dim, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = if (selected) ac.txt(colors.dark) else colors.dim, fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }
+}
+
+@Composable
+private fun IntervalStepper(value: Int, unit: RepeatUnit, ac: Accent, onMinus: () -> Unit, onPlus: () -> Unit) {
+    val colors = Quiver.colors
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(14.dp)).padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text("Every", color = colors.dim, fontSize = 14.sp)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            StepperButton("−", ac, onMinus)
+            Text("$value ${unit.label}${if (value > 1) "s" else ""}", color = colors.text, fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = Mono)
+            StepperButton("+", ac, onPlus)
+        }
+    }
+}
+
+@Composable
+private fun StepperButton(label: String, ac: Accent, onClick: () -> Unit) {
+    val colors = Quiver.colors
+    Box(
+        Modifier.size(30.dp).clip(RoundedCornerShape(10.dp)).background(ac.a.copy(alpha = 0.16f)).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { Text(label, color = ac.txt(colors.dark), fontSize = 18.sp, fontWeight = FontWeight.Bold) }
 }
 
 @Composable

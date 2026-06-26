@@ -10,12 +10,11 @@ import com.kamboji.quiver.calendar.data.CalendarEntry
 object AlertScheduler {
     const val ACTION = "com.kamboji.quiver.CALENDAR_ALERT"
 
-    /** Cancels any existing alarm and re-arms it for the entry's alert time. */
+    /** Cancels any existing alarm and re-arms it for the next (recurrence-aware) alert. */
     fun reschedule(context: Context, entry: CalendarEntry) {
         cancel(context, entry.id)
         if (entry.isTask && entry.done) return
-        val at = entry.alertTimeMillis() ?: return
-        if (at <= System.currentTimeMillis()) return
+        val at = entry.nextAlertAfter(System.currentTimeMillis()) ?: return
         scheduleAt(context, entry.id, at)
     }
 

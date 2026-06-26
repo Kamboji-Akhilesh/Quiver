@@ -18,5 +18,11 @@ class AlertReceiver : BroadcastReceiver() {
             AlertStyle.CALL -> AlertNotifier.showCall(context, entry)
             AlertStyle.NONE -> Unit
         }
+        // Re-arm the next occurrence for recurring entries.
+        if (entry.repeats) {
+            entry.nextAlertAfter(System.currentTimeMillis())?.let {
+                AlertScheduler.scheduleAt(context, entry.id, it)
+            }
+        }
     }
 }

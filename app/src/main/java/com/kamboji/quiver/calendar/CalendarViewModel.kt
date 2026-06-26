@@ -20,12 +20,13 @@ class CalendarViewModel(app: Application) : AndroidViewModel(app) {
 
     fun entriesForDay(date: LocalDate): List<CalendarEntry> =
         _entries.value
-            .filter { toLocalDate(it.startMillis) == date }
-            .sortedWith(compareByDescending<CalendarEntry> { it.allDay }.thenBy { it.startMillis })
+            .filter { it.occursOn(date) }
+            .sortedWith(compareByDescending<CalendarEntry> { it.allDay }.thenBy { timeOfDay(it.startMillis) })
 
-    /** Dates in the given month that have at least one entry (for grid dots). */
-    fun daysWithEntries(): Set<LocalDate> =
-        _entries.value.map { toLocalDate(it.startMillis) }.toSet()
+    private fun timeOfDay(millis: Long): Int {
+        val t = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalTime()
+        return t.hour * 60 + t.minute
+    }
 
     fun byId(id: Long): CalendarEntry? = _entries.value.firstOrNull { it.id == id }
 
