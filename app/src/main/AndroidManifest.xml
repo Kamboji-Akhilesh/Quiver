@@ -26,9 +26,9 @@
         android:theme="@style/Theme.ScreenshotCleaner">
 
         <!-- UI Activities -->
-        <!-- Bento hub is the launcher; it links to the mini-apps. -->
+        <!-- Redesigned single-surface hub is the launcher. -->
         <activity
-            android:name=".hub.HubActivity"
+            android:name=".ui.shell.QuiverActivity"
             android:exported="true"
             android:theme="@style/Theme.ScreenshotCleaner">
             <intent-filter>
@@ -36,6 +36,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Legacy bento hub, retained while screens migrate into the shell. -->
+        <activity
+            android:name=".hub.HubActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ScreenshotCleaner"/>
         <activity
             android:name=".currency.CurrencyActivity"
             android:exported="false"
