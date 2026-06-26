@@ -47,26 +47,40 @@ fun Dock(state: QuiverState, modifier: Modifier = Modifier) {
         modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Row(
-            Modifier
-                .clip(RoundedCornerShape(30.dp))
-                .background(if (colors.dark) Color(0xB814141F) else Color(0xC7FFFFFF))
-                .border(1.dp, colors.border, RoundedCornerShape(30.dp))
-                .padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            DockItem(Icons.Outlined.Home, "Home", state.app == AppKey.Hub, Accents.of(state.app).txt(colors.dark)) {
-                state.go(AppKey.Hub)
+        // The raised AI button overflows the pill's top edge, so it lives in a
+        // Box (which doesn't clip) overlaid on the row, with top space reserved
+        // for the protrusion. The row reserves a center gap for it.
+        Box(contentAlignment = Alignment.TopCenter) {
+            Row(
+                Modifier
+                    .padding(top = 24.dp)
+                    .clip(RoundedCornerShape(30.dp))
+                    .background(if (colors.dark) Color(0xB814141F) else Color(0xC7FFFFFF))
+                    .border(1.dp, colors.border, RoundedCornerShape(30.dp))
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                DockItem(Icons.Outlined.Home, "Home", state.app == AppKey.Hub, Accents.of(state.app).txt(colors.dark)) {
+                    state.go(AppKey.Hub)
+                }
+                DockItem(Icons.Outlined.Search, "Search", false, colors.dim) {
+                    state.closeOverlays(); state.searchOpen = true
+                }
+                // Reserved gap that the floating AI button sits over.
+                Spacer(Modifier.width(60.dp))
+                DockItem(Icons.Outlined.GridView, "Apps", false, colors.dim) {
+                    state.closeOverlays(); state.launcherOpen = true
+                }
+                DockItem(
+                    Icons.Outlined.CalendarMonth, "Calendar",
+                    state.app == AppKey.Calendar, Accents.Calendar.txt(colors.dark),
+                ) { state.go(AppKey.Calendar) }
             }
-            DockItem(Icons.Outlined.Search, "Search", false, colors.dim) {
-                state.closeOverlays(); state.searchOpen = true
-            }
-            // Center AI button
+            // Floating AI button — drawn on top, protruding above the pill.
             Box(
                 Modifier
-                    .padding(horizontal = 4.dp)
-                    .offset(y = (-22).dp)
+                    .align(Alignment.TopCenter)
                     .size(56.dp)
                     .clip(CircleShape)
                     .background(Brush.linearGradient(listOf(Color(0xFFA78BFA), Color(0xFF22D3EE))))
@@ -78,13 +92,6 @@ fun Dock(state: QuiverState, modifier: Modifier = Modifier) {
             ) {
                 Icon(Icons.Filled.AutoAwesome, "Quiver AI", Modifier.size(26.dp), tint = Color.White)
             }
-            DockItem(Icons.Outlined.GridView, "Apps", false, colors.dim) {
-                state.closeOverlays(); state.launcherOpen = true
-            }
-            DockItem(
-                Icons.Outlined.CalendarMonth, "Calendar",
-                state.app == AppKey.Calendar, Accents.Calendar.txt(colors.dark),
-            ) { state.go(AppKey.Calendar) }
         }
         Spacer(Modifier.height(9.dp))
         Box(

@@ -1,5 +1,7 @@
 package com.kamboji.quiver.ui.calendar
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -42,6 +44,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -172,8 +175,7 @@ fun CalendarScreen(state: QuiverState) {
         }
 
         when (val s = sheet) {
-            is CalSheet.New -> NewEventSheet(selected, ac, onDismiss = { sheet = null }) { type, kind, titleText ->
-                val start = selected.atTime(14, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            is CalSheet.New -> NewEventSheet(selected, ac, onDismiss = { sheet = null }) { type, kind, titleText, start ->
                 vm.upsert(
                     CalendarEntry(
                         id = 0, type = type, title = titleText, startMillis = start,
@@ -183,7 +185,8 @@ fun CalendarScreen(state: QuiverState) {
                         alertLead = AlertLead.MIN10, createdAtMillis = System.currentTimeMillis(),
                     ),
                 )
-                state.toast("Added to ${month.month.name.lowercase().replaceFirstChar { c -> c.uppercase() }.take(3)} ${selected.dayOfMonth}", ToastKind.Success)
+                val d = localDate(start)
+                state.toast("Added to ${d.month.name.lowercase().replaceFirstChar { c -> c.uppercase() }.take(3)} ${d.dayOfMonth}", ToastKind.Success)
             }
             is CalSheet.View -> EventViewSheet(s.entry, ac, onDismiss = { sheet = null }) {
                 vm.delete(s.entry.id); state.toast("Event deleted", ToastKind.Error)
@@ -327,10 +330,25 @@ private fun SheetScaffold(onDismiss: () -> Unit, title: String, content: @Compos
 }
 
 @Composable
-private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onAdd: (EntryType, Kind, String) -> Unit) {
+private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onAdd: (EntryType, Kind, String, Long) -> Unit) {
     val colors = Quiver.colors
+    val context = LocalContext.current
     var title by remember { mutableStateOf("") }
     var kind by remember { mutableStateOf(Kind.Event) }
+    var date by remember { mutableStateOf(day) }
+    var hour by remember { mutableStateOf(14) }
+    var minute by remember { mutableStateOf(0) }
+
+    fun pickDate() {
+        DatePickerDialog(
+            context, { _, y, m, d -> date = LocalDate.of(y, m + 1, d) },
+            date.year, date.monthValue - 1, date.dayOfMonth,
+        ).show()
+    }
+    fun pickTime() {
+        TimePickerDialog(context, { _, h, mnt -> hour = h; minute = mnt }, hour, minute, true).show()
+    }
+
     SheetScaffold(onDismiss, "New ${kind.name.lowercase()}") { hide ->
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(
@@ -340,8 +358,8 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onA
                 BasicTextField(title, { title = it }, textStyle = TextStyle(color = colors.text, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold), cursorBrush = SolidColor(ac.a), singleLine = true, modifier = Modifier.fillMaxWidth())
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                InfoChip(Icons.Outlined.CalendarMonth, "${day.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)} ${day.dayOfMonth}", ac, Modifier.weight(1f))
-                InfoChip(Icons.Outlined.Schedule, "14:00", ac, Modifier.weight(1f))
+                InfoChip(Icons.Outlined.CalendarMonth, "${date.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)} ${date.dayOfMonth}", ac, Modifier.weight(1f)) { pickDate() }
+                InfoChip(Icons.Outlined.Schedule, "%02d:%02d".format(hour, minute), ac, Modifier.weight(1f)) { pickTime() }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TypeChip("Event", Kind.Event, kind, ac, Modifier.weight(1f)) { kind = it }
@@ -350,7 +368,10 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onA
             }
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(ac.a, ac.b)))
-                    .clickable(enabled = title.isNotBlank()) { onAdd(if (kind == Kind.Task) EntryType.TASK else EntryType.EVENT, kind, title.trim()); hide() }
+                    .clickable(enabled = title.isNotBlank()) {
+                        val start = date.atTime(hour, minute).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        onAdd(if (kind == Kind.Task) EntryType.TASK else EntryType.EVENT, kind, title.trim(), start); hide()
+                    }
                     .padding(vertical = 15.dp),
                 contentAlignment = Alignment.Center,
             ) { Text("Add ${kind.name.lowercase()}", color = Color(0xFF06121A), fontSize = 15.sp, fontWeight = FontWeight.Bold) }
@@ -359,11 +380,15 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onA
 }
 
 @Composable
-private fun InfoChip(icon: ImageVector, label: String, ac: Accent, modifier: Modifier) {
+private fun InfoChip(icon: ImageVector, label: String, ac: Accent, modifier: Modifier, onClick: () -> Unit) {
     val colors = Quiver.colors
-    Row(modifier.clip(RoundedCornerShape(16.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(
+        modifier.clip(RoundedCornerShape(16.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 15.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         Icon(icon, null, Modifier.size(17.dp), tint = ac.txt(colors.dark))
-        Text(label, color = colors.dim, fontSize = 14.sp)
+        Text(label, color = colors.text, fontSize = 14.sp)
     }
 }
 
