@@ -19,6 +19,10 @@ android {
         versionName = System.getenv("VERSION_NAME") ?: "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // The MediaPipe GenAI native libs ship for 4 ABIs (~100 MB total).
+        // Real phones are arm64, so keep only that to slim the APK for Obtainium.
+        ndk { abiFilters += "arm64-v8a" }
     }
 
     buildFeatures {
