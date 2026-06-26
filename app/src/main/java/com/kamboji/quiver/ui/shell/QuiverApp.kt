@@ -12,6 +12,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.kamboji.quiver.ui.calendar.CalendarScreen
+import com.kamboji.quiver.ui.calendar.CallAlert
 import com.kamboji.quiver.ui.components.Aurora
 import com.kamboji.quiver.ui.currency.CurrencyScreen
 import com.kamboji.quiver.ui.hub.HubScreen
@@ -41,7 +43,7 @@ fun QuiverApp() {
                     AppKey.Hub -> HubScreen(state)
                     AppKey.Screenshots -> ScreenshotsScreen(state)
                     AppKey.Currency -> CurrencyScreen(state)
-                    AppKey.Calendar -> CalendarPlaceholder(state)
+                    AppKey.Calendar -> CalendarScreen(state)
                 }
             }
 
@@ -58,6 +60,9 @@ fun QuiverApp() {
             if (state.launcherOpen) Launcher(state)
             if (state.searchOpen) SearchOverlay(state)
             if (state.aiOpen) AiPanel(state)
+
+            // Full-screen call alert sits above everything but the toast.
+            if (state.call != null) CallAlert(state)
 
             // Toast on top of everything
             ToastHost(

@@ -10,21 +10,6 @@ enum class ToastKind { Success, Error, Info }
 
 data class ToastMsg(val text: String, val kind: ToastKind, val id: Long)
 
-/** Which bottom sheet is open, if any. */
-sealed interface Sheet {
-    /** Custom auto-delete delay picker (screenshots). */
-    data object Delay : Sheet
-
-    /** Currency picker; [forFrom] true = "from" slot, false = "to". */
-    data class CurrencyPicker(val forFrom: Boolean) : Sheet
-
-    /** New event/task/call composer (calendar). */
-    data object NewEvent : Sheet
-
-    /** Read-only event detail (calendar). */
-    data class EventView(val title: String, val time: String) : Sheet
-}
-
 /** Full-screen call-alert phase. */
 enum class CallPhase { Ringing, Reading }
 
@@ -43,9 +28,15 @@ class QuiverState {
     var searchOpen by mutableStateOf(false)
     var aiOpen by mutableStateOf(false)
     var launcherOpen by mutableStateOf(false)
-    var sheet by mutableStateOf<Sheet?>(null)
     var call by mutableStateOf<CallPhase?>(null)
+    var callTitle by mutableStateOf("Reminder")
     var toast by mutableStateOf<ToastMsg?>(null)
+
+    /** Opens the full-screen call alert for [title] in its ringing phase. */
+    fun startCall(title: String) {
+        callTitle = title
+        call = CallPhase.Ringing
+    }
 
     /** Bento personalization: tile span (1 or 2 columns) and pinned-to-top. */
     var editMode by mutableStateOf(false)
@@ -68,7 +59,6 @@ class QuiverState {
         searchOpen = false
         aiOpen = false
         launcherOpen = false
-        sheet = null
     }
 
     fun go(target: AppKey) {
