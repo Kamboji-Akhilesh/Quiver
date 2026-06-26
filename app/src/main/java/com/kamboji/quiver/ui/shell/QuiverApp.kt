@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.kamboji.quiver.ui.components.Aurora
 import com.kamboji.quiver.ui.hub.HubScreen
+import com.kamboji.quiver.ui.screenshots.ScreenshotsScreen
 import com.kamboji.quiver.ui.theme.Accents
 import com.kamboji.quiver.ui.theme.AppKey
 import com.kamboji.quiver.ui.theme.Quiver
@@ -37,7 +38,7 @@ fun QuiverApp() {
             Box(Modifier.fillMaxSize().statusBarsPadding()) {
                 when (state.app) {
                     AppKey.Hub -> HubScreen(state)
-                    AppKey.Screenshots -> ScreenshotsPlaceholder(state)
+                    AppKey.Screenshots -> ScreenshotsScreen(state)
                     AppKey.Currency -> CurrencyPlaceholder(state)
                     AppKey.Calendar -> CalendarPlaceholder(state)
                 }
