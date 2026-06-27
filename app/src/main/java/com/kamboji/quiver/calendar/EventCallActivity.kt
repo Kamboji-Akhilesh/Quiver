@@ -48,8 +48,11 @@ import com.kamboji.quiver.ai.VoiceController
 import com.kamboji.quiver.ai.VoiceLanguages
 import com.kamboji.quiver.calendar.alert.AlertNotifier
 import com.kamboji.quiver.calendar.alert.AlertScheduler
+import com.kamboji.quiver.calendar.data.AlertLead
+import com.kamboji.quiver.calendar.data.AlertStyle
 import com.kamboji.quiver.calendar.data.CalendarEntry
 import com.kamboji.quiver.calendar.data.CalendarStore
+import com.kamboji.quiver.calendar.data.EntryType
 import com.kamboji.quiver.hub.theme.AppTheme
 import java.util.Locale
 
@@ -68,7 +71,17 @@ class EventCallActivity : ComponentActivity() {
         setTurnScreenOn(true)
 
         val id = intent.getLongExtra("id", -1L)
-        val entry = CalendarStore(this).getAll().firstOrNull { it.id == id }
+        val stored = CalendarStore(this).getAll().firstOrNull { it.id == id }
+        // Fall back to the title passed in the intent (e.g. the connectivity test,
+        // or if the entry was removed) so the call still shows.
+        val entry = stored ?: intent.getStringExtra("title")?.let { t ->
+            CalendarEntry(
+                id = id, type = EntryType.EVENT, title = t, startMillis = System.currentTimeMillis(),
+                endMillis = null, allDay = false, done = false,
+                alertStyle = AlertStyle.CALL, alertLead = AlertLead.AT_TIME,
+                createdAtMillis = System.currentTimeMillis(),
+            )
+        }
         if (entry == null) { finish(); return }
 
         getSystemService(NotificationManager::class.java).cancel(AlertNotifier.notificationId(id))

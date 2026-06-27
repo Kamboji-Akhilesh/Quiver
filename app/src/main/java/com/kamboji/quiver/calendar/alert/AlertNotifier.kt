@@ -47,6 +47,7 @@ object AlertNotifier {
         val nm = context.getSystemService(NotificationManager::class.java)
         val callIntent = Intent(context, EventCallActivity::class.java)
             .putExtra("id", entry.id)
+            .putExtra("title", entry.title)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         val pi = PendingIntent.getActivity(
             context,

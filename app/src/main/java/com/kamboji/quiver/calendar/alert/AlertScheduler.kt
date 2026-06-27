@@ -18,12 +18,31 @@ object AlertScheduler {
         scheduleAt(context, entry.id, at)
     }
 
-    fun scheduleAt(context: Context, id: Long, atMillis: Long) {
+    // setAlarmClock is the most reliable trigger for time-critical, user-facing
+    // alerts: it fires even in Doze / when locked and is largely exempt from
+    // background restrictions. Falls back to exact/inexact if unavailable.
+    fun scheduleAt(context: Context, id: Long, atMillis: Long) =
+        scheduleAt(context, id, atMillis, pending(context, id))
+
+    fun cancel(context: Context, id: Long) {
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val pi = pending(context, id)
-        // setAlarmClock is the most reliable trigger for time-critical, user-facing
-        // alerts: it fires even in Doze / when locked and is largely exempt from
-        // background restrictions. Fall back to exact/inexact if it's unavailable.
+        am.cancel(pending(context, id))
+    }
+
+    /** Schedules a self-contained test call [seconds] from now to verify firing. */
+    fun scheduleTest(context: Context, seconds: Int = 10) {
+        val intent = Intent(context, AlertReceiver::class.java)
+            .setAction(ACTION)
+            .putExtra("test", true)
+        val pi = PendingIntent.getBroadcast(
+            context, 999_999, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        scheduleAt(context, -999L, System.currentTimeMillis() + seconds * 1000L, pi)
+    }
+
+    private fun scheduleAt(context: Context, id: Long, atMillis: Long, pi: PendingIntent) {
+        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         try {
             val show = context.packageManager.getLaunchIntentForPackage(context.packageName)
             val showPi = show?.let {
@@ -40,11 +59,6 @@ object AlertScheduler {
                 am.set(AlarmManager.RTC_WAKEUP, atMillis, pi)
             }
         }
-    }
-
-    fun cancel(context: Context, id: Long) {
-        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        am.cancel(pending(context, id))
     }
 
     private fun pending(context: Context, id: Long): PendingIntent {

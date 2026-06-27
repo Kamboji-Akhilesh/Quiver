@@ -52,7 +52,9 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import com.kamboji.quiver.calendar.alert.AlertDiagnostics
 import com.kamboji.quiver.calendar.alert.AlertNotifier
+import com.kamboji.quiver.calendar.alert.AlertScheduler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -143,6 +145,7 @@ fun CalendarScreen(state: QuiverState) {
                 },
             )
             Column(Modifier.padding(horizontal = 18.dp)) {
+                AlertSetupCard(context, state)
                 // month card
                 Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
@@ -183,13 +186,12 @@ fun CalendarScreen(state: QuiverState) {
                         dayItems.forEach { e ->
                             EventRow(
                                 e, ac,
-                                onClick = {
-                                    if (e.isTask) {
-                                        vm.toggleDone(e.id)
-                                        state.toast(if (!e.done) "Task completed ✓" else "Task reopened", if (!e.done) ToastKind.Success else ToastKind.Info)
-                                    } else {
-                                        sheet = CalSheet.View(e)
-                                    }
+                                // Tapping the row opens details for both tasks and events.
+                                onClick = { sheet = CalSheet.View(e) },
+                                // The checkbox toggles a task's done state.
+                                onToggle = {
+                                    vm.toggleDone(e.id)
+                                    state.toast(if (!e.done) "Task completed ✓" else "Task reopened", if (!e.done) ToastKind.Success else ToastKind.Info)
                                 },
                                 // Fire the real call path (ringtone + full-screen) so it
                                 // can be tested without waiting for the scheduled alarm.
@@ -210,11 +212,78 @@ fun CalendarScreen(state: QuiverState) {
                 val d = localDate(draft.startMillis)
                 state.toast("Added to ${d.month.name.lowercase().replaceFirstChar { c -> c.uppercase() }.take(3)} ${d.dayOfMonth}", ToastKind.Success)
             }
-            is CalSheet.View -> EventViewSheet(s.entry, ac, onDismiss = { sheet = null }) {
-                vm.delete(s.entry.id); state.toast("Event deleted", ToastKind.Error)
-            }
+            is CalSheet.View -> EventViewSheet(
+                s.entry, ac, onDismiss = { sheet = null },
+                onToggleDone = {
+                    vm.toggleDone(s.entry.id)
+                    state.toast(if (!s.entry.done) "Task completed ✓" else "Task reopened", if (!s.entry.done) ToastKind.Success else ToastKind.Info)
+                },
+                onDelete = { vm.delete(s.entry.id); state.toast(if (s.entry.isTask) "Task deleted" else "Event deleted", ToastKind.Error) },
+            )
             null -> Unit
         }
+    }
+}
+
+/**
+ * Surfaces the OS grants a reminder needs (notifications, exact alarms, battery)
+ * with one-tap fixes, plus a 10-second test so scheduled firing can be verified.
+ */
+@Composable
+private fun AlertSetupCard(context: android.content.Context, state: QuiverState) {
+    val colors = Quiver.colors
+    val ac = Accents.Calendar
+    val notifOk = AlertDiagnostics.notificationsAllowed(context)
+    val alarmOk = AlertDiagnostics.exactAlarmsAllowed(context)
+    val batteryOk = AlertDiagnostics.batteryUnrestricted(context)
+    val allOk = notifOk && alarmOk && batteryOk
+
+    fun launch(intent: android.content.Intent) = runCatching { context.startActivity(intent) }
+    fun pkgUri() = android.net.Uri.parse("package:${context.packageName}")
+
+    Column(
+        Modifier.fillMaxWidth().padding(bottom = 14.dp).clip(RoundedCornerShape(18.dp))
+            .background(if (allOk) colors.surf else CallPink.copy(alpha = 0.12f))
+            .border(1.dp, if (allOk) colors.border else CallPink.copy(alpha = 0.4f), RoundedCornerShape(18.dp))
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            if (allOk) "Reminders are set up" else "Reminders may not fire — fix below",
+            fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (allOk) colors.text else CallPink,
+        )
+        if (!notifOk) FixRow("Allow notifications", ac) {
+            launch(
+                android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName),
+            )
+        }
+        if (!alarmOk && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) FixRow("Allow exact alarms", ac) {
+            launch(android.content.Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, pkgUri()))
+        }
+        if (!batteryOk) FixRow("Allow background (battery)", ac) {
+            launch(android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, pkgUri()))
+        }
+        Box(
+            Modifier.clip(RoundedCornerShape(100.dp)).background(ac.a.copy(alpha = 0.16f))
+                .clickable {
+                    AlertScheduler.scheduleTest(context, 10)
+                    state.toast("Test reminder in 10s — lock your phone now", ToastKind.Info)
+                }
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+        ) { Text("Send a test reminder (10s)", color = ac.txt(colors.dark), fontSize = 12.5.sp, fontWeight = FontWeight.Bold) }
+    }
+}
+
+@Composable
+private fun FixRow(label: String, ac: Accent, onClick: () -> Unit) {
+    val colors = Quiver.colors
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(label, fontSize = 13.sp, color = colors.text)
+        Text("Fix ›", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = ac.txt(colors.dark))
     }
 }
 
@@ -283,7 +352,7 @@ private fun DayCell(date: LocalDate, isSel: Boolean, isToday: Boolean, items: Li
 }
 
 @Composable
-private fun EventRow(e: CalendarEntry, ac: Accent, onClick: () -> Unit, onCall: () -> Unit) {
+private fun EventRow(e: CalendarEntry, ac: Accent, onClick: () -> Unit, onToggle: () -> Unit, onCall: () -> Unit) {
     val colors = Quiver.colors
     val col = if (e.alertStyle == AlertStyle.CALL) CallPink else if (e.isTask) TaskAmber else ac.a
     val subtitle = when {
@@ -310,7 +379,8 @@ private fun EventRow(e: CalendarEntry, ac: Accent, onClick: () -> Unit, onCall: 
             Box(
                 Modifier.size(24.dp).clip(RoundedCornerShape(8.dp))
                     .background(if (e.done) TaskAmber else Color.Transparent)
-                    .border(2.dp, if (e.done) TaskAmber else colors.border2, RoundedCornerShape(8.dp)),
+                    .border(2.dp, if (e.done) TaskAmber else colors.border2, RoundedCornerShape(8.dp))
+                    .clickable(onClick = onToggle),
                 contentAlignment = Alignment.Center,
             ) { if (e.done) Icon(Icons.Filled.Check, null, Modifier.size(15.dp), tint = Color(0xFF1A1408)) }
         } else {
@@ -533,7 +603,7 @@ private fun StepperButton(label: String, ac: Accent, onClick: () -> Unit) {
 }
 
 @Composable
-private fun EventViewSheet(e: CalendarEntry, ac: Accent, onDismiss: () -> Unit, onDelete: () -> Unit) {
+private fun EventViewSheet(e: CalendarEntry, ac: Accent, onDismiss: () -> Unit, onToggleDone: () -> Unit, onDelete: () -> Unit) {
     val colors = Quiver.colors
     SheetScaffold(onDismiss, e.title) { hide ->
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -543,7 +613,27 @@ private fun EventViewSheet(e: CalendarEntry, ac: Accent, onDismiss: () -> Unit, 
                 }
                 Column {
                     Text("${localDate(e.startMillis).month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)} ${localDate(e.startMillis).dayOfMonth} · ${timeLabel(e)}", fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
-                    Text(if (e.alertStyle == AlertStyle.NONE) "No reminder" else "Reminder ${e.alertLead.label.lowercase()}", fontSize = 12.5.sp, color = colors.dim)
+                    Text(
+                        buildString {
+                            append(if (e.isTask) "Task" else "Event")
+                            if (e.repeats) append(" · ${e.repeatLabel()}")
+                            append(if (e.alertStyle == AlertStyle.NONE) " · No reminder" else " · ${e.alertStyle.label} ${e.alertLead.label.lowercase()}")
+                        },
+                        fontSize = 12.5.sp, color = colors.dim,
+                    )
+                }
+            }
+            // Tasks get a done toggle.
+            if (e.isTask) {
+                Box(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                        .background(if (e.done) colors.surf else TaskAmber.copy(alpha = 0.16f))
+                        .border(1.dp, if (e.done) colors.border else TaskAmber.copy(alpha = 0.45f), RoundedCornerShape(14.dp))
+                        .clickable { onToggleDone(); hide() }.padding(vertical = 14.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val doneColor = if (e.done) colors.text else if (colors.dark) TaskAmber else Color(0xFF7A5A00)
+                    Text(if (e.done) "Mark as not done" else "Mark as done", color = doneColor, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
                 }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
