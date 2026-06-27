@@ -52,9 +52,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
-import com.kamboji.quiver.calendar.alert.AlertDiagnostics
 import com.kamboji.quiver.calendar.alert.AlertNotifier
-import com.kamboji.quiver.calendar.alert.AlertScheduler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -107,10 +105,15 @@ private fun localTimeMin(millis: Long): Int {
     return t.hour * 60 + t.minute
 }
 
+private val TIME_12H = DateTimeFormatter.ofPattern("h:mm a")
+
 private fun timeLabel(e: CalendarEntry): String =
     if (e.allDay) "all-day"
     else Instant.ofEpochMilli(e.startMillis).atZone(ZoneId.systemDefault())
-        .toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm"))
+        .toLocalTime().format(TIME_12H)
+
+private fun fmt12(hour: Int, minute: Int): String =
+    java.time.LocalTime.of(hour, minute).format(TIME_12H)
 
 @Composable
 fun CalendarScreen(state: QuiverState) {
@@ -134,7 +137,8 @@ fun CalendarScreen(state: QuiverState) {
     }
 
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 150.dp)) {
+        Column(Modifier.fillMaxSize()) {
+            // Pinned header so the Add button never scrolls away.
             QvTopBar(
                 "Calendar", ac, onBack = { state.go(AppKey.Hub) },
                 trailing = {
@@ -144,8 +148,10 @@ fun CalendarScreen(state: QuiverState) {
                     )
                 },
             )
-            Column(Modifier.padding(horizontal = 18.dp)) {
-                AlertSetupCard(context, state)
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                    .padding(horizontal = 18.dp).padding(bottom = 150.dp),
+            ) {
                 // month card
                 Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
@@ -222,68 +228,6 @@ fun CalendarScreen(state: QuiverState) {
             )
             null -> Unit
         }
-    }
-}
-
-/**
- * Surfaces the OS grants a reminder needs (notifications, exact alarms, battery)
- * with one-tap fixes, plus a 10-second test so scheduled firing can be verified.
- */
-@Composable
-private fun AlertSetupCard(context: android.content.Context, state: QuiverState) {
-    val colors = Quiver.colors
-    val ac = Accents.Calendar
-    val notifOk = AlertDiagnostics.notificationsAllowed(context)
-    val alarmOk = AlertDiagnostics.exactAlarmsAllowed(context)
-    val batteryOk = AlertDiagnostics.batteryUnrestricted(context)
-    val allOk = notifOk && alarmOk && batteryOk
-
-    fun launch(intent: android.content.Intent) = runCatching { context.startActivity(intent) }
-    fun pkgUri() = android.net.Uri.parse("package:${context.packageName}")
-
-    Column(
-        Modifier.fillMaxWidth().padding(bottom = 14.dp).clip(RoundedCornerShape(18.dp))
-            .background(if (allOk) colors.surf else CallPink.copy(alpha = 0.12f))
-            .border(1.dp, if (allOk) colors.border else CallPink.copy(alpha = 0.4f), RoundedCornerShape(18.dp))
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            if (allOk) "Reminders are set up" else "Reminders may not fire — fix below",
-            fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (allOk) colors.text else CallPink,
-        )
-        if (!notifOk) FixRow("Allow notifications", ac) {
-            launch(
-                android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                    .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName),
-            )
-        }
-        if (!alarmOk && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) FixRow("Allow exact alarms", ac) {
-            launch(android.content.Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, pkgUri()))
-        }
-        if (!batteryOk) FixRow("Allow background (battery)", ac) {
-            launch(android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, pkgUri()))
-        }
-        Box(
-            Modifier.clip(RoundedCornerShape(100.dp)).background(ac.a.copy(alpha = 0.16f))
-                .clickable {
-                    AlertScheduler.scheduleTest(context, 10)
-                    state.toast("Test reminder in 10s — lock your phone now", ToastKind.Info)
-                }
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-        ) { Text("Send a test reminder (10s)", color = ac.txt(colors.dark), fontSize = 12.5.sp, fontWeight = FontWeight.Bold) }
-    }
-}
-
-@Composable
-private fun FixRow(label: String, ac: Accent, onClick: () -> Unit) {
-    val colors = Quiver.colors
-    Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(label, fontSize = 13.sp, color = colors.text)
-        Text("Fix ›", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = ac.txt(colors.dark))
     }
 }
 
@@ -458,10 +402,11 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onI
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 
     SheetScaffold(onDismiss, if (type == EntryType.TASK) "New task" else "New event") { hide ->
-        Column(
-            Modifier.fillMaxWidth().heightIn(max = 540.dp).verticalScroll(rememberScrollState()).imePadding(),
+        Column(Modifier.fillMaxWidth().imePadding()) {
+          Column(
+            Modifier.fillMaxWidth().heightIn(max = 380.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
+          ) {
             // title
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 15.dp),
@@ -477,7 +422,7 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onI
             // date + time
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 InfoChip(Icons.Outlined.CalendarMonth, "${date.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)} ${date.dayOfMonth}", ac, Modifier.weight(1f)) { showDate = true }
-                InfoChip(Icons.Outlined.Schedule, "%02d:%02d".format(hour, minute), ac, Modifier.weight(1f)) { showTime = true }
+                InfoChip(Icons.Outlined.Schedule, fmt12(hour, minute), ac, Modifier.weight(1f)) { showTime = true }
             }
             // alert style
             FieldLabel("Alert")
@@ -508,7 +453,9 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onI
                     onPlus = { if (repeatInterval < 30) repeatInterval++ },
                 )
             }
-            // add
+          } // end scrollable fields
+            Spacer(Modifier.height(14.dp))
+            // add (pinned below the scroll so it's always visible)
             val ready = title.isNotBlank()
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))

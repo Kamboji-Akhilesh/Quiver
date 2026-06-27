@@ -38,7 +38,7 @@ fun QvTimePickerDialog(
     onDismiss: () -> Unit,
 ) {
     val colors = Quiver.colors
-    val tpState = rememberTimePickerState(initialHour, initialMinute, is24Hour = true)
+    val tpState = rememberTimePickerState(initialHour, initialMinute, is24Hour = false)
     Dialog(onDismissRequest = onDismiss) {
         Surface(shape = RoundedCornerShape(28.dp), color = colors.bg2) {
             Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
