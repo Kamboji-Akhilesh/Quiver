@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,7 +31,6 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -44,15 +44,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
-import com.kamboji.quiver.calendar.alert.AlertNotifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -106,6 +102,8 @@ private fun localTimeMin(millis: Long): Int {
 }
 
 private val TIME_12H = DateTimeFormatter.ofPattern("h:mm a")
+private val TIME_HM = DateTimeFormatter.ofPattern("h:mm")
+private val TIME_AMPM = DateTimeFormatter.ofPattern("a")
 
 private fun timeLabel(e: CalendarEntry): String =
     if (e.allDay) "all-day"
@@ -119,7 +117,6 @@ private fun fmt12(hour: Int, minute: Int): String =
 fun CalendarScreen(state: QuiverState) {
     val ac = Accents.Calendar
     val colors = Quiver.colors
-    val context = LocalContext.current
     val vm: CalendarViewModel = viewModel()
     val entries by vm.entries.collectAsState()
 
@@ -199,9 +196,6 @@ fun CalendarScreen(state: QuiverState) {
                                     vm.toggleDone(e.id)
                                     state.toast(if (!e.done) "Task completed ✓" else "Task reopened", if (!e.done) ToastKind.Success else ToastKind.Info)
                                 },
-                                // Fire the real call path (ringtone + full-screen) so it
-                                // can be tested without waiting for the scheduled alarm.
-                                onCall = { AlertNotifier.showCall(context, e) },
                             )
                         }
                     }
@@ -296,7 +290,7 @@ private fun DayCell(date: LocalDate, isSel: Boolean, isToday: Boolean, items: Li
 }
 
 @Composable
-private fun EventRow(e: CalendarEntry, ac: Accent, onClick: () -> Unit, onToggle: () -> Unit, onCall: () -> Unit) {
+private fun EventRow(e: CalendarEntry, ac: Accent, onClick: () -> Unit, onToggle: () -> Unit) {
     val colors = Quiver.colors
     val col = if (e.alertStyle == AlertStyle.CALL) CallPink else if (e.isTask) TaskAmber else ac.a
     val subtitle = when {
@@ -310,14 +304,15 @@ private fun EventRow(e: CalendarEntry, ac: Accent, onClick: () -> Unit, onToggle
             }
         }.joinToString(" · ").ifEmpty { if (e.isTask) "Tap to complete" else "Event" }
     }
+    val lt = if (e.allDay) null else Instant.ofEpochMilli(e.startMillis).atZone(ZoneId.systemDefault()).toLocalTime()
     Row(
         Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(14.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp),
     ) {
         Box(Modifier.width(4.dp).height(40.dp).clip(RoundedCornerShape(4.dp)).background(col))
-        Column(Modifier.width(46.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(timeLabel(e), fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
-            Text(e.type.name, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = colors.faint, letterSpacing = 0.5.sp)
+        Column(Modifier.width(54.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(if (lt == null) "All" else lt.format(TIME_HM), fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text, maxLines = 1)
+            Text(if (lt == null) "day" else lt.format(TIME_AMPM), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = colors.faint, letterSpacing = 0.5.sp, maxLines = 1)
         }
         if (e.isTask) {
             Box(
@@ -333,16 +328,8 @@ private fun EventRow(e: CalendarEntry, ac: Accent, onClick: () -> Unit, onToggle
             }
         }
         Column(Modifier.weight(1f)) {
-            Text(e.title, fontSize = 14.5.sp, fontWeight = FontWeight.Bold, color = if (e.done) colors.dim else colors.text, textDecoration = if (e.done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null)
-            Text(subtitle, fontSize = 12.sp, color = colors.dim)
-        }
-        // Call alerts get a quick "preview" button.
-        if (e.alertStyle == AlertStyle.CALL) {
-            Box(
-                Modifier.size(34.dp).clip(androidx.compose.foundation.shape.CircleShape).background(CallPink)
-                    .clickable(onClick = onCall),
-                contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Outlined.Phone, "Preview call", Modifier.size(17.dp), tint = Color.White) }
+            Text(e.title, fontSize = 14.5.sp, fontWeight = FontWeight.Bold, color = if (e.done) colors.dim else colors.text, textDecoration = if (e.done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null, maxLines = 1)
+            Text(subtitle, fontSize = 12.sp, color = colors.dim, maxLines = 1)
         }
     }
 }
@@ -398,21 +385,24 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onI
     var repeatInterval by remember { mutableStateOf(1) }
     var showTime by remember { mutableStateOf(false) }
     var showDate by remember { mutableStateOf(false) }
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 
-    SheetScaffold(onDismiss, if (type == EntryType.TASK) "New task" else "New event") { hide ->
-        Column(Modifier.fillMaxWidth().imePadding()) {
-          Column(
-            Modifier.fillMaxWidth().heightIn(max = 380.dp).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-          ) {
+    QuiverModalSheet(onDismiss) { hide ->
+        Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f).padding(start = 20.dp, end = 20.dp, bottom = 16.dp).imePadding()) {
+            Text(
+                if (type == EntryType.TASK) "New task" else "New event",
+                fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            )
+            Column(
+                Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
             // title
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 15.dp),
             ) {
                 if (title.isEmpty()) Text(if (type == EntryType.TASK) "Task title" else "Event title", color = colors.dim, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold)
-                BasicTextField(title, { title = it }, textStyle = TextStyle(color = colors.text, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold), cursorBrush = SolidColor(ac.a), singleLine = true, modifier = Modifier.fillMaxWidth().focusRequester(focus))
+                BasicTextField(title, { title = it }, textStyle = TextStyle(color = colors.text, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold), cursorBrush = SolidColor(ac.a), singleLine = true, modifier = Modifier.fillMaxWidth())
             }
             // type (Event / Task)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
