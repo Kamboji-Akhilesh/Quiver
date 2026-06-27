@@ -169,7 +169,7 @@ fun CalendarScreen(state: QuiverState) {
                 Spacer(Modifier.height(16.dp))
                 Row(Modifier.fillMaxWidth().padding(horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                     Row {
-                        Text("${month.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)} ${selected.dayOfMonth}", fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+                        Text("${selected.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)} ${selected.dayOfMonth}", fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
                         if (selected == today) Text("  · Today", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = ac.txt(colors.dark))
                     }
                     Text("${dayItems.size} ${if (dayItems.size == 1) "item" else "items"}", fontSize = 12.5.sp, color = colors.dim)

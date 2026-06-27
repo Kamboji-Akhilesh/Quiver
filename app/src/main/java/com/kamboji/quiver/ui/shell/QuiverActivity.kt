@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -27,6 +28,7 @@ class QuiverActivity : ComponentActivity() {
         setContent { QuiverApp() }
         requestRuntimePermissions()
         ensureExactAlarms()
+        ensureBackgroundAllowed()
     }
 
     /**
@@ -53,6 +55,23 @@ class QuiverActivity : ComponentActivity() {
                     Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName")),
                 )
             }
+        }
+    }
+
+    /**
+     * Aggressive OEM battery managers cancel scheduled alarms when the app is
+     * backgrounded. Ask once to be exempted so reminder calls fire on time.
+     */
+    private fun ensureBackgroundAllowed() {
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        if (pm.isIgnoringBatteryOptimizations(packageName)) return
+        val prefs = getSharedPreferences("quiver_prefs", Context.MODE_PRIVATE)
+        if (prefs.getBoolean("asked_battery", false)) return
+        prefs.edit().putBoolean("asked_battery", true).apply()
+        runCatching {
+            startActivity(
+                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName")),
+            )
         }
     }
 

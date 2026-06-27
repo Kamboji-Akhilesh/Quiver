@@ -21,11 +21,24 @@ object AlertScheduler {
     fun scheduleAt(context: Context, id: Long, atMillis: Long) {
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val pi = pending(context, id)
+        // setAlarmClock is the most reliable trigger for time-critical, user-facing
+        // alerts: it fires even in Doze / when locked and is largely exempt from
+        // background restrictions. Fall back to exact/inexact if it's unavailable.
         try {
-            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, pi)
+            val show = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            val showPi = show?.let {
+                PendingIntent.getActivity(
+                    context, 9_000_000 + id.toInt(), it,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                )
+            }
+            am.setAlarmClock(AlarmManager.AlarmClockInfo(atMillis, showPi), pi)
         } catch (_: SecurityException) {
-            // No exact-alarm permission → best-effort inexact alarm.
-            am.set(AlarmManager.RTC_WAKEUP, atMillis, pi)
+            try {
+                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, pi)
+            } catch (_: SecurityException) {
+                am.set(AlarmManager.RTC_WAKEUP, atMillis, pi)
+            }
         }
     }
 
