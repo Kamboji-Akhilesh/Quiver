@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import com.kamboji.quiver.calendar.alert.AlertNotifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -113,6 +114,7 @@ private fun timeLabel(e: CalendarEntry): String =
 fun CalendarScreen(state: QuiverState) {
     val ac = Accents.Calendar
     val colors = Quiver.colors
+    val context = LocalContext.current
     val vm: CalendarViewModel = viewModel()
     val entries by vm.entries.collectAsState()
 
@@ -189,7 +191,9 @@ fun CalendarScreen(state: QuiverState) {
                                         sheet = CalSheet.View(e)
                                     }
                                 },
-                                onCall = { state.startCall(e.title) },
+                                // Fire the real call path (ringtone + full-screen) so it
+                                // can be tested without waiting for the scheduled alarm.
+                                onCall = { AlertNotifier.showCall(context, e) },
                             )
                         }
                     }
@@ -371,7 +375,8 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onI
     var title by remember { mutableStateOf("") }
     var type by remember { mutableStateOf(EntryType.EVENT) }
     var date by remember { mutableStateOf(day) }
-    var hour by remember { mutableStateOf(9) }
+    // Default to the next hour so a fresh entry is in the future (not already past).
+    var hour by remember { mutableStateOf((java.time.LocalTime.now().hour + 1) % 24) }
     var minute by remember { mutableStateOf(0) }
     var alert by remember { mutableStateOf(AlertStyle.NOTIFICATION) }
     var lead by remember { mutableStateOf(AlertLead.AT_TIME) }

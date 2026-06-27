@@ -6,6 +6,8 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import com.kamboji.quiver.R
 import com.kamboji.quiver.calendar.CalendarActivity
 import com.kamboji.quiver.calendar.EventCallActivity
@@ -14,7 +16,9 @@ import com.kamboji.quiver.calendar.data.CalendarEntry
 /** Builds notification- and call-style calendar alerts. */
 object AlertNotifier {
     private const val ALERT_CHANNEL = "calendar_alerts"
-    private const val CALL_CHANNEL = "calendar_calls"
+    // Bumped id so the new ring+vibrate channel settings take effect (channel
+    // config is immutable once created under a given id).
+    private const val CALL_CHANNEL = "calendar_calls_v2"
     const val NOTIF_BASE = 2_000_000
 
     fun notificationId(entryId: Long): Int = NOTIF_BASE + entryId.toInt()
@@ -59,9 +63,12 @@ object AlertNotifier {
             .setFullScreenIntent(pi, true)
             .setCategory(Notification.CATEGORY_CALL)
             .setOngoing(true)
+            .setAutoCancel(true)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .build()
         nm.notify(notificationId(entry.id), n)
+        // Best-effort direct launch (works from foreground); the full-screen
+        // intent above is the reliable path from the background.
         runCatching { context.startActivity(callIntent) }
     }
 
@@ -75,10 +82,22 @@ object AlertNotifier {
         nm.createNotificationChannel(
             NotificationChannel(ALERT_CHANNEL, "Calendar alerts", NotificationManager.IMPORTANCE_HIGH)
         )
-        // Call channel is silent — the call screen plays the ringtone itself.
+        // Call channel rings + vibrates so the alert is noticeable even when the
+        // full-screen call activity can't launch (e.g. Android 14 / OEM ROMs).
+        // When the activity does launch, it cancels this notification and plays
+        // its own looping ringtone instead.
         nm.createNotificationChannel(
             NotificationChannel(CALL_CHANNEL, "Calendar calls", NotificationManager.IMPORTANCE_HIGH).apply {
-                setSound(null, null)
+                val ring = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                setSound(
+                    ring,
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build(),
+                )
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 600, 500, 600, 500, 600)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
         )
