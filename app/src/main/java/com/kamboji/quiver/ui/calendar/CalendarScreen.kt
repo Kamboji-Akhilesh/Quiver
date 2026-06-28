@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -386,15 +387,31 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onI
     var showTime by remember { mutableStateOf(false) }
     var showDate by remember { mutableStateOf(false) }
 
-    QuiverModalSheet(onDismiss) { hide ->
-        Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f).padding(start = 20.dp, end = 20.dp, bottom = 16.dp).imePadding()) {
+    // Hand-rolled bottom panel: imePadding on the full-screen container lifts the
+    // whole panel above the keyboard, so the pinned Add button stays visible.
+    Box(Modifier.fillMaxSize().imePadding()) {
+        Box(
+            Modifier.fillMaxSize().background(Color(0x8C04040A))
+                .clickable(remember { MutableInteractionSource() }, null) { onDismiss() },
+        )
+        Column(
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                .background(if (colors.dark) Color(0xF012121C) else Color(0xF5FAFBFE))
+                .border(1.dp, colors.border, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                .clickable(remember { MutableInteractionSource() }, null) {}
+                .navigationBarsPadding()
+                .padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(Modifier.padding(bottom = 14.dp).size(width = 40.dp, height = 5.dp).clip(RoundedCornerShape(4.dp)).background(colors.border2))
             Text(
                 if (type == EntryType.TASK) "New task" else "New event",
                 fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             )
             Column(
-                Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
+                Modifier.fillMaxWidth().heightIn(max = 340.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
             // title
@@ -463,7 +480,7 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onI
                                 repeatUnit = repeatUnit, repeatInterval = repeatInterval,
                             ),
                         )
-                        hide()
+                        onDismiss()
                     }
                     .padding(vertical = 15.dp),
                 contentAlignment = Alignment.Center,
