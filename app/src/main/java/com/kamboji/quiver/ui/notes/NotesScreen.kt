@@ -276,7 +276,8 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
     var pinned by remember { mutableStateOf(existing?.pinned ?: false) }
     var savedId by remember { mutableStateOf(id) }
     var discarded by remember { mutableStateOf(false) }
-    var preview by remember { mutableStateOf(false) }
+    // Existing notes open in preview; new notes open straight into editing.
+    var preview by remember { mutableStateOf(existing != null) }
     val nc = NotePalette.of(colorId)
     val fg = nc.onBg(dark)
 
@@ -326,7 +327,10 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
                     if (title.isNotBlank()) Text(title.trim(), color = fg, fontSize = 24.sp, fontWeight = FontWeight.Bold, lineHeight = 30.sp, modifier = Modifier.padding(top = 4.dp))
                     Spacer(Modifier.height(12.dp))
                     if (body.isNotBlank()) {
-                        Text(rememberMarkdown(body.trim(), 16.sp, fg.copy(alpha = 0.92f), fg.copy(alpha = 0.6f), nc.accent), lineHeight = 24.sp)
+                        MarkdownView(
+                            body, 16.sp, fg.copy(alpha = 0.92f), fg.copy(alpha = 0.6f), nc.accent,
+                            onToggleCheckbox = { bodyValue = toggleCheckboxLine(bodyValue, it) },
+                        )
                     } else {
                         Text("Nothing to preview yet.", color = fg.copy(alpha = 0.4f), fontSize = 16.sp)
                     }
@@ -338,7 +342,14 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
                     Spacer(Modifier.height(12.dp))
                     Box(Modifier.fillMaxWidth()) {
                         if (body.isEmpty()) Text("Start writing… (Markdown supported)", color = fg.copy(alpha = 0.4f), fontSize = 16.sp)
-                        BasicTextField(bodyValue, { bodyValue = it }, textStyle = TextStyle(color = fg.copy(alpha = 0.9f), fontSize = 16.sp, lineHeight = 24.sp), cursorBrush = SolidColor(nc.accent), modifier = Modifier.fillMaxWidth())
+                        BasicTextField(
+                            bodyValue,
+                            { bodyValue = continueList(bodyValue, it) ?: it },
+                            textStyle = TextStyle(color = fg.copy(alpha = 0.9f), fontSize = 16.sp, lineHeight = 24.sp),
+                            cursorBrush = SolidColor(nc.accent),
+                            visualTransformation = rememberMarkdownTransformation(16.sp, fg.copy(alpha = 0.9f), fg.copy(alpha = 0.4f), nc.accent),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                 }
                 Spacer(Modifier.height(40.dp))
@@ -411,4 +422,50 @@ private fun linePrefix(v: TextFieldValue, prefix: String): TextFieldValue {
     val lineStart = if (pos == 0) 0 else text.lastIndexOf('\n', pos - 1).let { if (it < 0) 0 else it + 1 }
     val newText = text.substring(0, lineStart) + prefix + text.substring(lineStart)
     return TextFieldValue(newText, TextRange(pos + prefix.length))
+}
+
+private val NUMBERED = Regex("^(\\d+)\\. ")
+private val BULLET = Regex("^[-*] ")
+
+/**
+ * On Enter inside a list, continues it: a new bullet, the next number, or a new
+ * checkbox. Pressing Enter on an empty list item exits the list instead.
+ * Returns the adjusted value, or null to use [new] unchanged.
+ */
+private fun continueList(old: TextFieldValue, new: TextFieldValue): TextFieldValue? {
+    if (new.text.length != old.text.length + 1) return null
+    val caret = new.selection.start
+    if (caret < 1 || new.text[caret - 1] != '\n') return null
+    val before = new.text.substring(0, caret - 1)
+    val prevStart = before.lastIndexOf('\n') + 1
+    val prevLine = before.substring(prevStart)
+    val checkbox = CHECKBOX.find(prevLine)
+    val numbered = NUMBERED.find(prevLine)
+    val bullet = BULLET.find(prevLine)
+    val (markerLen, nextMarker) = when {
+        checkbox != null -> checkbox.value.length to "- [ ] "
+        numbered != null -> numbered.value.length to "${numbered.groupValues[1].toInt() + 1}. "
+        bullet != null -> bullet.value.length to "- "
+        else -> return null
+    }
+    val content = prevLine.substring(markerLen)
+    return if (content.isBlank()) {
+        // Empty item → drop the marker line and the newline (exit the list).
+        val t = new.text
+        TextFieldValue(t.substring(0, prevStart) + t.substring(caret), TextRange(prevStart))
+    } else {
+        val t = new.text
+        TextFieldValue(t.substring(0, caret) + nextMarker + t.substring(caret), TextRange(caret + nextMarker.length))
+    }
+}
+
+/** Flips the checkbox state ([ ] <-> [x]) on the line at [index]. */
+private fun toggleCheckboxLine(v: TextFieldValue, index: Int): TextFieldValue {
+    val lines = v.text.split("\n").toMutableList()
+    if (index !in lines.indices) return v
+    val cb = CHECKBOX.find(lines[index]) ?: return v
+    val checked = cb.groupValues[2].lowercase() == "x"
+    val rest = lines[index].substring(cb.value.length)
+    lines[index] = "${cb.groupValues[1]} [${if (checked) " " else "x"}] $rest"
+    return TextFieldValue(lines.joinToString("\n"), v.selection)
 }
