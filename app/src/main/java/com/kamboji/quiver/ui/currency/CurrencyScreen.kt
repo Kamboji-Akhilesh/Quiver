@@ -34,6 +34,7 @@ import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -91,6 +92,7 @@ private fun flag(code: String) = FLAGS[code] ?: "🏳️"
 fun CurrencyScreen(state: QuiverState) {
     val ac = Accents.Currency
     val vm: CurrencyViewModel = viewModel()
+    LaunchedEffect(Unit) { vm.ensureLoaded() }
     var tab by remember { mutableStateOf("convert") }
     var pickerFor by remember { mutableStateOf<String?>(null) } // "from" | "to" | null
 

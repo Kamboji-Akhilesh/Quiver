@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -36,6 +37,7 @@ import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -126,6 +128,10 @@ fun HubScreen(state: QuiverState) {
     val dashApps = remember { mutableStateListOf<AppKey>().also { it.addAll(hubPrefs.dashboardApps()) } }
     var showAddPicker by remember { mutableStateOf(false) }
     val allApps = listOf(AppKey.Screenshots, AppKey.Currency, AppKey.Calendar, AppKey.Notes)
+
+    // Only hit the currency API if its tile is actually on the dashboard.
+    val currencyOnDash = AppKey.Currency in dashApps
+    LaunchedEffect(currencyOnDash) { if (currencyOnDash) curVm.ensureLoaded() }
     val dao = remember { AppDatabase.getDatabase(context).historyDao() }
     val trash by remember { dao.getAllHistory() }.collectAsState(emptyList())
     val monitoring = remember(trash.size) { SettingsManager.isServiceEnabled(context) }
@@ -246,7 +252,15 @@ fun HubScreen(state: QuiverState) {
         }
 
         val order = dashApps.sortedByDescending { state.pinned[it] == true }
-        BentoGrid(state, order, monitoring, todayCount, curRate, curVm.to, notesCount, onAddApp = { showAddPicker = true })
+        BentoGrid(
+            state, order, monitoring, todayCount, curRate, curVm.to, notesCount,
+            onAddApp = { showAddPicker = true },
+            onRemoveApp = { app ->
+                dashApps.remove(app)
+                state.pinned[app] = false
+                hubPrefs.setDashboardApps(dashApps.toList())
+            },
+        )
 
         // ---- recent activity (real) ----
         Spacer(Modifier.height(22.dp))
@@ -356,7 +370,7 @@ private fun QuickAction(label: String, icon: ImageVector, accent: Accent, onClic
 }
 
 @Composable
-private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boolean, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int, onAddApp: () -> Unit) {
+private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boolean, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int, onAddApp: () -> Unit, onRemoveApp: (AppKey) -> Unit) {
     val colors = Quiver.colors
     val rows = packTiles(order) { state.pinned[it] == true }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -364,7 +378,7 @@ private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boole
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { app ->
                     val big = state.pinned[app] == true
-                    BentoTile(state, app, big, monitoring, todayCount, curRate, curTo, notesCount, Modifier.weight(1f))
+                    BentoTile(state, app, big, monitoring, todayCount, curRate, curTo, notesCount, { onRemoveApp(app) }, Modifier.weight(1f))
                 }
                 if (row.size == 1 && state.pinned[row[0]] != true) Spacer(Modifier.weight(1f))
             }
@@ -411,6 +425,7 @@ private fun BentoTile(
     curRate: Double?,
     curTo: String,
     notesCount: Int,
+    onRemove: () -> Unit,
     modifier: Modifier,
 ) {
     val colors = Quiver.colors
@@ -437,13 +452,20 @@ private fun BentoTile(
             modifier = Modifier.align(Alignment.BottomEnd).size(if (big) 110.dp else 96.dp),
         )
         if (state.editMode) {
-            Box(
-                Modifier.align(Alignment.TopEnd).size(30.dp).clip(CircleShape)
-                    .background(if (state.pinned[app] == true) ac.a else colors.surf2)
-                    .border(1.dp, colors.border, CircleShape)
-                    .clickable { togglePin(state, app) },
-                contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Outlined.PushPin, null, Modifier.size(15.dp), tint = if (state.pinned[app] == true) Color.White else colors.dim) }
+            Row(Modifier.align(Alignment.TopEnd), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(
+                    Modifier.size(30.dp).clip(CircleShape).background(colors.surf2)
+                        .border(1.dp, colors.border, CircleShape).clickable { onRemove() },
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.Filled.Close, null, Modifier.size(15.dp), tint = Color(0xFFFB7185)) }
+                Box(
+                    Modifier.size(30.dp).clip(CircleShape)
+                        .background(if (state.pinned[app] == true) ac.a else colors.surf2)
+                        .border(1.dp, colors.border, CircleShape)
+                        .clickable { togglePin(state, app) },
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.Outlined.PushPin, null, Modifier.size(15.dp), tint = if (state.pinned[app] == true) Color.White else colors.dim) }
+            }
         }
         Column(Modifier.fillMaxWidth(if (big) 0.62f else 1f)) {
             Box(

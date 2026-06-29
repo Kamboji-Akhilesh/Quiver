@@ -215,12 +215,20 @@ fun CalendarScreen(state: QuiverState) {
             }
             is CalSheet.View -> EventViewSheet(
                 s.entry, ac, onDismiss = { sheet = null },
+                onEdit = { sheet = CalSheet.Edit(s.entry) },
                 onToggleDone = {
                     vm.toggleDone(s.entry.id)
                     state.toast(if (!s.entry.done) "Task completed ✓" else "Task reopened", if (!s.entry.done) ToastKind.Success else ToastKind.Info)
                 },
                 onDelete = { vm.delete(s.entry.id); state.toast(if (s.entry.isTask) "Task deleted" else "Event deleted", ToastKind.Error) },
             )
+            is CalSheet.Edit -> NewEventSheet(
+                selected, ac, editing = s.entry, onDismiss = { sheet = null },
+                onInvalid = { state.toast("Enter a title first", ToastKind.Info) },
+            ) { draft ->
+                vm.upsert(draft)
+                state.toast("Saved", ToastKind.Success)
+            }
             null -> Unit
         }
     }
@@ -355,6 +363,7 @@ private fun EmptyAgenda(ac: Accent) {
 private sealed interface CalSheet {
     data object New : CalSheet
     data class View(val entry: CalendarEntry) : CalSheet
+    data class Edit(val entry: CalendarEntry) : CalSheet
 }
 
 @Composable
@@ -372,20 +381,22 @@ private fun SheetScaffold(onDismiss: () -> Unit, title: String, content: @Compos
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onInvalid: () -> Unit, onAdd: (CalendarEntry) -> Unit) {
+private fun NewEventSheet(day: LocalDate, ac: Accent, editing: CalendarEntry? = null, onDismiss: () -> Unit, onInvalid: () -> Unit, onAdd: (CalendarEntry) -> Unit) {
     val colors = Quiver.colors
-    var title by remember { mutableStateOf("") }
-    var type by remember { mutableStateOf(EntryType.EVENT) }
-    var date by remember { mutableStateOf(day) }
+    val startTime = editing?.let { Instant.ofEpochMilli(it.startMillis).atZone(ZoneId.systemDefault()).toLocalTime() }
+    var title by remember { mutableStateOf(editing?.title ?: "") }
+    var type by remember { mutableStateOf(editing?.type ?: EntryType.EVENT) }
+    var date by remember { mutableStateOf(editing?.let { localDate(it.startMillis) } ?: day) }
     // Default to the next hour so a fresh entry is in the future (not already past).
-    var hour by remember { mutableStateOf((java.time.LocalTime.now().hour + 1) % 24) }
-    var minute by remember { mutableStateOf(0) }
-    var alert by remember { mutableStateOf(AlertStyle.NOTIFICATION) }
-    var lead by remember { mutableStateOf(AlertLead.AT_TIME) }
-    var repeatUnit by remember { mutableStateOf(RepeatUnit.NONE) }
-    var repeatInterval by remember { mutableStateOf(1) }
+    var hour by remember { mutableStateOf(startTime?.hour ?: ((java.time.LocalTime.now().hour + 1) % 24)) }
+    var minute by remember { mutableStateOf(startTime?.minute ?: 0) }
+    var alert by remember { mutableStateOf(editing?.alertStyle ?: AlertStyle.NOTIFICATION) }
+    var lead by remember { mutableStateOf(editing?.alertLead ?: AlertLead.AT_TIME) }
+    var repeatUnit by remember { mutableStateOf(editing?.repeatUnit ?: RepeatUnit.NONE) }
+    var repeatInterval by remember { mutableStateOf(editing?.repeatInterval ?: 1) }
     var showTime by remember { mutableStateOf(false) }
     var showDate by remember { mutableStateOf(false) }
+    val isEdit = editing != null
 
     // Hand-rolled bottom panel: imePadding on the full-screen container lifts the
     // whole panel above the keyboard, so the pinned Add button stays visible.
@@ -406,7 +417,7 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onI
         ) {
             Box(Modifier.padding(bottom = 14.dp).size(width = 40.dp, height = 5.dp).clip(RoundedCornerShape(4.dp)).background(colors.border2))
             Text(
-                if (type == EntryType.TASK) "New task" else "New event",
+                "${if (isEdit) "Edit" else "New"} ${if (type == EntryType.TASK) "task" else "event"}",
                 fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             )
@@ -473,10 +484,10 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onI
                         val start = date.atTime(hour, minute).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
                         onAdd(
                             CalendarEntry(
-                                id = 0, type = type, title = title.trim(), startMillis = start,
+                                id = editing?.id ?: 0L, type = type, title = title.trim(), startMillis = start,
                                 endMillis = if (type == EntryType.EVENT) start + 3_600_000 else null,
-                                allDay = false, done = false, alertStyle = alert, alertLead = lead,
-                                createdAtMillis = System.currentTimeMillis(),
+                                allDay = false, done = editing?.done ?: false, alertStyle = alert, alertLead = lead,
+                                createdAtMillis = editing?.createdAtMillis ?: System.currentTimeMillis(),
                                 repeatUnit = repeatUnit, repeatInterval = repeatInterval,
                             ),
                         )
@@ -484,7 +495,7 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, onDismiss: () -> Unit, onI
                     }
                     .padding(vertical = 15.dp),
                 contentAlignment = Alignment.Center,
-            ) { Text(if (type == EntryType.TASK) "Add task" else "Add event", color = Color(0xFF06121A), fontSize = 15.sp, fontWeight = FontWeight.Bold) }
+            ) { Text(if (isEdit) "Save changes" else if (type == EntryType.TASK) "Add task" else "Add event", color = Color(0xFF06121A), fontSize = 15.sp, fontWeight = FontWeight.Bold) }
         }
     }
 
@@ -557,7 +568,7 @@ private fun StepperButton(label: String, ac: Accent, onClick: () -> Unit) {
 }
 
 @Composable
-private fun EventViewSheet(e: CalendarEntry, ac: Accent, onDismiss: () -> Unit, onToggleDone: () -> Unit, onDelete: () -> Unit) {
+private fun EventViewSheet(e: CalendarEntry, ac: Accent, onDismiss: () -> Unit, onEdit: () -> Unit, onToggleDone: () -> Unit, onDelete: () -> Unit) {
     val colors = Quiver.colors
     SheetScaffold(onDismiss, e.title) { hide ->
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -590,6 +601,11 @@ private fun EventViewSheet(e: CalendarEntry, ac: Accent, onDismiss: () -> Unit, 
                     Text(if (e.done) "Mark as not done" else "Mark as done", color = doneColor, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
                 }
             }
+            Box(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(listOf(ac.a, ac.b)))
+                    .clickable { onEdit() }.padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center,
+            ) { Text("Edit", color = Color(0xFF06121A), fontSize = 14.5.sp, fontWeight = FontWeight.Bold) }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(14.dp)).clickable { hide() }.padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
                     Text("Close", color = colors.text, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
