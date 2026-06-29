@@ -35,9 +35,11 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.StickyNote2
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -189,7 +191,8 @@ private fun NoteCard(note: Note, onClick: () -> Unit, onLongPress: () -> Unit) {
             if (note.body.isNotBlank()) Spacer(Modifier.height(6.dp))
         }
         if (note.body.isNotBlank()) {
-            Text(note.body.trim(), color = fg.copy(alpha = 0.78f), fontSize = 13.5.sp, maxLines = if (note.title.isBlank()) 12 else 8, overflow = TextOverflow.Ellipsis, lineHeight = 19.sp)
+            val md = rememberMarkdown(note.body.trim(), 13.5.sp, fg.copy(alpha = 0.78f), fg.copy(alpha = 0.55f), nc.accent)
+            Text(md, maxLines = if (note.title.isBlank()) 12 else 8, overflow = TextOverflow.Ellipsis, lineHeight = 19.sp)
         }
     }
 }
@@ -262,6 +265,7 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
     var pinned by remember { mutableStateOf(existing?.pinned ?: false) }
     var savedId by remember { mutableStateOf(id) }
     var discarded by remember { mutableStateOf(false) }
+    var preview by remember { mutableStateOf(false) }
     val nc = NotePalette.of(colorId)
     val fg = nc.onBg(dark)
 
@@ -287,6 +291,10 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
                 QvIconButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, { close() }, contentDescription = "Back", tint = fg)
                 Spacer(Modifier.weight(1f))
                 Box(
+                    Modifier.size(42.dp).clip(CircleShape).clickable { preview = !preview },
+                    contentAlignment = Alignment.Center,
+                ) { Icon(if (preview) Icons.Outlined.Edit else Icons.Outlined.Visibility, "Preview", Modifier.size(21.dp), tint = fg) }
+                Box(
                     Modifier.size(42.dp).clip(CircleShape).clickable {
                         pinned = !pinned
                         savedId?.let { vm.togglePin(it) }
@@ -303,14 +311,24 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
                 ) { Icon(Icons.Filled.DeleteOutline, "Delete", Modifier.size(21.dp), tint = fg) }
             }
             Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-                Box(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                    if (title.isEmpty()) Text("Title", color = fg.copy(alpha = 0.4f), fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                    BasicTextField(title, { title = it }, textStyle = TextStyle(color = fg, fontSize = 24.sp, fontWeight = FontWeight.Bold, lineHeight = 30.sp), cursorBrush = SolidColor(nc.accent), modifier = Modifier.fillMaxWidth())
-                }
-                Spacer(Modifier.height(12.dp))
-                Box(Modifier.fillMaxWidth()) {
-                    if (body.isEmpty()) Text("Start writing…", color = fg.copy(alpha = 0.4f), fontSize = 16.sp)
-                    BasicTextField(body, { body = it }, textStyle = TextStyle(color = fg.copy(alpha = 0.9f), fontSize = 16.sp, lineHeight = 24.sp), cursorBrush = SolidColor(nc.accent), modifier = Modifier.fillMaxWidth())
+                if (preview) {
+                    if (title.isNotBlank()) Text(title.trim(), color = fg, fontSize = 24.sp, fontWeight = FontWeight.Bold, lineHeight = 30.sp, modifier = Modifier.padding(top = 4.dp))
+                    Spacer(Modifier.height(12.dp))
+                    if (body.isNotBlank()) {
+                        Text(rememberMarkdown(body.trim(), 16.sp, fg.copy(alpha = 0.92f), fg.copy(alpha = 0.6f), nc.accent), lineHeight = 24.sp)
+                    } else {
+                        Text("Nothing to preview yet.", color = fg.copy(alpha = 0.4f), fontSize = 16.sp)
+                    }
+                } else {
+                    Box(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                        if (title.isEmpty()) Text("Title", color = fg.copy(alpha = 0.4f), fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        BasicTextField(title, { title = it }, textStyle = TextStyle(color = fg, fontSize = 24.sp, fontWeight = FontWeight.Bold, lineHeight = 30.sp), cursorBrush = SolidColor(nc.accent), modifier = Modifier.fillMaxWidth())
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Box(Modifier.fillMaxWidth()) {
+                        if (body.isEmpty()) Text("Start writing… (Markdown supported)", color = fg.copy(alpha = 0.4f), fontSize = 16.sp)
+                        BasicTextField(body, { body = it }, textStyle = TextStyle(color = fg.copy(alpha = 0.9f), fontSize = 16.sp, lineHeight = 24.sp), cursorBrush = SolidColor(nc.accent), modifier = Modifier.fillMaxWidth())
+                    }
                 }
                 Spacer(Modifier.height(40.dp))
             }
