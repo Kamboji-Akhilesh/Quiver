@@ -47,7 +47,7 @@ class QuiverState {
      */
     var editMode by mutableStateOf(false)
     val pinned = mutableStateMapOf(
-        AppKey.Screenshots to true,
+        AppKey.Screenshots to false,
         AppKey.Currency to false,
         AppKey.Calendar to false,
         AppKey.Notes to false,

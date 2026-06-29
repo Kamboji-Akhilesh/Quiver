@@ -38,7 +38,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,6 +60,7 @@ import com.kamboji.quiver.currency.Ui
 import com.kamboji.quiver.notes.NotesViewModel
 import com.kamboji.quiver.screenshots.data.SettingsManager
 import com.kamboji.quiver.screenshots.data.db.AppDatabase
+import com.kamboji.quiver.ui.components.QuiverModalSheet
 import com.kamboji.quiver.ui.components.SectionLabel
 import com.kamboji.quiver.ui.components.glass
 import com.kamboji.quiver.ui.shell.QuiverState
@@ -116,6 +120,12 @@ fun HubScreen(state: QuiverState) {
     val todayCount = entries.count { localDate(it.startMillis) == today }
     val noteList by notesVm.notes.collectAsState()
     val notesCount = noteList.size
+
+    // Dashboard apps are a user-curated subset (default 2); the rest can be added.
+    val hubPrefs = remember { HubPrefs(context) }
+    val dashApps = remember { mutableStateListOf<AppKey>().also { it.addAll(hubPrefs.dashboardApps()) } }
+    var showAddPicker by remember { mutableStateOf(false) }
+    val allApps = listOf(AppKey.Screenshots, AppKey.Currency, AppKey.Calendar, AppKey.Notes)
     val dao = remember { AppDatabase.getDatabase(context).historyDao() }
     val trash by remember { dao.getAllHistory() }.collectAsState(emptyList())
     val monitoring = remember(trash.size) { SettingsManager.isServiceEnabled(context) }
@@ -235,9 +245,8 @@ fun HubScreen(state: QuiverState) {
             Spacer(Modifier.height(8.dp))
         }
 
-        val order = listOf(AppKey.Screenshots, AppKey.Currency, AppKey.Calendar, AppKey.Notes)
-            .sortedByDescending { state.pinned[it] == true }
-        BentoGrid(state, order, monitoring, todayCount, curRate, curVm.to, notesCount)
+        val order = dashApps.sortedByDescending { state.pinned[it] == true }
+        BentoGrid(state, order, monitoring, todayCount, curRate, curVm.to, notesCount, onAddApp = { showAddPicker = true })
 
         // ---- recent activity (real) ----
         Spacer(Modifier.height(22.dp))
@@ -253,6 +262,49 @@ fun HubScreen(state: QuiverState) {
             } else {
                 activity.forEachIndexed { i, a ->
                     ActivityRow(a.icon, a.title, a.app, timeAgo(a.ts), i < activity.lastIndex) { state.go(a.app) }
+                }
+            }
+        }
+    }
+
+    if (showAddPicker) {
+        AddAppSheet(
+            available = allApps.filter { it !in dashApps },
+            onAdd = { app ->
+                if (app !in dashApps) { dashApps.add(app); hubPrefs.setDashboardApps(dashApps.toList()) }
+            },
+            onDismiss = { showAddPicker = false },
+        )
+    }
+}
+
+@Composable
+private fun AddAppSheet(available: List<AppKey>, onAdd: (AppKey) -> Unit, onDismiss: () -> Unit) {
+    val colors = Quiver.colors
+    QuiverModalSheet(onDismiss) { hide ->
+        Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Add to dashboard", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text, modifier = Modifier.padding(bottom = 8.dp))
+            if (available.isEmpty()) {
+                Text("All mini-apps are already on your dashboard.", color = colors.dim, fontSize = 14.sp, modifier = Modifier.padding(vertical = 8.dp))
+            } else {
+                available.forEach { app ->
+                    val ac = Accents.of(app)
+                    val m = meta(app)
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surf)
+                            .border(1.dp, colors.border, RoundedCornerShape(16.dp))
+                            .clickable { onAdd(app); hide() }.padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp),
+                    ) {
+                        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(ac.a.copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
+                            Icon(m.icon, null, Modifier.size(20.dp), tint = ac.txt(colors.dark))
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text(m.name, fontSize = 14.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                            Text(m.tag, fontSize = 12.sp, color = colors.dim)
+                        }
+                        Text("Add", color = ac.txt(colors.dark), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -304,7 +356,7 @@ private fun QuickAction(label: String, icon: ImageVector, accent: Accent, onClic
 }
 
 @Composable
-private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boolean, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int) {
+private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boolean, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int, onAddApp: () -> Unit) {
     val colors = Quiver.colors
     val rows = packTiles(order) { state.pinned[it] == true }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -321,7 +373,7 @@ private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boole
             Modifier.fillMaxWidth().height(80.dp).clip(RoundedCornerShape(24.dp))
                 .background(colors.surf)
                 .border(1.5.dp, colors.border2, RoundedCornerShape(24.dp))
-                .clickable { state.closeOverlays(); state.launcherOpen = true },
+                .clickable(onClick = onAddApp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {

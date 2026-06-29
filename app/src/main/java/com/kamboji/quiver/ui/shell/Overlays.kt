@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -76,6 +77,12 @@ import java.time.ZoneId
 @Composable
 fun Launcher(state: QuiverState) {
     val colors = Quiver.colors
+    val items = listOf(
+        AppKey.Screenshots to Icons.Outlined.Image,
+        AppKey.Currency to Icons.Outlined.SwapHoriz,
+        AppKey.Calendar to Icons.Outlined.CalendarMonth,
+        AppKey.Notes to Icons.Outlined.StickyNote2,
+    )
     QuiverModalSheet(onDismiss = { state.launcherOpen = false }) { _ ->
         Column(
             Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 30.dp),
@@ -83,12 +90,17 @@ fun Launcher(state: QuiverState) {
         ) {
             Text("Your apps", fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text, modifier = Modifier.fillMaxWidth())
             Text("Jump straight into any mini-app", fontSize = 13.sp, color = colors.dim, modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 18.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                LauncherTile(AppKey.Screenshots, Icons.Outlined.Image, Modifier.weight(1f)) { state.go(AppKey.Screenshots) }
-                LauncherTile(AppKey.Currency, Icons.Outlined.SwapHoriz, Modifier.weight(1f)) { state.go(AppKey.Currency) }
-                LauncherTile(AppKey.Calendar, Icons.Outlined.CalendarMonth, Modifier.weight(1f)) { state.go(AppKey.Calendar) }
-                LauncherTile(AppKey.Notes, Icons.Outlined.StickyNote2, Modifier.weight(1f)) { state.go(AppKey.Notes) }
+            // 3 per row
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                items.chunked(3).forEach { row ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        row.forEach { (app, icon) -> LauncherTile(app, icon, Modifier.weight(1f)) { state.go(app) } }
+                        repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
             }
+            Spacer(Modifier.height(18.dp))
+            Text("More coming soon", color = colors.faint, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -137,10 +149,11 @@ fun SearchOverlay(state: QuiverState) {
 
     Column(
         Modifier.fillMaxSize().background(if (colors.dark) Color(0xEB080810) else Color(0xF2F4F5FA))
+            .statusBarsPadding()
             .clickable(remember { MutableInteractionSource() }, null) {},
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 24.dp, bottom = 14.dp),
+            Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {

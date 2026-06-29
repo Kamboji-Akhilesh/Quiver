@@ -31,10 +31,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.FormatBold
+import androidx.compose.material.icons.filled.FormatItalic
+import androidx.compose.material.icons.filled.FormatListNumbered
+import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.StrikethroughS
+import androidx.compose.material.icons.outlined.CheckBox
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Search
@@ -53,8 +61,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -260,7 +270,8 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
     val dark = Quiver.colors.dark
     val existing = remember(id) { id?.let { vm.byId(it) } }
     var title by remember { mutableStateOf(existing?.title ?: "") }
-    var body by remember { mutableStateOf(existing?.body ?: "") }
+    var bodyValue by remember { mutableStateOf(TextFieldValue(existing?.body ?: "")) }
+    val body = bodyValue.text
     var colorId by remember { mutableStateOf(existing?.colorId ?: 0) }
     var pinned by remember { mutableStateOf(existing?.pinned ?: false) }
     var savedId by remember { mutableStateOf(id) }
@@ -327,10 +338,30 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
                     Spacer(Modifier.height(12.dp))
                     Box(Modifier.fillMaxWidth()) {
                         if (body.isEmpty()) Text("Start writing… (Markdown supported)", color = fg.copy(alpha = 0.4f), fontSize = 16.sp)
-                        BasicTextField(body, { body = it }, textStyle = TextStyle(color = fg.copy(alpha = 0.9f), fontSize = 16.sp, lineHeight = 24.sp), cursorBrush = SolidColor(nc.accent), modifier = Modifier.fillMaxWidth())
+                        BasicTextField(bodyValue, { bodyValue = it }, textStyle = TextStyle(color = fg.copy(alpha = 0.9f), fontSize = 16.sp, lineHeight = 24.sp), cursorBrush = SolidColor(nc.accent), modifier = Modifier.fillMaxWidth())
                     }
                 }
                 Spacer(Modifier.height(40.dp))
+            }
+            // markdown formatting toolbar (edit mode only)
+            if (!preview) {
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    FmtButton(label = "H1", fg = fg) { bodyValue = linePrefix(bodyValue, "# ") }
+                    FmtButton(label = "H2", fg = fg) { bodyValue = linePrefix(bodyValue, "## ") }
+                    FmtButton(icon = Icons.Filled.FormatBold, fg = fg) { bodyValue = wrap(bodyValue, "**") }
+                    FmtButton(icon = Icons.Filled.FormatItalic, fg = fg) { bodyValue = wrap(bodyValue, "*") }
+                    FmtButton(icon = Icons.Filled.StrikethroughS, fg = fg) { bodyValue = wrap(bodyValue, "~~") }
+                    FmtButton(icon = Icons.Filled.Code, fg = fg) { bodyValue = wrap(bodyValue, "`") }
+                    FmtButton(icon = Icons.AutoMirrored.Filled.FormatListBulleted, fg = fg) { bodyValue = linePrefix(bodyValue, "- ") }
+                    FmtButton(icon = Icons.Filled.FormatListNumbered, fg = fg) { bodyValue = linePrefix(bodyValue, "1. ") }
+                    FmtButton(icon = Icons.Outlined.CheckBox, fg = fg) { bodyValue = linePrefix(bodyValue, "- [ ] ") }
+                    FmtButton(icon = Icons.Filled.FormatQuote, fg = fg) { bodyValue = linePrefix(bodyValue, "> ") }
+                }
             }
             // colour strip
             Row(
@@ -349,4 +380,35 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
             }
         }
     }
+}
+
+@Composable
+private fun FmtButton(label: String? = null, icon: androidx.compose.ui.graphics.vector.ImageVector? = null, fg: Color, onClick: () -> Unit) {
+    Box(
+        Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)).background(fg.copy(alpha = 0.08f)).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (icon != null) Icon(icon, label, Modifier.size(20.dp), tint = fg)
+        else Text(label ?: "", color = fg, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+/** Wraps the current selection (or inserts at the cursor) with [marker], e.g. ** for bold. */
+private fun wrap(v: TextFieldValue, marker: String): TextFieldValue {
+    val text = v.text
+    val start = minOf(v.selection.start, v.selection.end)
+    val end = maxOf(v.selection.start, v.selection.end)
+    val selected = text.substring(start, end)
+    val newText = text.substring(0, start) + marker + selected + marker + text.substring(end)
+    val cursor = if (selected.isEmpty()) start + marker.length else end + 2 * marker.length
+    return TextFieldValue(newText, TextRange(cursor))
+}
+
+/** Inserts a line-level [prefix] (e.g. "# ", "- ") at the start of the current line. */
+private fun linePrefix(v: TextFieldValue, prefix: String): TextFieldValue {
+    val text = v.text
+    val pos = v.selection.start
+    val lineStart = if (pos == 0) 0 else text.lastIndexOf('\n', pos - 1).let { if (it < 0) 0 else it + 1 }
+    val newText = text.substring(0, lineStart) + prefix + text.substring(lineStart)
+    return TextFieldValue(newText, TextRange(pos + prefix.length))
 }
