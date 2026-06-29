@@ -24,6 +24,7 @@ import com.kamboji.quiver.ui.components.Aurora
 import com.kamboji.quiver.ui.currency.CurrencyScreen
 import com.kamboji.quiver.ui.hub.HubScreen
 import com.kamboji.quiver.ui.ai.QuiverAiPanel
+import com.kamboji.quiver.ui.notes.NotesScreen
 import com.kamboji.quiver.ui.screenshots.ScreenshotsScreen
 import com.kamboji.quiver.ui.theme.Accents
 import com.kamboji.quiver.ui.theme.AppKey
@@ -67,6 +68,7 @@ fun QuiverApp() {
                     AppKey.Screenshots -> ScreenshotsScreen(state)
                     AppKey.Currency -> CurrencyScreen(state)
                     AppKey.Calendar -> CalendarScreen(state)
+                    AppKey.Notes -> NotesScreen(state)
                 }
             }
 

@@ -30,6 +30,7 @@ import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Icon
@@ -53,6 +54,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kamboji.quiver.calendar.CalendarViewModel
 import com.kamboji.quiver.currency.CurrencyViewModel
 import com.kamboji.quiver.currency.Ui
+import com.kamboji.quiver.notes.NotesViewModel
 import com.kamboji.quiver.screenshots.data.SettingsManager
 import com.kamboji.quiver.screenshots.data.db.AppDatabase
 import com.kamboji.quiver.ui.components.SectionLabel
@@ -77,6 +79,7 @@ private fun meta(app: AppKey): AppMeta = when (app) {
     AppKey.Screenshots -> AppMeta("Screenshots", "clear the clutter", Icons.Outlined.Image)
     AppKey.Currency -> AppMeta("Currency", "live & offline rates", Icons.Outlined.SwapHoriz)
     AppKey.Calendar -> AppMeta("Calendar", "tasks, events & calls", Icons.Outlined.CalendarMonth)
+    AppKey.Notes -> AppMeta("Notes", "quick thoughts & lists", Icons.Outlined.StickyNote2)
     AppKey.Hub -> AppMeta("Quiver", "your apps", Icons.Filled.AutoAwesome)
 }
 
@@ -105,11 +108,14 @@ fun HubScreen(state: QuiverState) {
     val context = LocalContext.current
     val calVm: CalendarViewModel = viewModel()
     val curVm: CurrencyViewModel = viewModel()
+    val notesVm: NotesViewModel = viewModel()
 
     // ---- real data ----
     val entries by calVm.entries.collectAsState()
     val today = LocalDate.now()
     val todayCount = entries.count { localDate(it.startMillis) == today }
+    val noteList by notesVm.notes.collectAsState()
+    val notesCount = noteList.size
     val dao = remember { AppDatabase.getDatabase(context).historyDao() }
     val trash by remember { dao.getAllHistory() }.collectAsState(emptyList())
     val monitoring = remember(trash.size) { SettingsManager.isServiceEnabled(context) }
@@ -229,9 +235,9 @@ fun HubScreen(state: QuiverState) {
             Spacer(Modifier.height(8.dp))
         }
 
-        val order = listOf(AppKey.Screenshots, AppKey.Currency, AppKey.Calendar)
+        val order = listOf(AppKey.Screenshots, AppKey.Currency, AppKey.Calendar, AppKey.Notes)
             .sortedByDescending { state.pinned[it] == true }
-        BentoGrid(state, order, monitoring, todayCount, curRate, curVm.to)
+        BentoGrid(state, order, monitoring, todayCount, curRate, curVm.to, notesCount)
 
         // ---- recent activity (real) ----
         Spacer(Modifier.height(22.dp))
@@ -298,7 +304,7 @@ private fun QuickAction(label: String, icon: ImageVector, accent: Accent, onClic
 }
 
 @Composable
-private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boolean, todayCount: Int, curRate: Double?, curTo: String) {
+private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boolean, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int) {
     val colors = Quiver.colors
     val rows = packTiles(order) { state.pinned[it] == true }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -306,7 +312,7 @@ private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boole
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { app ->
                     val big = state.pinned[app] == true
-                    BentoTile(state, app, big, monitoring, todayCount, curRate, curTo, Modifier.weight(1f))
+                    BentoTile(state, app, big, monitoring, todayCount, curRate, curTo, notesCount, Modifier.weight(1f))
                 }
                 if (row.size == 1 && state.pinned[row[0]] != true) Spacer(Modifier.weight(1f))
             }
@@ -352,6 +358,7 @@ private fun BentoTile(
     todayCount: Int,
     curRate: Double?,
     curTo: String,
+    notesCount: Int,
     modifier: Modifier,
 ) {
     val colors = Quiver.colors
@@ -397,7 +404,7 @@ private fun BentoTile(
             Text(m.name, fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
             Text(m.tag, fontSize = 12.5.sp, color = colors.dim)
             Spacer(Modifier.height(11.dp))
-            TileSummary(app, ac, monitoring, todayCount, curRate, curTo)
+            TileSummary(app, ac, monitoring, todayCount, curRate, curTo, notesCount)
         }
     }
 }
@@ -409,7 +416,7 @@ private fun togglePin(state: QuiverState, app: AppKey) {
 }
 
 @Composable
-private fun TileSummary(app: AppKey, ac: Accent, monitoring: Boolean, todayCount: Int, curRate: Double?, curTo: String) {
+private fun TileSummary(app: AppKey, ac: Accent, monitoring: Boolean, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int) {
     val colors = Quiver.colors
     when (app) {
         AppKey.Screenshots -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -423,6 +430,10 @@ private fun TileSummary(app: AppKey, ac: Accent, monitoring: Boolean, todayCount
         AppKey.Calendar -> Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("$todayCount", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
             Text(if (todayCount == 1) "item today" else "items today", fontSize = 12.sp, color = colors.dim)
+        }
+        AppKey.Notes -> Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("$notesCount", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
+            Text(if (notesCount == 1) "note" else "notes", fontSize = 12.sp, color = colors.dim)
         }
         AppKey.Hub -> Unit
     }

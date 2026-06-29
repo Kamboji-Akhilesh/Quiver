@@ -76,17 +76,19 @@ object Accents {
     val Screenshots = Accent(a = Color(0xFFB794F6), b = Color(0xFF7C5CFC), deep = Color(0xFF7C3AED), glow = Color(0xFF8B5CF6))
     val Currency = Accent(a = Color(0xFF34D399), b = Color(0xFF059669), deep = Color(0xFF047857), glow = Color(0xFF34D399), extra = Color(0xFFFBBF24))
     val Calendar = Accent(a = Color(0xFF38BDF8), b = Color(0xFF2563EB), deep = Color(0xFF0369A1), glow = Color(0xFF38BDF8))
+    val Notes = Accent(a = Color(0xFFFBBF24), b = Color(0xFFF59E0B), deep = Color(0xFFB45309), glow = Color(0xFFFBBF24))
 
     fun of(app: AppKey): Accent = when (app) {
         AppKey.Hub -> Hub
         AppKey.Screenshots -> Screenshots
         AppKey.Currency -> Currency
         AppKey.Calendar -> Calendar
+        AppKey.Notes -> Notes
     }
 }
 
-/** The four primary surfaces the dock and accent system switch between. */
-enum class AppKey { Hub, Screenshots, Currency, Calendar }
+/** The primary surfaces the dock and accent system switch between. */
+enum class AppKey { Hub, Screenshots, Currency, Calendar, Notes }
 
 val LocalQuiverColors = staticCompositionLocalOf { DarkColors }
 val LocalAccent = staticCompositionLocalOf { Accents.Hub }

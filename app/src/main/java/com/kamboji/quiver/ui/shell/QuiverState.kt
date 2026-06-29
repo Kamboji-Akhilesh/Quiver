@@ -50,6 +50,7 @@ class QuiverState {
         AppKey.Screenshots to true,
         AppKey.Currency to false,
         AppKey.Calendar to false,
+        AppKey.Notes to false,
     )
 
     fun toggleTheme() {

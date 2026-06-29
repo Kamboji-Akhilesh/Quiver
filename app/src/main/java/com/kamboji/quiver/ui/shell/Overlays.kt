@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -86,6 +87,7 @@ fun Launcher(state: QuiverState) {
                 LauncherTile(AppKey.Screenshots, Icons.Outlined.Image, Modifier.weight(1f)) { state.go(AppKey.Screenshots) }
                 LauncherTile(AppKey.Currency, Icons.Outlined.SwapHoriz, Modifier.weight(1f)) { state.go(AppKey.Currency) }
                 LauncherTile(AppKey.Calendar, Icons.Outlined.CalendarMonth, Modifier.weight(1f)) { state.go(AppKey.Calendar) }
+                LauncherTile(AppKey.Notes, Icons.Outlined.StickyNote2, Modifier.weight(1f)) { state.go(AppKey.Notes) }
             }
         }
     }
@@ -96,7 +98,7 @@ private fun LauncherTile(app: AppKey, icon: ImageVector, modifier: Modifier, onC
     val colors = Quiver.colors
     val ac = Accents.of(app)
     val name = when (app) {
-        AppKey.Screenshots -> "Screenshots"; AppKey.Currency -> "Currency"; AppKey.Calendar -> "Calendar"; AppKey.Hub -> "Quiver"
+        AppKey.Screenshots -> "Screenshots"; AppKey.Currency -> "Currency"; AppKey.Calendar -> "Calendar"; AppKey.Notes -> "Notes"; AppKey.Hub -> "Quiver"
     }
     Column(
         modifier.clip(RoundedCornerShape(22.dp))
@@ -127,6 +129,7 @@ fun SearchOverlay(state: QuiverState) {
             SearchAction("Clean screenshots now", Icons.Outlined.Image, AppKey.Screenshots, Accents.Screenshots),
             SearchAction("Convert 100 USD to EUR", Icons.Outlined.SwapHoriz, AppKey.Currency, Accents.Currency),
             SearchAction("Add a new event", Icons.Filled.Add, AppKey.Calendar, Accents.Calendar),
+            SearchAction("New note", Icons.Outlined.StickyNote2, AppKey.Notes, Accents.Notes),
             SearchAction("Open deletion history", Icons.Outlined.History, AppKey.Screenshots, Accents.Screenshots, "history"),
         )
     }
