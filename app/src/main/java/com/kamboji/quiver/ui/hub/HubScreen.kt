@@ -125,6 +125,11 @@ fun HubScreen(state: QuiverState) {
 
     // Dashboard apps are a user-curated subset (default 2); the rest can be added.
     val hubPrefs = remember { HubPrefs(context) }
+    // Restore pinned tiles (otherwise pins reset to unpinned each cold start).
+    LaunchedEffect(Unit) {
+        val saved = hubPrefs.pinnedApps()
+        state.pinned.keys.toList().forEach { state.pinned[it] = it in saved }
+    }
     val dashApps = remember { mutableStateListOf<AppKey>().also { it.addAll(hubPrefs.dashboardApps()) } }
     var showAddPicker by remember { mutableStateOf(false) }
     val allApps = listOf(AppKey.Screenshots, AppKey.Currency, AppKey.Calendar, AppKey.Notes)
@@ -226,6 +231,7 @@ fun HubScreen(state: QuiverState) {
             QuickAction("Clean now", Icons.Outlined.Image, Accents.Screenshots) { state.go(AppKey.Screenshots) }
             QuickAction("Convert", Icons.Outlined.SwapHoriz, Accents.Currency) { state.go(AppKey.Currency) }
             QuickAction("New event", Icons.Filled.Add, Accents.Calendar) { state.go(AppKey.Calendar); state.calendarStartNew = true }
+            QuickAction("New note", Icons.Outlined.StickyNote2, Accents.Notes) { state.go(AppKey.Notes); state.notesStartNew = true }
             QuickAction("Ask AI", Icons.Filled.AutoAwesome, Accents.Hub) { state.closeOverlays(); state.aiOpen = true }
         }
 
@@ -253,12 +259,13 @@ fun HubScreen(state: QuiverState) {
 
         val order = dashApps.sortedByDescending { state.pinned[it] == true }
         BentoGrid(
-            state, order, monitoring, todayCount, curRate, curVm.to, notesCount,
+            state, order, monitoring, todayCount, curRate, curVm.to, notesCount, hubPrefs,
             onAddApp = { showAddPicker = true },
             onRemoveApp = { app ->
                 dashApps.remove(app)
                 state.pinned[app] = false
                 hubPrefs.setDashboardApps(dashApps.toList())
+                hubPrefs.setPinnedApps(state.pinned.filterValues { it }.keys)
             },
         )
 
@@ -266,7 +273,7 @@ fun HubScreen(state: QuiverState) {
         Spacer(Modifier.height(22.dp))
         SectionLabel("Recent activity")
         Spacer(Modifier.height(4.dp))
-        val activity = buildHubActivity(trash, entries)
+        val activity = buildHubActivity(trash, entries, noteList)
         Column(Modifier.fillMaxWidth().glass(colors).padding(6.dp)) {
             if (activity.isEmpty()) {
                 Text(
@@ -339,10 +346,15 @@ private data class HubActivity(val icon: ImageVector, val title: String, val app
 private fun buildHubActivity(
     trash: List<com.kamboji.quiver.screenshots.data.db.HistoryItem>,
     entries: List<com.kamboji.quiver.calendar.data.CalendarEntry>,
+    notes: List<com.kamboji.quiver.notes.data.Note>,
 ): List<HubActivity> = buildList {
     trash.take(3).forEach { add(HubActivity(Icons.Outlined.Image, "Trashed ${it.fileName}", AppKey.Screenshots, it.deletedAt)) }
     entries.sortedByDescending { it.createdAtMillis }.take(3).forEach {
         add(HubActivity(Icons.Outlined.CalendarMonth, "Added “${it.title}”", AppKey.Calendar, it.createdAtMillis))
+    }
+    notes.sortedByDescending { it.updatedAtMillis }.take(3).forEach {
+        val name = it.title.trim().ifBlank { it.body.trim().lineSequence().firstOrNull()?.take(30) ?: "Untitled note" }
+        add(HubActivity(Icons.Outlined.StickyNote2, "Edited “$name”", AppKey.Notes, it.updatedAtMillis))
     }
 }.sortedByDescending { it.ts }.take(3)
 
@@ -370,7 +382,7 @@ private fun QuickAction(label: String, icon: ImageVector, accent: Accent, onClic
 }
 
 @Composable
-private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boolean, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int, onAddApp: () -> Unit, onRemoveApp: (AppKey) -> Unit) {
+private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boolean, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int, hubPrefs: HubPrefs, onAddApp: () -> Unit, onRemoveApp: (AppKey) -> Unit) {
     val colors = Quiver.colors
     val rows = packTiles(order) { state.pinned[it] == true }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -378,7 +390,7 @@ private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boole
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { app ->
                     val big = state.pinned[app] == true
-                    BentoTile(state, app, big, monitoring, todayCount, curRate, curTo, notesCount, { onRemoveApp(app) }, Modifier.weight(1f))
+                    BentoTile(state, app, big, monitoring, todayCount, curRate, curTo, notesCount, hubPrefs, { onRemoveApp(app) }, Modifier.weight(1f))
                 }
                 if (row.size == 1 && state.pinned[row[0]] != true) Spacer(Modifier.weight(1f))
             }
@@ -425,6 +437,7 @@ private fun BentoTile(
     curRate: Double?,
     curTo: String,
     notesCount: Int,
+    hubPrefs: HubPrefs,
     onRemove: () -> Unit,
     modifier: Modifier,
 ) {
@@ -444,7 +457,7 @@ private fun BentoTile(
                 ),
             )
             .border(1.dp, ac.a.copy(alpha = if (colors.dark) 0.28f else 0.32f), RoundedCornerShape(28.dp))
-            .clickable { if (state.editMode) togglePin(state, app) else state.go(app) }
+            .clickable { if (state.editMode) togglePin(state, app, hubPrefs) else state.go(app) }
             .padding(18.dp),
     ) {
         Icon(
@@ -462,7 +475,7 @@ private fun BentoTile(
                     Modifier.size(30.dp).clip(CircleShape)
                         .background(if (state.pinned[app] == true) ac.a else colors.surf2)
                         .border(1.dp, colors.border, CircleShape)
-                        .clickable { togglePin(state, app) },
+                        .clickable { togglePin(state, app, hubPrefs) },
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Outlined.PushPin, null, Modifier.size(15.dp), tint = if (state.pinned[app] == true) Color.White else colors.dim) }
             }
@@ -483,9 +496,10 @@ private fun BentoTile(
     }
 }
 
-private fun togglePin(state: QuiverState, app: AppKey) {
+private fun togglePin(state: QuiverState, app: AppKey, hubPrefs: HubPrefs) {
     val now = !(state.pinned[app] ?: false)
     state.pinned[app] = now
+    hubPrefs.setPinnedApps(state.pinned.filterValues { it }.keys)
     state.toast(if (now) "Pinned to top" else "Unpinned", ToastKind.Info)
 }
 

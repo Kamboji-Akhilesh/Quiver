@@ -36,6 +36,16 @@ enum class AiModel(
         pros = "Higher quality · stronger multilingual answers",
         cons = "Large download · needs 6–8 GB RAM · slower first response",
     ),
+    GEMMA3N_E4B(
+        id = "gemma3n-e4b",
+        displayName = "Gemma 3n E4B",
+        fileName = "gemma-3n-E4B-it-int4.task",
+        sizeLabel = "~4.4 GB",
+        approxBytes = 4_400_000_000L,
+        downloadUrl = "https://huggingface.co/google/gemma-3n-E4B-it-litert-preview/resolve/main/gemma-3n-E4B-it-int4.task?download=true",
+        pros = "Best for actions/tool use · follows multi-step requests · strongest multilingual",
+        cons = "Largest download · needs a high-end phone (8 GB+ RAM) · slowest first response",
+    ),
     ;
 
     companion object {

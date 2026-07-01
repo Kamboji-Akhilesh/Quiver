@@ -2,11 +2,14 @@ package com.kamboji.quiver.ui.currency
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,8 +17,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -50,6 +55,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -61,6 +67,7 @@ import com.kamboji.quiver.currency.HistoryRange
 import com.kamboji.quiver.currency.Ui
 import com.kamboji.quiver.currency.data.Cached
 import com.kamboji.quiver.currency.data.Currency
+import com.kamboji.quiver.currency.data.RatePoint
 import com.kamboji.quiver.ui.components.QuiverModalSheet
 import com.kamboji.quiver.ui.components.QvTopBar
 import com.kamboji.quiver.ui.components.SectionLabel
@@ -76,6 +83,7 @@ import androidx.compose.runtime.collectAsState
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 private val FLAGS = mapOf(
     "USD" to "🇺🇸", "EUR" to "🇪🇺", "GBP" to "🇬🇧", "JPY" to "🇯🇵", "INR" to "🇮🇳",
@@ -257,7 +265,7 @@ private fun TrendSection(vm: CurrencyViewModel, ac: Accent) {
                 Text(if (seriesUi is Ui.Loading) "Loading trend…" else "No trend data", color = colors.faint, fontSize = 12.sp)
             }
         } else {
-            Sparkline(points.map { it.rate }, lineColor, Modifier.fillMaxWidth().height(80.dp))
+            Sparkline(points, vm.to, lineColor, Modifier.fillMaxWidth().height(96.dp))
         }
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -275,30 +283,89 @@ private fun TrendSection(vm: CurrencyViewModel, ac: Accent) {
 }
 
 @Composable
-private fun Sparkline(values: List<Double>, color: Color, modifier: Modifier) {
+private fun Sparkline(points: List<RatePoint>, toCode: String, color: Color, modifier: Modifier) {
+    val colors = Quiver.colors
     val fill = color.copy(alpha = 0.14f)
-    Canvas(modifier) {
-        val min = values.min()
-        val max = values.max()
-        val span = (max - min).takeIf { it > 0 } ?: 1.0
-        val w = size.width
-        val h = size.height
-        val dx = if (values.size > 1) w / (values.size - 1) else w
-        fun pt(i: Int): Offset {
-            val norm = ((values[i] - min) / span).toFloat()
-            return Offset(i * dx, h - norm * (h * 0.86f) - h * 0.07f)
+    val values = remember(points) { points.map { it.rate } }
+    var active by remember(points) { mutableStateOf<Int?>(null) }
+    val dateFmt = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
+
+    BoxWithConstraints(modifier) {
+        val widthDp = maxWidth
+        Canvas(
+            Modifier.fillMaxSize()
+                .pointerInput(points) {
+                    detectDragGestures(
+                        onDragStart = { active = idxAt(it.x, size.width.toFloat(), values.size) },
+                        onDragEnd = { active = null },
+                        onDragCancel = { active = null },
+                        onDrag = { change, _ ->
+                            active = idxAt(change.position.x, size.width.toFloat(), values.size)
+                            change.consume()
+                        },
+                    )
+                }
+                .pointerInput(points) {
+                    detectTapGestures(
+                        onPress = {
+                            active = idxAt(it.x, size.width.toFloat(), values.size)
+                            tryAwaitRelease()
+                            active = null
+                        },
+                    )
+                },
+        ) {
+            val min = values.min()
+            val max = values.max()
+            val span = (max - min).takeIf { it > 0 } ?: 1.0
+            val w = size.width
+            val h = size.height
+            val dx = if (values.size > 1) w / (values.size - 1) else w
+            fun pt(i: Int): Offset {
+                val norm = ((values[i] - min) / span).toFloat()
+                return Offset(i * dx, h - norm * (h * 0.86f) - h * 0.07f)
+            }
+            val line = Path().apply {
+                moveTo(pt(0).x, pt(0).y)
+                for (i in 1 until values.size) lineTo(pt(i).x, pt(i).y)
+            }
+            val area = Path().apply {
+                addPath(line)
+                lineTo(w, h); lineTo(0f, h); close()
+            }
+            drawPath(area, brush = Brush.verticalGradient(listOf(fill, Color.Transparent)))
+            drawPath(line, color = color, style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+            active?.let { i ->
+                val p = pt(i)
+                drawLine(color.copy(alpha = 0.45f), Offset(p.x, 0f), Offset(p.x, h), strokeWidth = 1.dp.toPx())
+                drawCircle(color, radius = 4.5.dp.toPx(), center = p)
+                drawCircle(Color.White, radius = 2.dp.toPx(), center = p)
+            }
         }
-        val line = Path().apply {
-            moveTo(pt(0).x, pt(0).y)
-            for (i in 1 until values.size) lineTo(pt(i).x, pt(i).y)
+        // Tooltip: price + date for the touched point.
+        active?.let { i ->
+            val frac = if (values.size > 1) i.toFloat() / (values.size - 1) else 0f
+            val raw = widthDp * frac - 52.dp
+            val x = raw.coerceIn(0.dp, (widthDp - 104.dp).coerceAtLeast(0.dp))
+            Column(
+                Modifier.offset(x = x, y = 0.dp).width(104.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (colors.dark) Color(0xF21A2230) else Color(0xF2FFFFFF))
+                    .border(1.dp, color.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text("${fmt4(values[i])} $toCode", fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
+                Text(dateFmt.format(Date(points[i].dateMillis)), fontSize = 10.sp, color = colors.dim)
+            }
         }
-        val area = Path().apply {
-            addPath(line)
-            lineTo(w, h); lineTo(0f, h); close()
-        }
-        drawPath(area, brush = Brush.verticalGradient(listOf(fill, Color.Transparent)))
-        drawPath(line, color = color, style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
+}
+
+private fun idxAt(x: Float, width: Float, n: Int): Int {
+    if (n <= 1) return 0
+    val dx = width / (n - 1)
+    return (x / dx).roundToInt().coerceIn(0, n - 1)
 }
 
 @Composable
@@ -336,7 +403,7 @@ private fun RatesTab(vm: CurrencyViewModel, ac: Accent) {
             Icon(Icons.Outlined.Search, null, Modifier.size(18.dp), tint = colors.dim)
             Box(Modifier.weight(1f)) {
                 if (query.isEmpty()) Text("Search currency…", color = colors.dim, fontSize = 14.sp)
-                BasicTextField(query, { query = it }, textStyle = TextStyle(color = colors.text, fontSize = 14.sp), cursorBrush = SolidColor(ac.a), singleLine = true)
+                BasicTextField(query, { query = it }, textStyle = TextStyle(color = colors.text, fontSize = 14.sp), cursorBrush = SolidColor(ac.a), singleLine = true, modifier = Modifier.fillMaxWidth())
             }
         }
         Spacer(Modifier.height(10.dp))

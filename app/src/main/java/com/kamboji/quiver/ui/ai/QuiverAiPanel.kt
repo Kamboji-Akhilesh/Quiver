@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
@@ -75,6 +76,7 @@ fun QuiverAiPanel(onClose: () -> Unit) {
     val vm: AiViewModel = viewModel()
     val state by vm.modelState.collectAsState()
     val colors = Quiver.colors
+    var showManage by remember { mutableStateOf(false) }
 
     QuiverModalSheet(onDismiss = onClose) { hide ->
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.86f)) {
@@ -98,6 +100,14 @@ fun QuiverAiPanel(onClose: () -> Unit) {
                         fontSize = 12.5.sp, color = Accents.Hub.txt(colors.dark), fontWeight = FontWeight.SemiBold,
                     )
                 }
+                if (state is ModelState.Ready) {
+                    Box(
+                        Modifier.size(38.dp).clip(CircleShape)
+                            .background(if (showManage) AiA.copy(alpha = 0.2f) else colors.surf)
+                            .border(1.dp, colors.border, CircleShape).clickable { showManage = !showManage },
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Icons.Outlined.Tune, "Manage model", Modifier.size(18.dp), tint = if (showManage) Accents.Hub.txt(colors.dark) else colors.text) }
+                }
                 Box(Modifier.size(38.dp).clip(CircleShape).background(colors.surf).border(1.dp, colors.border, CircleShape).clickable { hide() }, contentAlignment = Alignment.Center) {
                     Icon(Icons.Filled.Close, null, Modifier.size(18.dp), tint = colors.text)
                 }
@@ -105,7 +115,9 @@ fun QuiverAiPanel(onClose: () -> Unit) {
             Spacer(Modifier.height(8.dp))
 
             when (val s = state) {
-                is ModelState.Ready -> ChatBody(vm)
+                is ModelState.Ready ->
+                    if (showManage) SetupBody(vm, null, current = s.label, onBack = { showManage = false })
+                    else ChatBody(vm)
                 is ModelState.Downloading -> Progress("Downloading ${s.model.displayName}", s.progress, s.model.sizeLabel)
                 is ModelState.Importing -> Progress("Importing model", s.progress, null)
                 is ModelState.Error -> SetupBody(vm, s.message)
@@ -133,7 +145,7 @@ private fun Progress(label: String, progress: Float, size: String?) {
 }
 
 @Composable
-private fun SetupBody(vm: AiViewModel, error: String?) {
+private fun SetupBody(vm: AiViewModel, error: String?, current: String? = null, onBack: (() -> Unit)? = null) {
     val colors = Quiver.colors
     var pending by remember { mutableStateOf<AiModel?>(null) }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -141,8 +153,24 @@ private fun SetupBody(vm: AiViewModel, error: String?) {
     }
 
     LazyColumn(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item {
-            Text("Quiver AI runs entirely on your phone — your messages and voice never leave the device. Pick a model to download once.", fontSize = 14.sp, color = colors.text, lineHeight = 20.sp)
+        if (current != null) {
+            // Manage mode: show the installed model with remove / back, then let
+            // the user switch by downloading or importing a different one.
+            item {
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(16.dp)).padding(16.dp)) {
+                    Text("CURRENT MODEL", fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = colors.dim)
+                    Text(current, fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text, modifier = Modifier.padding(top = 3.dp))
+                    Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        if (onBack != null) PillButton("Back to chat", filled = true) { onBack() }
+                        PillButton("Remove", filled = false) { vm.deleteModel(); onBack?.invoke() }
+                    }
+                }
+            }
+            item { Text("Switch model — download or import another. The newest one you add is used.", fontSize = 13.sp, color = colors.dim, lineHeight = 18.sp) }
+        } else {
+            item {
+                Text("Quiver AI runs entirely on your phone — your messages and voice never leave the device. Pick a model to download once.", fontSize = 14.sp, color = colors.text, lineHeight = 20.sp)
+            }
         }
         if (error != null) {
             item {
@@ -151,29 +179,33 @@ private fun SetupBody(vm: AiViewModel, error: String?) {
                 }
             }
         }
-        items(AiModel.entries) { model ->
-            ModelCard(model, selected = pending == model) { pending = if (pending == model) null else model }
-        }
-        item {
-            if (pending != null) {
-                val m = pending!!
-                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(AiA.copy(alpha = 0.12f)).border(1.dp, AiA.copy(alpha = 0.4f), RoundedCornerShape(16.dp)).padding(16.dp)) {
-                    Text("Download ${m.displayName} (${m.sizeLabel})?", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                    Text("This uses your data connection — Wi-Fi recommended. The model stays on your phone.", fontSize = 12.5.sp, color = colors.dim, modifier = Modifier.padding(top = 4.dp))
-                    Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        PillButton("Not now", filled = false) { pending = null }
-                        PillButton("Download", filled = true) { vm.download(m); pending = null }
+        AiModel.entries.forEach { model ->
+            item(key = model.id) {
+                ModelCard(model, selected = pending == model) { pending = if (pending == model) null else model }
+            }
+            // The download prompt sits directly under the model it refers to.
+            if (pending == model) {
+                item(key = "${model.id}-confirm") {
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(AiA.copy(alpha = 0.12f)).border(1.dp, AiA.copy(alpha = 0.4f), RoundedCornerShape(16.dp)).padding(16.dp)) {
+                        Text("Download ${model.displayName} (${model.sizeLabel})?", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                        Text("This uses your data connection — Wi-Fi recommended. The model stays on your phone.", fontSize = 12.5.sp, color = colors.dim, modifier = Modifier.padding(top = 4.dp))
+                        Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            PillButton("Not now", filled = false) { pending = null }
+                            PillButton("Download", filled = true) { vm.download(model); pending = null }
+                        }
                     }
                 }
             }
+        }
+        item {
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(16.dp)).clickable { importLauncher.launch(arrayOf("*/*")) }.padding(14.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Icon(Icons.Outlined.UploadFile, null, Modifier.size(20.dp), tint = colors.dim)
                     Column {
-                        Text("Import a .task file", fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                        Text("Already downloaded a Gemma model? Pick it here.", fontSize = 12.sp, color = colors.dim)
+                        Text("Import a model file", fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                        Text("Already have a .task, .litertlm or .gguf model? Pick it here.", fontSize = 12.sp, color = colors.dim)
                     }
                 }
             }
@@ -214,7 +246,7 @@ private fun ChatBody(vm: AiViewModel) {
         // messages
         LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (vm.messages.isEmpty()) {
-                item { Text("Ask me anything — type or tap the mic. I answer in ${vm.lang.label}.", fontSize = 14.sp, color = colors.dim, lineHeight = 20.sp, modifier = Modifier.padding(vertical = 12.dp)) }
+                item { Text("Ask me anything, or tell me to do it — “add a note”, “remind me tomorrow evening”, “what's USD to INR”, “what's in my screenshot trash”. Tasks keep running even if you close the app.", fontSize = 14.sp, color = colors.dim, lineHeight = 20.sp, modifier = Modifier.padding(vertical = 12.dp)) }
             }
             items(vm.messages, key = { it.id }) { msg -> Bubble(msg) { vm.speak(msg.text) } }
             if (vm.listening && vm.partialTranscript.isNotBlank()) {

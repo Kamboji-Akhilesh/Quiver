@@ -18,6 +18,15 @@ class CalendarViewModel(app: Application) : AndroidViewModel(app) {
     private val _entries = MutableStateFlow(store.getAll())
     val entries = _entries.asStateFlow()
 
+    // Reload when the store is written from elsewhere in the process (e.g. the
+    // full-screen call activity marking a task done or snoozing it).
+    private val storeListener = store.observe { _entries.value = store.getAll() }
+
+    override fun onCleared() {
+        store.stopObserving(storeListener)
+        super.onCleared()
+    }
+
     fun entriesForDay(date: LocalDate): List<CalendarEntry> =
         _entries.value
             .filter { it.occursOn(date) }

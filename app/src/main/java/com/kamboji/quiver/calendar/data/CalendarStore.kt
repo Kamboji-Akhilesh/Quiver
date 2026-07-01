@@ -1,12 +1,30 @@
 package com.kamboji.quiver.calendar.data
 
 import android.content.Context
+import android.content.SharedPreferences
 import org.json.JSONArray
 
 /** Persists calendar entries on-device as JSON in SharedPreferences. */
 class CalendarStore(context: Context) {
     private val prefs =
         context.getSharedPreferences("calendar_store", Context.MODE_PRIVATE)
+
+    /**
+     * Observes entry-list changes. Fires for writes made anywhere in the process
+     * (e.g. the full-screen call activity marking a task done) so a live screen's
+     * ViewModel can refresh instead of showing stale data.
+     */
+    fun observe(onChange: () -> Unit): SharedPreferences.OnSharedPreferenceChangeListener {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == KEY_LIST) onChange()
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        return listener
+    }
+
+    fun stopObserving(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
+        prefs.unregisterOnSharedPreferenceChangeListener(listener)
+    }
 
     fun getAll(): List<CalendarEntry> {
         val raw = prefs.getString(KEY_LIST, null) ?: return emptyList()

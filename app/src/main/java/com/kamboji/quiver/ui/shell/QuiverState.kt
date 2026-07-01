@@ -28,6 +28,9 @@ class QuiverState {
     /** One-shot: when true, the Calendar opens its new-entry composer on entry. */
     var calendarStartNew by mutableStateOf(false)
 
+    /** One-shot: when true, Notes opens straight into a new-note editor on entry. */
+    var notesStartNew by mutableStateOf(false)
+
     var searchOpen by mutableStateOf(false)
     var aiOpen by mutableStateOf(false)
     var launcherOpen by mutableStateOf(false)

@@ -32,14 +32,42 @@ object AlertNotifier {
             Intent(context, CalendarActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        val n = Notification.Builder(context, ALERT_CHANNEL)
+        val builder = Notification.Builder(context, ALERT_CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(entry.title)
             .setContentText(if (entry.isEvent) "Event" else "Task")
             .setContentIntent(open)
             .setAutoCancel(true)
-            .build()
-        nm.notify(notificationId(entry.id), n)
+        // Tasks can be completed straight from the notification.
+        if (entry.isTask && !entry.done) {
+            builder.addAction(
+                Notification.Action.Builder(
+                    null, "Mark as done",
+                    actionPending(context, entry.id, AlertActionReceiver.ACTION_DONE),
+                ).build(),
+            )
+        }
+        // Both events and tasks can be re-reminded in 5 minutes.
+        builder.addAction(
+            Notification.Action.Builder(
+                null, "Remind in 5 min",
+                actionPending(context, entry.id, AlertActionReceiver.ACTION_SNOOZE_5),
+            ).build(),
+        )
+        nm.notify(notificationId(entry.id), builder.build())
+    }
+
+    /** PendingIntent for an inline notification action on [entryId]. */
+    private fun actionPending(context: Context, entryId: Long, action: String): PendingIntent {
+        val intent = Intent(context, AlertActionReceiver::class.java)
+            .setAction(action)
+            .putExtra("id", entryId)
+        // Distinct request code per (action, entry) so they don't collide.
+        val req = (action.hashCode() * 31) + entryId.toInt()
+        return PendingIntent.getBroadcast(
+            context, req, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
     }
 
     fun showCall(context: Context, entry: CalendarEntry) {

@@ -4,7 +4,6 @@ import android.app.NotificationManager
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.os.Bundle
-import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -45,7 +44,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kamboji.quiver.ai.VoiceController
-import com.kamboji.quiver.ai.VoiceLanguages
+import com.kamboji.quiver.ai.tts.ReminderScript
+import com.kamboji.quiver.ai.tts.ReminderSpeaker
+import com.kamboji.quiver.ai.tts.ReminderVoiceSettings
 import com.kamboji.quiver.calendar.alert.AlertNotifier
 import com.kamboji.quiver.calendar.alert.AlertScheduler
 import com.kamboji.quiver.calendar.data.AlertLead
@@ -60,10 +61,13 @@ import java.util.Locale
 class EventCallActivity : ComponentActivity() {
 
     private var ringtone: Ringtone? = null
-    private var tts: TextToSpeech? = null
-    private var ttsReady = false
     private var muted = false
     private val voice by lazy { VoiceController(this) }
+    private val settings by lazy { ReminderVoiceSettings(this) }
+    private val speaker by lazy { ReminderSpeaker(this) }
+
+    /** The user-selected reminder-voice language (Settings picker writes this). */
+    private val lang get() = settings.language()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -86,12 +90,10 @@ class EventCallActivity : ComponentActivity() {
 
         getSystemService(NotificationManager::class.java).cancel(AlertNotifier.notificationId(id))
 
-        tts = TextToSpeech(this) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                tts?.language = Locale.getDefault()
-                ttsReady = true
-            }
-        }
+        // Warm up the voice engine now so it's initialised by the time the user
+        // accepts (the platform TTS init is async and was missing the first line).
+        speaker
+
         startRinging()
 
         setContent {
@@ -131,37 +133,30 @@ class EventCallActivity : ComponentActivity() {
     }
 
     private fun speakAlert(entry: CalendarEntry) {
-        if (muted || !ttsReady) return
-        val t = tts ?: return
-        val kind = if (entry.isEvent) "event" else "task"
-        t.speak("Hi! This is your Quiver reminder.", TextToSpeech.QUEUE_FLUSH, null, "greet")
-        repeat(3) { i ->
-            t.playSilentUtterance(700, TextToSpeech.QUEUE_ADD, "gap$i")
-            t.speak("Your $kind: ${entry.title}.", TextToSpeech.QUEUE_ADD, null, "read$i")
-        }
-        t.playSilentUtterance(700, TextToSpeech.QUEUE_ADD, "gap-q")
-        t.speak("Tap the mic to snooze or reschedule by voice, or pick a time below.", TextToSpeech.QUEUE_ADD, null, "ask")
+        if (muted) return
+        val text = ReminderScript.full(entry.title, entry.isTask, lang.code)
+        speaker.speak(text, ReminderScript.effectiveLanguage(lang.code))
     }
 
     private fun toggleSpeaker(entry: CalendarEntry) {
         muted = !muted
-        if (muted) runCatching { tts?.stop() } else speakAlert(entry)
+        if (muted) speaker.silence() else speakAlert(entry)
     }
 
     private fun snooze(entry: CalendarEntry, minutes: Int) {
         AlertScheduler.scheduleAt(this, entry.id, System.currentTimeMillis() + minutes * 60_000L)
-        runCatching { tts?.speak("Okay, I'll remind you again in $minutes minutes.", TextToSpeech.QUEUE_FLUSH, null, "snz") }
+        speaker.speak(ReminderScript.snoozeConfirm(minutes, lang.code), ReminderScript.effectiveLanguage(lang.code))
         finishCallDelayed()
     }
 
     /** Listens for a spoken command and reschedules / completes / dismisses. */
     private fun listenForCommand(entry: CalendarEntry) {
-        runCatching { tts?.stop() }
+        speaker.silence()
         voice.startListening(
-            VoiceLanguages.first(),
+            lang,
             onPartial = {},
             onResult = { text -> handleCommand(entry, text) },
-            onError = { runCatching { tts?.speak("I didn't catch that. Please try again.", TextToSpeech.QUEUE_FLUSH, null, "err") } },
+            onError = { speaker.speak(ReminderScript.didntCatch(lang.code), ReminderScript.effectiveLanguage(lang.code)) },
         )
     }
 
@@ -173,7 +168,7 @@ class EventCallActivity : ComponentActivity() {
             else -> {
                 val mins = parseSnoozeMinutes(t)
                 if (mins != null) snooze(entry, mins)
-                else runCatching { tts?.speak("Say something like: remind me in 15 minutes.", TextToSpeech.QUEUE_FLUSH, null, "huh") }
+                else speaker.speak(ReminderScript.howToReschedule(lang.code), ReminderScript.effectiveLanguage(lang.code))
             }
         }
     }
@@ -198,7 +193,7 @@ class EventCallActivity : ComponentActivity() {
 
     private fun finishCall() {
         stopRinging()
-        runCatching { tts?.stop() }
+        speaker.silence()
         voice.stopListening()
         finish()
     }
@@ -212,7 +207,7 @@ class EventCallActivity : ComponentActivity() {
 
     override fun onDestroy() {
         stopRinging()
-        tts?.shutdown()
+        runCatching { speaker.release() }
         runCatching { voice.release() }
         super.onDestroy()
     }

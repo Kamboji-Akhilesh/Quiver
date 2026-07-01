@@ -51,6 +51,7 @@ import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -90,6 +91,11 @@ fun NotesScreen(state: QuiverState) {
     var editing by remember { mutableStateOf(false) }
     var editId by remember { mutableStateOf<Long?>(null) }
 
+    // Deep-link from Home's "New note" shortcut.
+    LaunchedEffect(state.notesStartNew) {
+        if (state.notesStartNew) { editId = null; editing = true; state.notesStartNew = false }
+    }
+
     if (editing) {
         NoteEditor(vm, editId, onClose = { editing = false; editId = null })
     } else {
@@ -126,7 +132,7 @@ private fun NotesList(state: QuiverState, vm: NotesViewModel, onNew: () -> Unit,
                 Icon(Icons.Outlined.Search, null, Modifier.size(18.dp), tint = colors.dim)
                 Box(Modifier.weight(1f)) {
                     if (query.isEmpty()) Text("Search notes", color = colors.dim, fontSize = 14.sp)
-                    BasicTextField(query, { query = it }, textStyle = TextStyle(color = colors.text, fontSize = 14.sp), cursorBrush = SolidColor(ac.a), singleLine = true)
+                    BasicTextField(query, { query = it }, textStyle = TextStyle(color = colors.text, fontSize = 14.sp), cursorBrush = SolidColor(ac.a), singleLine = true, modifier = Modifier.fillMaxWidth())
                 }
             }
             Spacer(Modifier.height(12.dp))

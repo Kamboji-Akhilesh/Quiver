@@ -8,6 +8,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.kamboji.quiver.ai.agent.AgentBus
+import com.kamboji.quiver.ai.agent.AiAgentService
 import kotlinx.coroutines.launch
 
 /** One ephemeral chat turn. Held in memory only — never written to disk. */
@@ -23,7 +25,6 @@ class AiViewModel(app: Application) : AndroidViewModel(app) {
     val modelManager = ModelManager(app)
     val modelState = modelManager.state
 
-    private var engine: GemmaEngine? = null
     private val voice = VoiceController(app)
 
     val messages = mutableStateListOf<ChatMsg>()
@@ -39,51 +40,74 @@ class AiViewModel(app: Application) : AndroidViewModel(app) {
     private var seq = 0L
     private var autoSpeak = false
 
+    // Tracks the agent run currently mirrored into [messages].
+    private var agentRunId = 0L
+    private var agentMsgIndex: Int? = null
+
+    init {
+        // Mirror the background agent's progress/result into the chat transcript.
+        viewModelScope.launch { AgentBus.state.collect(::renderAgent) }
+    }
+
     fun setLanguage(l: VoiceLang) { lang = l }
 
     fun download(model: AiModel) = viewModelScope.launch { modelManager.download(model) }
     fun import(uri: Uri) = viewModelScope.launch { modelManager.importModel(uri) }
     fun deleteModel() {
-        engine?.close(); engine = null
         modelManager.deleteAll()
         messages.clear()
     }
 
     fun sttAvailable() = voice.sttAvailable()
 
+    /**
+     * Hands the request to the background agent service (which plans, calls tools,
+     * and survives the app closing). Progress is reflected via [renderAgent].
+     */
     fun send(text: String) {
         val trimmed = text.trim()
         if (trimmed.isEmpty() || generating) return
-        val path = modelManager.installedFile()?.absolutePath ?: return
-        if (engine == null) engine = GemmaEngine(getApplication(), path)
-
+        if (modelManager.installedFile() == null) {
+            messages.add(ChatMsg(seq++, fromUser = false, text = "Set up an AI model first to use Quiver AI."))
+            return
+        }
         messages.add(ChatMsg(seq++, fromUser = true, text = trimmed))
-        val aiIndex = messages.size
-        messages.add(ChatMsg(seq++, fromUser = false, text = "", streaming = true))
         generating = true
+        AiAgentService.start(getApplication(), trimmed)
+    }
 
-        viewModelScope.launch {
-            val sb = StringBuilder()
-            try {
-                engine!!.generate(buildPrompt(trimmed)).collect { partial ->
-                    sb.append(partial)
-                    if (aiIndex < messages.size) messages[aiIndex] = messages[aiIndex].copy(text = sb.toString())
+    private fun renderAgent(st: AgentBus.State) {
+        when (st.phase) {
+            AgentBus.Phase.Idle -> Unit
+            AgentBus.Phase.Planning, AgentBus.Phase.Working -> {
+                if (st.runId != agentRunId || agentMsgIndex == null) {
+                    agentRunId = st.runId
+                    messages.add(ChatMsg(seq++, fromUser = false, text = "", streaming = true))
+                    agentMsgIndex = messages.lastIndex
+                    generating = true
                 }
-            } catch (e: Exception) {
-                sb.clear(); sb.append("Sorry — I couldn't answer that (${e.message}).")
-                if (aiIndex < messages.size) messages[aiIndex] = messages[aiIndex].copy(text = sb.toString())
-            } finally {
-                if (aiIndex < messages.size) messages[aiIndex] = messages[aiIndex].copy(streaming = false)
+                val idx = agentMsgIndex ?: return
+                val body = buildString {
+                    append(st.status.ifBlank { "Working…" })
+                    if (st.log.isNotEmpty()) { append("\n\n"); append(st.log.joinToString("\n")) }
+                }
+                if (idx < messages.size) messages[idx] = messages[idx].copy(text = body, streaming = true)
+            }
+            AgentBus.Phase.Done, AgentBus.Phase.Error -> {
+                val idx = agentMsgIndex
+                if (idx != null && idx < messages.size) {
+                    messages[idx] = messages[idx].copy(text = st.reply, streaming = false)
+                } else if (st.runId != agentRunId && st.reply.isNotBlank()) {
+                    // Run finished while the panel was closed — show the result now.
+                    agentRunId = st.runId
+                    messages.add(ChatMsg(seq++, fromUser = false, text = st.reply))
+                }
+                agentMsgIndex = null
                 generating = false
-                if (autoSpeak && sb.isNotBlank()) { autoSpeak = false; voice.speak(sb.toString(), lang) }
+                if (autoSpeak && st.reply.isNotBlank()) { autoSpeak = false; voice.speak(st.reply, lang) }
             }
         }
     }
-
-    private fun buildPrompt(userText: String): String =
-        "You are Quiver AI, a concise, friendly assistant inside a phone app. " +
-            "Reply in ${lang.label} (${lang.code}). Keep answers short and useful.\n\n" +
-            "User: $userText\nAssistant:"
 
     // --- voice ---
     fun startListening() {
@@ -109,6 +133,5 @@ class AiViewModel(app: Application) : AndroidViewModel(app) {
 
     override fun onCleared() {
         voice.release()
-        engine?.close()
     }
 }

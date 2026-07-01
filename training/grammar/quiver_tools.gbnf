@@ -1,0 +1,19 @@
+# GBNF grammar for llama.cpp: forces valid Quiver tool-call JSON.
+# Pass this to the sampler (grammar-constrained decoding) so a small model
+# cannot emit malformed JSON — the main failure mode. Wire it through
+# LlamaCppEngine(grammar = ...) once the native runtime is added.
+
+root   ::= "{" ws "\"reply\"" ws ":" ws string ws "," ws "\"steps\"" ws ":" ws steps ws "}"
+steps  ::= "[" ws (step (ws "," ws step)*)? ws "]"
+step   ::= "{" ws "\"tool\"" ws ":" ws string ws "," ws "\"args\"" ws ":" ws object ws "}"
+
+object ::= "{" ws (member (ws "," ws member)*)? ws "}"
+member ::= string ws ":" ws value
+array  ::= "[" ws (value (ws "," ws value)*)? ws "]"
+value  ::= string | number | object | array | "true" | "false" | "null"
+
+string ::= "\"" char* "\""
+char   ::= [^"\\] | "\\" (["\\/bfnrt] | "u" hex hex hex hex)
+hex    ::= [0-9a-fA-F]
+number ::= "-"? ("0" | [1-9] [0-9]*) ("." [0-9]+)? ([eE] [-+]? [0-9]+)?
+ws     ::= [ \t\n]*

@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,9 +7,20 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// Cartesia TTS key for the reminder-call voice. Put `CARTESIA_API_KEY=...` in
+// local.properties (gitignored) or set it as an env var in CI. Empty by default,
+// in which case the call falls back to on-device system TTS.
+val cartesiaApiKey: String = run {
+    val props = Properties()
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { props.load(it) }
+    props.getProperty("CARTESIA_API_KEY") ?: System.getenv("CARTESIA_API_KEY") ?: ""
+}
+
 android {
     namespace = "com.kamboji.quiver"
     compileSdk = 36
+    // Pinned to the NDK that builds the llama.cpp (GGUF) native engine.
+    ndkVersion = "27.0.12077973"
 
     defaultConfig {
         applicationId = "com.kamboji.quiver"
@@ -23,10 +36,13 @@ android {
         // The MediaPipe GenAI native libs ship for 4 ABIs (~100 MB total).
         // Real phones are arm64, so keep only that to slim the APK for Obtainium.
         ndk { abiFilters += "arm64-v8a" }
+
+        buildConfigField("String", "CARTESIA_API_KEY", "\"$cartesiaApiKey\"")
     }
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     signingConfigs {
@@ -56,6 +72,18 @@ android {
     }
     kotlinOptions {
         jvmTarget = "11"
+    }
+
+    // GGUF / llama.cpp native engine. Wired only once the llama.cpp submodule is
+    // present (see app/src/main/cpp/README.md), so the build is unaffected until
+    // you add it. When present, it builds libllama-android.so for arm64-v8a.
+    if (file("src/main/cpp/llama.cpp/CMakeLists.txt").exists()) {
+        externalNativeBuild {
+            cmake {
+                path = file("src/main/cpp/CMakeLists.txt")
+                version = "3.22.1"
+            }
+        }
     }
 }
 

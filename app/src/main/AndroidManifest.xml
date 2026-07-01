@@ -65,6 +65,9 @@
         <receiver
             android:name=".calendar.alert.AlertReceiver"
             android:exported="false"/>
+        <receiver
+            android:name=".calendar.alert.AlertActionReceiver"
+            android:exported="false"/>
         <activity
             android:name=".screenshots.ui.MainActivity"
             android:exported="false"/>
@@ -110,6 +113,11 @@
         <!-- Services -->
         <service
             android:name=".screenshots.service.ScreenshotService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+        <!-- Runs Quiver AI agent tasks so they finish even if the app is closed. -->
+        <service
+            android:name=".ai.agent.AiAgentService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 

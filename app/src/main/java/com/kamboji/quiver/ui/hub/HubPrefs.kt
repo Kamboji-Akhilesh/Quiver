@@ -18,8 +18,19 @@ class HubPrefs(context: Context) {
         prefs.edit().putString(KEY, apps.joinToString(",") { it.name }).apply()
     }
 
+    /** Which dashboard tiles the user pinned (featured large + sorted to top). */
+    fun pinnedApps(): Set<AppKey> {
+        val raw = prefs.getString(KEY_PINNED, null) ?: return emptySet()
+        return raw.split(",").mapNotNull { runCatching { AppKey.valueOf(it) }.getOrNull() }.toSet()
+    }
+
+    fun setPinnedApps(apps: Set<AppKey>) {
+        prefs.edit().putString(KEY_PINNED, apps.joinToString(",") { it.name }).apply()
+    }
+
     private companion object {
         const val KEY = "dashboard_apps"
+        const val KEY_PINNED = "pinned_apps"
         val DEFAULT = listOf(AppKey.Screenshots, AppKey.Calendar)
     }
 }

@@ -38,6 +38,7 @@ import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +47,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -136,6 +139,8 @@ private data class SearchAction(val label: String, val icon: ImageVector, val ap
 fun SearchOverlay(state: QuiverState) {
     val colors = Quiver.colors
     var query by remember { mutableStateOf("") }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     val actions = remember {
         listOf(
             SearchAction("Clean screenshots now", Icons.Outlined.Image, AppKey.Screenshots, Accents.Screenshots),
@@ -172,6 +177,7 @@ fun SearchOverlay(state: QuiverState) {
                         textStyle = TextStyle(color = colors.text, fontSize = 15.5.sp),
                         cursorBrush = SolidColor(Accents.Hub.a),
                         singleLine = true,
+                        modifier = Modifier.fillMaxWidth().focusRequester(focus),
                     )
                 }
             }

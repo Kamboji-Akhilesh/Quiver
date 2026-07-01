@@ -16,6 +16,13 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
     private val _notes = MutableStateFlow(sorted(store.getAll()))
     val notes = _notes.asStateFlow()
 
+    // Reload when notes are written elsewhere in the process (e.g. the AI agent).
+    private val storeListener = store.observe { _notes.value = sorted(store.getAll()) }
+
+    override fun onCleared() {
+        store.stopObserving(storeListener)
+    }
+
     fun byId(id: Long): Note? = _notes.value.firstOrNull { it.id == id }
 
     /** Creates a note and returns it; blank notes are not saved (returns null). */
