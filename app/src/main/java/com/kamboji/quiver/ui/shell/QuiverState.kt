@@ -31,6 +31,9 @@ class QuiverState {
     /** One-shot: when true, Notes opens straight into a new-note editor on entry. */
     var notesStartNew by mutableStateOf(false)
 
+    /** One-shot: when true, Expenses opens its add-expense sheet on entry. */
+    var expensesStartNew by mutableStateOf(false)
+
     var searchOpen by mutableStateOf(false)
     var aiOpen by mutableStateOf(false)
     var launcherOpen by mutableStateOf(false)
@@ -54,6 +57,7 @@ class QuiverState {
         AppKey.Currency to false,
         AppKey.Calendar to false,
         AppKey.Notes to false,
+        AppKey.Expenses to false,
     )
 
     fun toggleTheme() {

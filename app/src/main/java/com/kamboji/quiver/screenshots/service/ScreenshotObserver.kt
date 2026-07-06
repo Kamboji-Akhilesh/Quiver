@@ -16,7 +16,9 @@ class ScreenshotObserver(
     // Highest MediaStore _ID we've already handled. Dedupes the multiple
     // onChange callbacks fired per insert WITHOUT dropping genuinely new
     // screenshots (the previous time-based debounce dropped rapid captures).
-    private var lastHandledId = -1L
+    // Primed to the newest existing screenshot so only captures taken after
+    // the observer registers are ever handled.
+    private var lastHandledId = currentMaxId()
 
     override fun onChange(selfChange: Boolean, uri: Uri?) {
         super.onChange(selfChange, uri)
@@ -24,14 +26,28 @@ class ScreenshotObserver(
         checkRecentScreenshots()
     }
 
+    /** Newest screenshot _ID already in MediaStore when monitoring starts. */
+    private fun currentMaxId(): Long = runCatching {
+        context.contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            arrayOf(MediaStore.Images.Media._ID),
+            "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?",
+            arrayOf("%Screenshots%"),
+            "${MediaStore.Images.Media._ID} DESC",
+        )?.use { if (it.moveToFirst()) it.getLong(0) else -1L } ?: -1L
+    }.getOrDefault(-1L)
+
     private fun checkRecentScreenshots() {
         val nowSec = System.currentTimeMillis() / 1000
-        // Only look at the last few seconds, and only the Screenshots folder,
-        // so we never re-scan the whole gallery.
+        // Only the Screenshots folder, and only the last minute, so we never
+        // re-scan the whole gallery. The window is deliberately wide: OEM
+        // screenshot writers keep rows IS_PENDING (invisible to queries) for a
+        // while, and change notifications can arrive seconds late — a 3s window
+        // randomly missed those. lastHandledId keeps a wide window duplicate-free.
         val selection =
             "${MediaStore.Images.Media.DATE_ADDED} >= ? AND " +
                 "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?"
-        val selectionArgs = arrayOf((nowSec - 3).toString(), "%Screenshots%")
+        val selectionArgs = arrayOf((nowSec - 60).toString(), "%Screenshots%")
 
         val cursor = context.contentResolver.query(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,

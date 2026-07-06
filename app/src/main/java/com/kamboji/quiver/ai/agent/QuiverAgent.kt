@@ -1,7 +1,10 @@
 package com.kamboji.quiver.ai.agent
 
 import android.content.Context
-import com.kamboji.quiver.ai.engine.InferenceEngines
+import com.kamboji.quiver.ai.engine.EngineHolder
+import com.kamboji.quiver.ai.engine.InferenceEngine
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDateTime
@@ -23,88 +26,211 @@ class QuiverAgent(
 
     data class Result(val reply: String)
 
-    /** Runs one request end-to-end, reporting progress through [progress]. */
-    suspend fun run(userText: String, progress: (String) -> Unit): Result {
-        progress("Thinking…")
-        // Grammar constrains GGUF decoding to valid tool-call JSON (ignored by
-        // the MediaPipe engine, which can't take a grammar).
+    /**
+     * Runs one request end-to-end. [progress] gets the current activity ("Searching
+     * the web…"); [log] gets one line per completed step so the UI can show work
+     * as it happens. Runs up to [MAX_ROUNDS] model passes: when a round calls an
+     * information tool (web_search, list_agenda, read_note), the results are fed
+     * back for a follow-up round so the model can answer or act on real data.
+     */
+    suspend fun run(userText: String, progress: (String) -> Unit, log: (String) -> Unit = {}): Result {
+        progress("Loading model…")
+        // The GBNF grammar makes llama.cpp's sampler physically unable to emit
+        // anything but valid tool-call JSON in the agreed shape.
         val grammar = runCatching {
             app.assets.open("quiver_tools.gbnf").bufferedReader().use { it.readText() }
         }.getOrNull()
-        val engine = InferenceEngines.create(app, modelPath, grammar)
-        val raw = try {
-            buildString { engine.generate(prompt(userText)).collect { append(it) } }
-        } finally {
-            engine.close()
-        }
+        // The engine stays resident between requests (EngineHolder) so only the
+        // first message after a quiet period pays the model-load cost.
+        return EngineHolder.use(app, modelPath, grammar) { engine ->
+            val done = mutableListOf<String>()
+            var findings: String? = null
+            var reply: String? = null
 
-        val plan = extractJson(raw)
-        val reply = plan?.optString("reply")?.takeIf { it.isNotBlank() }
-        val steps = plan?.optJSONArray("steps") ?: JSONArray()
+            for (round in 1..MAX_ROUNDS) {
+                progress(if (round == 1) "Thinking…" else "Writing it up…")
+                var raw = generate(engine, prompt(userText, findings), progress)
 
-        if (steps.length() == 0) {
-            // No actions — treat as a plain chat answer.
-            return Result(reply ?: raw.trim().ifBlank { "Done." })
-        }
+                var plan = PlanJson.extract(raw)
+                if (plan == null) {
+                    // Small models sometimes answer in prose ("Okay! I will…")
+                    // instead of the JSON plan. One corrective pass that shows
+                    // the model its rejected answer fixes most of those.
+                    AgentDebugLog.log(app, userText, raw, parsed = false)
+                    progress("Re-planning…")
+                    raw = generate(engine, prompt(userText, findings, badAttempt = raw), progress)
+                    plan = PlanJson.extract(raw)
+                }
+                AgentDebugLog.log(app, userText, raw, parsed = plan != null)
+                if (plan == null) {
+                    // Unparseable even after repair. Never dump raw JSON at the user —
+                    // small models sometimes garble the plan (missing quote, truncation).
+                    val text = raw.trim()
+                    val looksLikeBrokenPlan = text.startsWith("{") || text.startsWith("```")
+                    val failure =
+                        if (looksLikeBrokenPlan) {
+                            "Sorry — the model produced a garbled action plan I couldn't act on. " +
+                                "Try asking again in different words."
+                        } else {
+                            text.ifBlank { "Done." }
+                        }
+                    return@use Result(withSteps(failure, done))
+                }
 
-        val done = mutableListOf<String>()
-        for (i in 0 until steps.length()) {
-            val step = steps.optJSONObject(i) ?: continue
-            val toolName = step.optString("tool")
-            val tool = tools.byName(toolName)
-            val args = step.optJSONObject("args") ?: JSONObject()
-            if (tool == null) { done += "⚠️ Unknown action “$toolName”"; continue }
-            progress("Working: ${tool.name}…")
-            val res = runCatching { tool.run(args) }.getOrElse { ToolResult(false, "Failed: ${it.message}") }
-            done += (if (res.ok) "✓ " else "⚠️ ") + res.message
-        }
+                plan.optString("reply").takeIf { it.isNotBlank() }?.let { reply = it }
+                val steps = plan.optJSONArray("steps") ?: JSONArray()
+                if (steps.length() == 0 && done.isEmpty()) {
+                    // No actions at all — treat as a plain chat answer.
+                    return@use Result(reply ?: "Done.")
+                }
 
-        val summary = buildString {
-            append(reply ?: "Done.")
-            append("\n\n")
-            append(done.joinToString("\n"))
+                val stepList = (0 until steps.length()).mapNotNull { steps.optJSONObject(it) }
+                // If the model wants information (web search, its own calendar or
+                // notes), run ONLY those steps this round: any content steps
+                // alongside them would be written from placeholder guesses; the
+                // follow-up round re-plans them with the real results. In the last
+                // round info steps are dropped instead — there's no follow-up left
+                // to use what they'd return.
+                val wantsInfo = round < MAX_ROUNDS && stepList.any { it.optString("tool") in INFO_TOOLS }
+                val toRun =
+                    if (wantsInfo) stepList.filter { it.optString("tool") in INFO_TOOLS }
+                    else stepList.filterNot { it.optString("tool") in INFO_TOOLS }
+
+                val newFindings = StringBuilder()
+                for (step in toRun) {
+                    val toolName = step.optString("tool")
+                    val tool = tools.byName(toolName)
+                    if (tool == null) {
+                        val line = "⚠️ Unknown action “$toolName”"
+                        done += line; log(line)
+                        continue
+                    }
+                    progress(actionLabel(toolName))
+                    val args = step.optJSONObject("args") ?: JSONObject()
+                    val res = runCatching { tool.run(args) }.getOrElse { ToolResult(false, "Failed: ${it.message}") }
+                    val line = (if (res.ok) "✓ " else "⚠️ ") + res.message
+                    done += line; log(line)
+                    if (res.ok && res.data != null) newFindings.appendLine(res.data)
+                }
+
+                if (newFindings.isBlank()) break
+                findings = newFindings.toString()
+            }
+
+            Result(withSteps(reply ?: "Done.", done))
         }
-        return Result(summary)
     }
 
-    private fun prompt(userText: String): String {
+    /** One model pass with the generation watchdog. */
+    private suspend fun generate(engine: InferenceEngine, prompt: String, progress: (String) -> Unit): String =
+        try {
+            withTimeout(GEN_TIMEOUT_MS) {
+                buildString {
+                    var streaming = false
+                    engine.generate(prompt).collect { chunk ->
+                        // First token means the model loaded and is now producing output.
+                        if (!streaming) { streaming = true; progress("Generating…") }
+                        append(chunk)
+                    }
+                }
+            }
+        } catch (e: TimeoutCancellationException) {
+            throw IllegalStateException(
+                "The model took too long to respond — it may be too large for this device. " +
+                    "Try a smaller or more heavily quantized model.",
+            )
+        }
+
+    private fun withSteps(reply: String, done: List<String>): String =
+        if (done.isEmpty()) reply else reply + "\n\n" + done.joinToString("\n")
+
+    /** Human-friendly status line for a step, shown live in the UI/notification. */
+    private fun actionLabel(tool: String): String = when (tool) {
+        "web_search" -> "Searching the web…"
+        "add_note" -> "Adding a note…"
+        "append_note" -> "Updating a note…"
+        "add_task" -> "Adding a task…"
+        "add_event" -> "Adding a calendar event…"
+        "check_trash" -> "Checking the screenshot trash…"
+        "get_rate", "convert" -> "Checking exchange rates…"
+        "list_agenda" -> "Checking your calendar…"
+        "read_note" -> "Reading your notes…"
+        "add_expense" -> "Recording the expense…"
+        "list_expenses" -> "Checking your spending…"
+        else -> "Working: $tool…"
+    }
+
+    private fun prompt(userText: String, findings: String? = null, badAttempt: String? = null): String {
+        val findingsBlock = if (findings == null) "" else
+            "\nYou already ran the information tools. Results:\n${findings.trim()}\n\n" +
+                "Now finish the user's request using these results (answer, or write the notes / tasks / events). Do not call web_search, list_agenda, read_note or list_expenses again.\n"
+        val correctionBlock = if (badAttempt == null) "" else
+            "\nYour previous answer was rejected because it was prose instead of the required JSON. It said:\n" +
+                badAttempt.trim().take(400) +
+                "\nAnswer again with ONLY the JSON object in the shape above, starting with '{'. " +
+                "Every action the user asked for must be a step — never describe steps in text.\n"
         val now = LocalDateTime.now()
         val date = now.format(DateTimeFormatter.ISO_LOCAL_DATE)
         val dow = now.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }
         val time = now.format(DateTimeFormatter.ofPattern("HH:mm"))
         val zone = ZoneId.systemDefault().id
+        // "steps" precedes "reply" in the shape: the model commits to tool calls
+        // before writing prose. The GBNF grammar and the fine-tuning dataset
+        // (training/generate_dataset.py mirrors this text byte-for-byte) encode
+        // exactly this shape — keep all three in sync.
+        //
+        // Placeholders are substituted AFTER trimIndent on purpose: interpolating
+        // multi-line text (tool specs, findings) directly into the raw string
+        // defeats trimIndent, because interpolated lines start at column 0 and
+        // drag the common indent down to zero.
         return """
             You are Quiver AI, a helpful assistant inside a phone app. You can perform actions by calling tools.
 
             Available tools:
-            ${tools.specText()}
+            @TOOLS@
 
-            Context: today is $date ($dow), the current time is $time, timezone $zone.
+            Context: today is @DATE@ (@DOW@), the current time is @TIME@, timezone @ZONE@.
 
             When the user asks you to do something, reply with ONLY a JSON object, no prose and no markdown fences, in exactly this shape:
-            {"reply":"<short friendly confirmation for the user>","steps":[{"tool":"<tool name>","args":{ ... }}]}
+            {"steps":[{"tool":"<tool name>","args":{ ... }}],"reply":"<short friendly confirmation for the user>"}
 
             Rules:
             - Resolve relative dates yourself from today's date. Use "date":"YYYY-MM-DD" and 24h "time":"HH:mm". Dayparts: morning=09:00, afternoon=14:00, evening=18:00, night=20:00.
-            - Generate any requested content (recipes, ingredient lists, instructions) yourself and put it inside the tool arguments. Checklist items are lines like "- [ ] item".
+            - When the task needs information from the internet or facts you are unsure about (recipes, how-tos, prices, current facts), call web_search first — its results come back to you and you can then finish the task. Content you know well you may write yourself. Checklist items are lines like "- [ ] item".
+            - To answer questions about the user's own calendar, notes or spending, call list_agenda, read_note or list_expenses first — their content comes back to you the same way.
             - You may use several steps in order. To add content under an existing note, use append_note.
             - If no action is needed (just chatting), return "steps":[] and put your answer in "reply".
             - Output JSON only.
-
+            @BLOCKS@
             Example user: "Save a shopping list of tomatoes and pasta, and remind me tomorrow evening to buy them."
             Example output:
-            {"reply":"Saved your shopping list and a reminder for tomorrow evening.","steps":[{"tool":"add_note","args":{"title":"Shopping list","body":"- [ ] Tomatoes\n- [ ] Pasta"}},{"tool":"add_task","args":{"title":"Buy groceries","date":"$date","time":"18:00"}}]}
+            {"steps":[{"tool":"add_note","args":{"title":"Shopping list","body":"- [ ] Tomatoes\n- [ ] Pasta"}},{"tool":"add_task","args":{"title":"Buy groceries","date":"@DATE@","time":"18:00"}}],"reply":"Saved your shopping list and a reminder for tomorrow evening."}
 
-            User: $userText
+            User: @USER@
             JSON:
         """.trimIndent()
+            .replace("@TOOLS@", tools.specText())
+            .replace("@DATE@", date)
+            .replace("@DOW@", dow)
+            .replace("@TIME@", time)
+            .replace("@ZONE@", zone)
+            .replace("@BLOCKS@", findingsBlock + correctionBlock)
+            // Last, so tokens inside user text or web findings never expand.
+            .replace("@USER@", userText)
     }
 
-    /** Pulls the outermost {...} object out of a possibly-noisy model response. */
-    private fun extractJson(raw: String): JSONObject? {
-        val start = raw.indexOf('{')
-        val end = raw.lastIndexOf('}')
-        if (start < 0 || end <= start) return null
-        return runCatching { JSONObject(raw.substring(start, end + 1)) }.getOrNull()
+    private companion object {
+        // Watchdog so a wedged/too-large model surfaces an error instead of a
+        // permanent "Thinking…". Generous, since big models are legitimately slow.
+        const val GEN_TIMEOUT_MS = 600_000L
+
+        // Plan → (info tools) → finish. One follow-up round is enough for a small
+        // model; more just multiplies latency and drift.
+        const val MAX_ROUNDS = 2
+
+        // Tools whose OUTPUT the model needs before it can finish the request.
+        // They run alone in round 1; their results come back as findings.
+        val INFO_TOOLS = setOf("web_search", "list_agenda", "read_note", "list_expenses")
     }
 }
+

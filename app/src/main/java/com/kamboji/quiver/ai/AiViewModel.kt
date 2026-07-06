@@ -1,7 +1,6 @@
 package com.kamboji.quiver.ai
 
 import android.app.Application
-import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -10,6 +9,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kamboji.quiver.ai.agent.AgentBus
 import com.kamboji.quiver.ai.agent.AiAgentService
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /** One ephemeral chat turn. Held in memory only — never written to disk. */
@@ -23,7 +24,11 @@ data class ChatMsg(val id: Long, val fromUser: Boolean, val text: String, val st
 class AiViewModel(app: Application) : AndroidViewModel(app) {
 
     val modelManager = ModelManager(app)
-    val modelState = modelManager.state
+    val modelState = modelManager.state.stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        if (modelManager.isReady()) ModelState.Ready(AiModel.DISPLAY_NAME) else ModelState.None,
+    )
 
     private val voice = VoiceController(app)
 
@@ -51,8 +56,7 @@ class AiViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setLanguage(l: VoiceLang) { lang = l }
 
-    fun download(model: AiModel) = viewModelScope.launch { modelManager.download(model) }
-    fun import(uri: Uri) = viewModelScope.launch { modelManager.importModel(uri) }
+    fun download() = modelManager.startDownload()
     fun deleteModel() {
         modelManager.deleteAll()
         messages.clear()

@@ -3,6 +3,13 @@ package com.kamboji.quiver.ui.ai
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.StartOffset
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,6 +22,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,11 +37,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -63,6 +69,7 @@ import com.kamboji.quiver.ai.AiViewModel
 import com.kamboji.quiver.ai.ChatMsg
 import com.kamboji.quiver.ai.ModelState
 import com.kamboji.quiver.ai.VoiceLanguages
+import com.kamboji.quiver.ai.agent.AgentDebugLog
 import com.kamboji.quiver.ui.components.QuiverModalSheet
 import com.kamboji.quiver.ui.theme.Accents
 import com.kamboji.quiver.ui.theme.Display
@@ -93,9 +100,8 @@ fun QuiverAiPanel(onClose: () -> Unit) {
                     Text(
                         when (val s = state) {
                             is ModelState.Ready -> "● On-device · ${s.label}"
-                            is ModelState.Downloading -> "Downloading model…"
-                            is ModelState.Importing -> "Importing model…"
-                            else -> "Set up to start"
+                            is ModelState.Downloading -> "Installing model…"
+                            else -> "Install to start"
                         },
                         fontSize = 12.5.sp, color = Accents.Hub.txt(colors.dark), fontWeight = FontWeight.SemiBold,
                     )
@@ -118,8 +124,7 @@ fun QuiverAiPanel(onClose: () -> Unit) {
                 is ModelState.Ready ->
                     if (showManage) SetupBody(vm, null, current = s.label, onBack = { showManage = false })
                     else ChatBody(vm)
-                is ModelState.Downloading -> Progress("Downloading ${s.model.displayName}", s.progress, s.model.sizeLabel)
-                is ModelState.Importing -> Progress("Importing model", s.progress, null)
+                is ModelState.Downloading -> Progress("Installing ${AiModel.DISPLAY_NAME}", s.progress, AiModel.SIZE_LABEL)
                 is ModelState.Error -> SetupBody(vm, s.message)
                 ModelState.None -> SetupBody(vm, null)
             }
@@ -140,25 +145,22 @@ private fun Progress(label: String, progress: Float, size: String?) {
         LinearProgressIndicator(progress = { progress }, color = AiA, trackColor = colors.surf2, modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)))
         Spacer(Modifier.height(8.dp))
         Text("${(progress * 100).toInt()}%", fontSize = 12.sp, color = colors.dim)
-        Text("Keep Quiver open while it downloads.", fontSize = 12.sp, color = colors.faint, modifier = Modifier.padding(top = 14.dp))
+        Text("Downloads in the background — you can close the app. It resumes if the connection drops.", fontSize = 12.sp, color = colors.faint, modifier = Modifier.padding(top = 14.dp))
     }
 }
 
 @Composable
 private fun SetupBody(vm: AiViewModel, error: String?, current: String? = null, onBack: (() -> Unit)? = null) {
     val colors = Quiver.colors
-    var pending by remember { mutableStateOf<AiModel?>(null) }
-    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let { vm.import(it) }
-    }
+    val context = LocalContext.current
+    var confirm by remember { mutableStateOf(false) }
 
     LazyColumn(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (current != null) {
-            // Manage mode: show the installed model with remove / back, then let
-            // the user switch by downloading or importing a different one.
+            // Manage mode: the one installed model, with remove / back.
             item {
                 Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(16.dp)).padding(16.dp)) {
-                    Text("CURRENT MODEL", fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = colors.dim)
+                    Text("INSTALLED MODEL", fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = colors.dim)
                     Text(current, fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text, modifier = Modifier.padding(top = 3.dp))
                     Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         if (onBack != null) PillButton("Back to chat", filled = true) { onBack() }
@@ -166,70 +168,55 @@ private fun SetupBody(vm: AiViewModel, error: String?, current: String? = null, 
                     }
                 }
             }
-            item { Text("Switch model — download or import another. The newest one you add is used.", fontSize = 13.sp, color = colors.dim, lineHeight = 18.sp) }
-        } else {
+            item { Text("Removing frees ${AiModel.SIZE_LABEL} of storage. You can reinstall anytime.", fontSize = 13.sp, color = colors.dim, lineHeight = 18.sp) }
+            // Local-only log of what the model actually produced — sharing a bad
+            // turn is how it becomes a training example for the next fine-tune.
             item {
-                Text("Quiver AI runs entirely on your phone — your messages and voice never leave the device. Pick a model to download once.", fontSize = 14.sp, color = colors.text, lineHeight = 20.sp)
-            }
-        }
-        if (error != null) {
-            item {
-                Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0x1FFB7185)).border(1.dp, Color(0xFFFB7185).copy(alpha = 0.4f), RoundedCornerShape(16.dp)).padding(14.dp)) {
-                    Text(error, fontSize = 13.sp, color = Color(0xFFFB7185))
+                PillButton("Share AI debug log", filled = false) {
+                    AgentDebugLog.shareIntent(context)?.let { context.startActivity(it) }
                 }
             }
-        }
-        AiModel.entries.forEach { model ->
-            item(key = model.id) {
-                ModelCard(model, selected = pending == model) { pending = if (pending == model) null else model }
+            item { Text("The log stays on your phone. Share it after a bad answer so it can be turned into training data.", fontSize = 12.sp, color = colors.faint, lineHeight = 17.sp, modifier = Modifier.padding(bottom = 24.dp)) }
+        } else {
+            item {
+                Text("Quiver AI runs entirely on your phone — your messages and voice never leave the device. One model, tuned for Quiver's actions, installed once.", fontSize = 14.sp, color = colors.text, lineHeight = 20.sp)
             }
-            // The download prompt sits directly under the model it refers to.
-            if (pending == model) {
-                item(key = "${model.id}-confirm") {
-                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(AiA.copy(alpha = 0.12f)).border(1.dp, AiA.copy(alpha = 0.4f), RoundedCornerShape(16.dp)).padding(16.dp)) {
-                        Text("Download ${model.displayName} (${model.sizeLabel})?", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                        Text("This uses your data connection — Wi-Fi recommended. The model stays on your phone.", fontSize = 12.5.sp, color = colors.dim, modifier = Modifier.padding(top = 4.dp))
+            if (error != null) {
+                item {
+                    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0x1FFB7185)).border(1.dp, Color(0xFFFB7185).copy(alpha = 0.4f), RoundedCornerShape(16.dp)).padding(14.dp)) {
+                        Text(error, fontSize = 13.sp, color = Color(0xFFFB7185))
+                    }
+                }
+            }
+            item {
+                Column(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(colors.surf)
+                        .border(1.dp, AiA.copy(alpha = 0.45f), RoundedCornerShape(18.dp)).padding(16.dp),
+                ) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text(AiModel.DISPLAY_NAME, fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+                        Text(AiModel.SIZE_LABEL, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Accents.Hub.txt(colors.dark))
+                    }
+                    Text(
+                        "Adds notes, tasks and events, searches the web, checks rates — in English, हिन्दी, বাংলা, தமிழ், తెలుగు and मराठी.",
+                        fontSize = 12.5.sp, color = colors.dim, lineHeight = 17.sp, modifier = Modifier.padding(top = 6.dp),
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    if (!confirm) {
+                        PillButton("Install", filled = true) { confirm = true }
+                    } else {
+                        Text("Download ${AiModel.SIZE_LABEL} now? Uses your data connection — Wi-Fi recommended. The model stays on your phone.", fontSize = 12.5.sp, color = colors.dim, lineHeight = 17.sp)
                         Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            PillButton("Not now", filled = false) { pending = null }
-                            PillButton("Download", filled = true) { vm.download(model); pending = null }
+                            PillButton("Not now", filled = false) { confirm = false }
+                            PillButton("Download", filled = true) { vm.download(); confirm = false }
                         }
                     }
                 }
             }
-        }
-        item {
-            Box(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(16.dp)).clickable { importLauncher.launch(arrayOf("*/*")) }.padding(14.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Icon(Icons.Outlined.UploadFile, null, Modifier.size(20.dp), tint = colors.dim)
-                    Column {
-                        Text("Import a model file", fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                        Text("Already have a .task, .litertlm or .gguf model? Pick it here.", fontSize = 12.sp, color = colors.dim)
-                    }
-                }
+            item {
+                Text("If you skip this, Quiver AI can't answer questions or take voice commands — everything else in the app works normally. You can install it anytime from here.", fontSize = 12.sp, color = colors.faint, lineHeight = 17.sp, modifier = Modifier.padding(bottom = 24.dp))
             }
         }
-        item {
-            Text("If you skip this, Quiver AI can't answer questions or take voice commands — everything else in the app works normally. You can set it up anytime from here.", fontSize = 12.sp, color = colors.faint, lineHeight = 17.sp, modifier = Modifier.padding(bottom = 24.dp))
-        }
-    }
-}
-
-@Composable
-private fun ModelCard(model: AiModel, selected: Boolean, onClick: () -> Unit) {
-    val colors = Quiver.colors
-    Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(colors.surf)
-            .border(1.dp, if (selected) AiA.copy(alpha = 0.6f) else colors.border, RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick).padding(16.dp),
-    ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(model.displayName, fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-            Text(model.sizeLabel, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Accents.Hub.txt(colors.dark))
-        }
-        Text(model.pros, fontSize = 12.5.sp, color = colors.dim, lineHeight = 17.sp, modifier = Modifier.padding(top = 6.dp))
-        Text(model.cons, fontSize = 12.sp, color = colors.faint, lineHeight = 16.sp, modifier = Modifier.padding(top = 2.dp))
     }
 }
 
@@ -305,13 +292,69 @@ private fun Bubble(msg: ChatMsg, onSpeak: () -> Unit) {
                 .background(if (msg.fromUser) Brush.linearGradient(listOf(AiA, AiB)) else SolidColor(colors.surf2))
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
-            Text(
-                msg.text.ifEmpty { if (msg.streaming) "…" else "" },
-                color = if (msg.fromUser) Color.White else colors.text, fontSize = 14.sp, lineHeight = 20.sp,
-            )
+            if (!msg.fromUser && msg.streaming) {
+                WorkingBubbleContent(msg.text)
+            } else {
+                Text(
+                    msg.text.ifEmpty { if (msg.streaming) "…" else "" },
+                    color = if (msg.fromUser) Color.White else colors.text, fontSize = 14.sp, lineHeight = 20.sp,
+                )
+            }
             if (!msg.fromUser && !msg.streaming && msg.text.isNotBlank()) {
                 Icon(Icons.Outlined.VolumeUp, "Speak", Modifier.size(16.dp).padding(top = 4.dp).clickable(onClick = onSpeak), tint = colors.dim)
             }
+        }
+    }
+}
+
+/**
+ * Live view of a running agent turn: bouncing dots + what it's doing right now
+ * ("Searching the web…"), the steps finished so far, and a reminder that the
+ * work survives closing the app.
+ */
+@Composable
+private fun WorkingBubbleContent(text: String) {
+    val colors = Quiver.colors
+    val lines = text.lines().filter { it.isNotBlank() }
+    val status = lines.firstOrNull() ?: "Working…"
+    val doneSteps = lines.drop(1)
+
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        TypingDots()
+        Text(status, color = colors.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, lineHeight = 20.sp)
+    }
+    doneSteps.forEach { line ->
+        Text(line, color = colors.dim, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 4.dp))
+    }
+    Text(
+        "You can close the app — I'll keep working and notify you when it's done.",
+        color = colors.faint, fontSize = 11.5.sp, lineHeight = 15.sp, modifier = Modifier.padding(top = 8.dp),
+    )
+}
+
+/** Three dots bobbing up and down with a staggered phase. */
+@Composable
+private fun TypingDots(color: Color = AiA) {
+    val transition = rememberInfiniteTransition(label = "typing")
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+        repeat(3) { i ->
+            val phase by transition.animateFloat(
+                initialValue = 0f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(durationMillis = 340, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse,
+                    initialStartOffset = StartOffset(i * 120),
+                ),
+                label = "dot$i",
+            )
+            Box(
+                Modifier
+                    .offset(y = (2f - 4f * phase).dp)
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.45f + 0.55f * phase)),
+            )
         }
     }
 }

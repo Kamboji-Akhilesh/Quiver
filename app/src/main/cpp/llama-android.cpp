@@ -36,20 +36,57 @@ Java_com_kamboji_quiver_ai_engine_LlamaCppEngine_nativeLoad(
 
     llama_context_params cp = llama_context_default_params();
     cp.n_ctx = nCtx > 0 ? (uint32_t) nCtx : 2048;
-    cp.n_batch = 512;
+    // n_batch is the max tokens per llama_decode call and the whole prompt is
+    // decoded in one call below — it must cover the full context, or prompts
+    // longer than n_batch fail outright (the agent prompt is ~800 tokens).
+    // n_ubatch (physical chunk) stays at its default; llama.cpp splits internally.
+    cp.n_batch = cp.n_ctx;
     llama_context* ctx = llama_init_from_model(model, cp);
     if (!ctx) { llama_model_free(model); return 0; }
 
     return (jlong) new Handle{model, ctx};
 }
 
+namespace {
+// Length of the longest prefix of s that ends on a COMPLETE UTF-8 sequence.
+// Token pieces routinely split multi-byte characters (Devanagari, Tamil,
+// emoji…) across tokens; emitting a split sequence would corrupt the stream.
+size_t utf8_complete_prefix(const std::string& s) {
+    size_t n = s.size();
+    size_t i = n;
+    while (i > 0 && (static_cast<unsigned char>(s[i - 1]) & 0xC0) == 0x80 && n - i < 3) i--;
+    if (i == 0) return n; // nothing but continuation bytes: flush as-is
+    unsigned char lead = static_cast<unsigned char>(s[i - 1]);
+    size_t need = lead >= 0xF0 ? 4 : lead >= 0xE0 ? 3 : lead >= 0xC0 ? 2 : 1;
+    return (n - (i - 1)) < need ? i - 1 : n;
+}
+
+// Push bytes to the Kotlin TokenCallback as a byte[] (NOT NewStringUTF — that
+// wants modified UTF-8 and crashes on real 4-byte sequences like emoji).
+// Returns the callback's verdict: false = stop generating (cancelled).
+bool emit_bytes(JNIEnv* env, jobject cb, jmethodID onToken, const char* data, size_t len) {
+    jbyteArray arr = env->NewByteArray(static_cast<jsize>(len));
+    if (!arr) return false;
+    env->SetByteArrayRegion(arr, 0, static_cast<jsize>(len), reinterpret_cast<const jbyte*>(data));
+    jboolean keep = env->CallBooleanMethod(cb, onToken, arr);
+    env->DeleteLocalRef(arr);
+    if (env->ExceptionCheck()) { env->ExceptionClear(); return false; }
+    return keep == JNI_TRUE;
+}
+}
+
 extern "C"
-JNIEXPORT jstring JNICALL
+JNIEXPORT void JNICALL
 Java_com_kamboji_quiver_ai_engine_LlamaCppEngine_nativeComplete(
-        JNIEnv* env, jobject, jlong handle, jstring jprompt, jstring jgrammar, jint maxTokens) {
+        JNIEnv* env, jobject, jlong handle, jstring jprompt, jstring jgrammar,
+        jint maxTokens, jobject jcallback) {
     Handle* h = reinterpret_cast<Handle*>(handle);
-    if (!h) return env->NewStringUTF("");
+    if (!h) return;
     const llama_vocab* vocab = llama_model_get_vocab(h->model);
+
+    jclass cbClass = env->GetObjectClass(jcallback);
+    jmethodID onToken = env->GetMethodID(cbClass, "onToken", "([B)Z");
+    if (!onToken) return;
 
     const char* prompt = env->GetStringUTFChars(jprompt, nullptr);
     std::string ptext(prompt);
@@ -67,10 +104,12 @@ Java_com_kamboji_quiver_ai_engine_LlamaCppEngine_nativeComplete(
         llama_sampler_chain_add(smpl, llama_sampler_init_grammar(vocab, grammar, "root"));
     }
     llama_sampler_chain_add(smpl, llama_sampler_init_top_k(40));
-    llama_sampler_chain_add(smpl, llama_sampler_init_temp(0.7f));
+    // Low temperature: the output is a tool-call plan, not creative prose —
+    // hot sampling makes a 1B model wander out of the intended actions.
+    llama_sampler_chain_add(smpl, llama_sampler_init_temp(0.2f));
     llama_sampler_chain_add(smpl, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
 
-    std::string out;
+    std::string pending; // bytes not yet emitted (waiting for a UTF-8 boundary)
     llama_batch batch = llama_batch_get_one(tokens.data(), tokens.size());
     llama_token cur = 0;
     for (int i = 0; i < maxTokens; i++) {
@@ -79,14 +118,21 @@ Java_com_kamboji_quiver_ai_engine_LlamaCppEngine_nativeComplete(
         if (llama_vocab_is_eog(vocab, cur)) break;
         char piece[256];
         int pn = llama_token_to_piece(vocab, cur, piece, sizeof(piece), 0, true);
-        if (pn > 0) out.append(piece, pn);
+        if (pn > 0) {
+            pending.append(piece, pn);
+            size_t ok = utf8_complete_prefix(pending);
+            if (ok > 0) {
+                if (!emit_bytes(env, jcallback, onToken, pending.data(), ok)) break;
+                pending.erase(0, ok);
+            }
+        }
         batch = llama_batch_get_one(&cur, 1);
     }
+    if (!pending.empty()) emit_bytes(env, jcallback, onToken, pending.data(), pending.size());
 
     if (grammar) env->ReleaseStringUTFChars(jgrammar, grammar);
     llama_sampler_free(smpl);
     llama_memory_clear(llama_get_memory(h->ctx), true); // older API: llama_kv_cache_clear(h->ctx)
-    return env->NewStringUTF(out.c_str());
 }
 
 extern "C"

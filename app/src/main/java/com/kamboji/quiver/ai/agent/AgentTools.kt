@@ -8,17 +8,27 @@ import com.kamboji.quiver.calendar.data.CalendarEntry
 import com.kamboji.quiver.calendar.data.CalendarStore
 import com.kamboji.quiver.calendar.data.EntryType
 import com.kamboji.quiver.currency.data.CurrencyRepository
+import com.kamboji.quiver.expenses.data.Expense
+import com.kamboji.quiver.expenses.data.ExpenseCategory
+import com.kamboji.quiver.expenses.data.ExpenseMath
+import com.kamboji.quiver.expenses.data.ExpenseStore
 import com.kamboji.quiver.notes.data.Note
 import com.kamboji.quiver.notes.data.NotesStore
 import com.kamboji.quiver.screenshots.data.db.AppDatabase
 import kotlinx.coroutines.flow.first
 import org.json.JSONObject
 import java.time.Instant
+import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-/** Outcome of running one tool; [message] is a short human line for the summary. */
-data class ToolResult(val ok: Boolean, val message: String)
+/**
+ * Outcome of running one tool; [message] is a short human line for the summary.
+ * [data] is optional machine output (e.g. web search results) fed back to the
+ * model in a follow-up round so it can finish the task with real information.
+ */
+data class ToolResult(val ok: Boolean, val message: String, val data: String? = null)
 
 /** A single capability the agent can invoke, backed by a real mini-app store. */
 interface AgentTool {
@@ -38,16 +48,34 @@ class AgentTools(private val app: Context) {
     private val notes = NotesStore(app)
     private val calendar = CalendarStore(app)
     private val currency = CurrencyRepository(app)
+    private val expenses = ExpenseStore(app)
     private val historyDao = AppDatabase.getDatabase(app).historyDao()
 
     val tools: List<AgentTool> = listOf(
-        AddNote(), AppendNote(), AddTask(), AddEvent(), CheckTrash(), GetRate(), Convert(),
+        SearchWeb(), AddNote(), AppendNote(), AddTask(), AddEvent(), CheckTrash(), GetRate(), Convert(),
+        ListAgenda(), ReadNote(), AddExpense(), ListExpenses(),
     )
 
     fun byName(name: String): AgentTool? = tools.firstOrNull { it.name == name.trim() }
 
     /** The tool list, formatted for the planning prompt. */
     fun specText(): String = tools.joinToString("\n") { "- ${it.spec}" }
+
+    // --- Web ---
+
+    private inner class SearchWeb : AgentTool {
+        override val name = "web_search"
+        override val spec =
+            "web_search(query: string) — search the web. The results come back to you in a follow-up turn so you can finish the task with real, current information."
+        override suspend fun run(args: JSONObject): ToolResult {
+            val q = args.optString("query").trim()
+            if (q.isEmpty()) return ToolResult(false, "Empty search query")
+            val hits = runCatching { WebSearch.search(q) }.getOrDefault(emptyList())
+            if (hits.isEmpty()) return ToolResult(false, "Web search for “$q” found nothing — check the internet connection")
+            val digest = hits.joinToString("\n") { "- ${it.title}: ${it.snippet}" }
+            return ToolResult(true, "Searched the web for “$q”", data = "Search results for \"$q\":\n$digest")
+        }
+    }
 
     // --- Notes ---
 
@@ -163,7 +191,99 @@ class AgentTools(private val app: Context) {
         return runCatching { currency.ratesWithNames(from).data.firstOrNull { it.symbol == to }?.rate }.getOrNull()
     }
 
+    // --- Expenses ---
+
+    private inner class AddExpense : AgentTool {
+        override val name = "add_expense"
+        override val spec =
+            "add_expense(amount: number, category: string, note: string, date: \"YYYY-MM-DD\") — record money spent (₹). Category is one of: food, groceries, transport, shopping, bills, health, entertainment, other. Date is optional (today if omitted)."
+        override suspend fun run(args: JSONObject): ToolResult {
+            val paise = ExpenseMath.toPaise(args.optDouble("amount", Double.NaN))
+                ?: return ToolResult(false, "Need a positive amount")
+            val category = ExpenseCategory.parse(args.optString("category"))
+            val note = args.optString("note").trim()
+            val date = args.optString("date").trim()
+                .let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: LocalDate.now()
+            val at = if (date == LocalDate.now()) System.currentTimeMillis()
+            else date.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            expenses.saveAll(expenses.getAll() + Expense(expenses.nextId(), paise, category, note, at))
+            return ToolResult(true, "Added expense ${ExpenseMath.formatPaise(paise)} · ${category.label}")
+        }
+    }
+
+    // --- Read-only info tools (results are fed back to the model as findings) ---
+
+    private inner class ListExpenses : AgentTool {
+        override val name = "list_expenses"
+        override val spec =
+            "list_expenses(period: \"YYYY-MM\") — the user's spending for that month: total, per-category breakdown and recent entries. The results come back to you so you can answer. Period is optional (this month if omitted)."
+        override suspend fun run(args: JSONObject): ToolResult {
+            val raw = args.optString("period").trim()
+            val month = if (raw.isBlank()) YearMonth.now()
+            else runCatching { YearMonth.parse(raw) }.getOrElse {
+                return ToolResult(false, "Bad period “$raw” — expected YYYY-MM")
+            }
+            val inMonth = ExpenseMath.inMonth(expenses.getAll(), month)
+            if (inMonth.isEmpty()) {
+                return ToolResult(true, "Checked expenses for $month", data = "No expenses recorded in $month.")
+            }
+            val s = ExpenseMath.summarize(inMonth)
+            val digest = buildString {
+                appendLine("Expenses for $month:")
+                appendLine("Total: ${ExpenseMath.formatPaise(s.totalPaise)} across ${inMonth.size} entries")
+                s.byCategory.forEach { (cat, p) -> appendLine("- ${cat.id}: ${ExpenseMath.formatPaise(p)}") }
+                append("Recent: ")
+                append(
+                    inMonth.sortedByDescending { it.atMillis }.take(5).joinToString("; ") {
+                        "${ExpenseMath.formatPaise(it.amountPaise)} ${it.note.ifBlank { it.category.label }}"
+                    },
+                )
+            }
+            return ToolResult(true, "Checked expenses for $month", data = digest)
+        }
+    }
+
+    private inner class ListAgenda : AgentTool {
+        override val name = "list_agenda"
+        override val spec =
+            "list_agenda(date: \"YYYY-MM-DD\") — list the user's tasks and events on that date. The results come back to you so you can answer or act on them."
+        override suspend fun run(args: JSONObject): ToolResult {
+            val dateStr = args.optString("date").trim().ifBlank { LocalDate.now().toString() }
+            val date = runCatching { LocalDate.parse(dateStr) }.getOrElse {
+                return ToolResult(false, "Bad date “$dateStr” — expected YYYY-MM-DD")
+            }
+            val items = calendar.getAll().filter { it.occursOn(date) }.sortedBy { it.startMillis }
+            val digest =
+                if (items.isEmpty()) "No tasks or events on $date."
+                else items.joinToString("\n") { e ->
+                    val t = Instant.ofEpochMilli(e.startMillis).atZone(ZoneId.systemDefault()).toLocalTime().format(HM_FMT)
+                    val kind = if (e.isTask) (if (e.done) "task, done" else "task, pending") else "event"
+                    "- $t ${e.title} ($kind)"
+                }
+            return ToolResult(true, "Checked the agenda for $date", data = "Agenda for $date:\n$digest")
+        }
+    }
+
+    private inner class ReadNote : AgentTool {
+        override val name = "read_note"
+        override val spec =
+            "read_note(title_contains: string) — read the most recent note whose title contains the given words. Its content comes back to you so you can answer or update it."
+        override suspend fun run(args: JSONObject): ToolResult {
+            val q = args.optString("title_contains").trim()
+            val all = notes.getAll()
+            val target = all.filter { q.isBlank() || it.title.contains(q, true) }.maxByOrNull { it.updatedAtMillis }
+                ?: return ToolResult(
+                    true, "No note matching “$q”",
+                    data = "No note found with a title containing \"$q\". Existing note titles: " +
+                        (all.joinToString(", ") { it.title.ifBlank { "Untitled" } }.ifBlank { "none" }),
+                )
+            val title = target.title.ifBlank { "Untitled" }
+            return ToolResult(true, "Read note “$title”", data = "Note \"$title\":\n${target.body.ifBlank { "(empty)" }}")
+        }
+    }
+
     private companion object {
         val WHEN_FMT: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d, h:mm a")
+        val HM_FMT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
     }
 }

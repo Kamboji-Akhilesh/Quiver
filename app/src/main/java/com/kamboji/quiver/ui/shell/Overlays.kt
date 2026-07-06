@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.StickyNote2
@@ -85,6 +86,7 @@ fun Launcher(state: QuiverState) {
         AppKey.Currency to Icons.Outlined.SwapHoriz,
         AppKey.Calendar to Icons.Outlined.CalendarMonth,
         AppKey.Notes to Icons.Outlined.StickyNote2,
+        AppKey.Expenses to Icons.Outlined.Payments,
     )
     QuiverModalSheet(onDismiss = { state.launcherOpen = false }) { _ ->
         Column(
@@ -113,7 +115,7 @@ private fun LauncherTile(app: AppKey, icon: ImageVector, modifier: Modifier, onC
     val colors = Quiver.colors
     val ac = Accents.of(app)
     val name = when (app) {
-        AppKey.Screenshots -> "Screenshots"; AppKey.Currency -> "Currency"; AppKey.Calendar -> "Calendar"; AppKey.Notes -> "Notes"; AppKey.Hub -> "Quiver"
+        AppKey.Screenshots -> "Screenshots"; AppKey.Currency -> "Currency"; AppKey.Calendar -> "Calendar"; AppKey.Notes -> "Notes"; AppKey.Expenses -> "Expenses"; AppKey.Hub -> "Quiver"
     }
     Column(
         modifier.clip(RoundedCornerShape(22.dp))
@@ -147,6 +149,7 @@ fun SearchOverlay(state: QuiverState) {
             SearchAction("Convert 100 USD to EUR", Icons.Outlined.SwapHoriz, AppKey.Currency, Accents.Currency),
             SearchAction("Add a new event", Icons.Filled.Add, AppKey.Calendar, Accents.Calendar),
             SearchAction("New note", Icons.Outlined.StickyNote2, AppKey.Notes, Accents.Notes),
+            SearchAction("Add an expense", Icons.Outlined.Payments, AppKey.Expenses, Accents.Expenses),
             SearchAction("Open deletion history", Icons.Outlined.History, AppKey.Screenshots, Accents.Screenshots, "history"),
         )
     }

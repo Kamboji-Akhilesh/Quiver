@@ -33,8 +33,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // The MediaPipe GenAI native libs ship for 4 ABIs (~100 MB total).
-        // Real phones are arm64, so keep only that to slim the APK for Obtainium.
+        // Real phones are arm64; building llama.cpp for one ABI keeps the APK slim.
         ndk { abiFilters += "arm64-v8a" }
 
         buildConfigField("String", "CARTESIA_API_KEY", "\"$cartesiaApiKey\"")
@@ -119,10 +118,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.okhttp)
 
-    // On-device LLM (Quiver AI) — MediaPipe LLM Inference, runs Gemma locally.
-    implementation(libs.mediapipe.tasks.genai)
-
     testImplementation(libs.junit)
+    testImplementation(libs.org.json)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }

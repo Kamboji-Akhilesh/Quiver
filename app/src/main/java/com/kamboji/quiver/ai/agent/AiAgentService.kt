@@ -46,10 +46,14 @@ class AiAgentService : Service() {
         AgentBus.start(text)
         scope.launch {
             try {
-                val result = QuiverAgent(applicationContext, modelPath).run(text) { status ->
-                    AgentBus.status(status)
-                    notify("Quiver AI", status, ongoing = true)
-                }
+                val result = QuiverAgent(applicationContext, modelPath).run(
+                    text,
+                    progress = { status ->
+                        AgentBus.status(status)
+                        notify("Quiver AI", status, ongoing = true)
+                    },
+                    log = { line -> AgentBus.log(line) },
+                )
                 AgentBus.done(result.reply)
                 notify("Quiver AI", result.reply.lineSequence().firstOrNull() ?: "Done.", ongoing = false)
             } catch (e: Exception) {

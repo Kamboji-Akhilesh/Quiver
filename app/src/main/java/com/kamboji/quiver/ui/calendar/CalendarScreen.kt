@@ -43,8 +43,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -61,6 +61,7 @@ import com.kamboji.quiver.calendar.data.CalendarEntry
 import com.kamboji.quiver.calendar.data.EntryType
 import com.kamboji.quiver.calendar.data.RepeatUnit
 import com.kamboji.quiver.ui.components.Pill
+import com.kamboji.quiver.ui.components.QuiverComposerSheet
 import com.kamboji.quiver.ui.components.QuiverModalSheet
 import com.kamboji.quiver.ui.components.QvDatePickerDialog
 import com.kamboji.quiver.ui.components.QvIconButton
@@ -398,33 +399,39 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, editing: CalendarEntry? = 
     var showDate by remember { mutableStateOf(false) }
     val isEdit = editing != null
 
-    // Hand-rolled bottom panel: imePadding on the full-screen container lifts the
-    // whole panel above the keyboard, so the pinned Add button stays visible.
-    Box(Modifier.fillMaxSize().imePadding()) {
-        Box(
-            Modifier.fillMaxSize().background(Color(0x8C04040A))
-                .clickable(remember { MutableInteractionSource() }, null) { onDismiss() },
-        )
-        Column(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                .background(if (colors.dark) Color(0xF012121C) else Color(0xF5FAFBFE))
-                .border(1.dp, colors.border, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                .clickable(remember { MutableInteractionSource() }, null) {}
-                .navigationBarsPadding()
-                .padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Box(Modifier.padding(bottom = 14.dp).size(width = 40.dp, height = 5.dp).clip(RoundedCornerShape(4.dp)).background(colors.border2))
-            Text(
-                "${if (isEdit) "Edit" else "New"} ${if (type == EntryType.TASK) "task" else "event"}",
-                fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-            )
-            Column(
-                Modifier.fillMaxWidth().heightIn(max = 340.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
+    // Shared keyboard-safe composer panel (see QuiverComposerSheet for why).
+    QuiverComposerSheet(
+        title = "${if (isEdit) "Edit" else "New"} ${if (type == EntryType.TASK) "task" else "event"}",
+        onDismiss = onDismiss,
+        footer = {
+            // add (pinned outside the scroll so it's always visible)
+            val ready = title.isNotBlank()
+            Box(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                    .background(Brush.linearGradient(listOf(ac.a, ac.b)))
+                    // graphicsLayer, NOT Modifier.alpha: conditional alpha() adds/
+                    // removes the layer node when it crosses 1f, and some OEM skins
+                    // skip the redraw — the button stayed clickable but invisible.
+                    .graphicsLayer { alpha = if (ready) 1f else 0.5f }
+                    .clickable {
+                        if (!ready) { onInvalid(); return@clickable }
+                        val start = date.atTime(hour, minute).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        onAdd(
+                            CalendarEntry(
+                                id = editing?.id ?: 0L, type = type, title = title.trim(), startMillis = start,
+                                endMillis = if (type == EntryType.EVENT) start + 3_600_000 else null,
+                                allDay = false, done = editing?.done ?: false, alertStyle = alert, alertLead = lead,
+                                createdAtMillis = editing?.createdAtMillis ?: System.currentTimeMillis(),
+                                repeatUnit = repeatUnit, repeatInterval = repeatInterval,
+                            ),
+                        )
+                        onDismiss()
+                    }
+                    .padding(vertical = 15.dp),
+                contentAlignment = Alignment.Center,
+            ) { Text(if (isEdit) "Save changes" else if (type == EntryType.TASK) "Add task" else "Add event", color = Color(0xFF06121A), fontSize = 15.sp, fontWeight = FontWeight.Bold) }
+        },
+    ) {
             // title
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 15.dp),
@@ -471,32 +478,6 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, editing: CalendarEntry? = 
                     onPlus = { if (repeatInterval < 30) repeatInterval++ },
                 )
             }
-          } // end scrollable fields
-            Spacer(Modifier.height(14.dp))
-            // add (pinned below the scroll so it's always visible)
-            val ready = title.isNotBlank()
-            Box(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                    .background(Brush.linearGradient(listOf(ac.a, ac.b)))
-                    .alpha(if (ready) 1f else 0.5f)
-                    .clickable {
-                        if (!ready) { onInvalid(); return@clickable }
-                        val start = date.atTime(hour, minute).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-                        onAdd(
-                            CalendarEntry(
-                                id = editing?.id ?: 0L, type = type, title = title.trim(), startMillis = start,
-                                endMillis = if (type == EntryType.EVENT) start + 3_600_000 else null,
-                                allDay = false, done = editing?.done ?: false, alertStyle = alert, alertLead = lead,
-                                createdAtMillis = editing?.createdAtMillis ?: System.currentTimeMillis(),
-                                repeatUnit = repeatUnit, repeatInterval = repeatInterval,
-                            ),
-                        )
-                        onDismiss()
-                    }
-                    .padding(vertical = 15.dp),
-                contentAlignment = Alignment.Center,
-            ) { Text(if (isEdit) "Save changes" else if (type == EntryType.TASK) "Add task" else "Add event", color = Color(0xFF06121A), fontSize = 15.sp, fontWeight = FontWeight.Bold) }
-        }
     }
 
     if (showTime) {

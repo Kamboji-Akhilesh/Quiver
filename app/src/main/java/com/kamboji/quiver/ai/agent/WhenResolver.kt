@@ -46,8 +46,9 @@ object WhenResolver {
         }
         return when {
             "morning" in s -> LocalTime.of(9, 0)
-            "noon" in s -> LocalTime.of(12, 0)
+            // "afternoon" must be checked before "noon" — it contains it.
             "afternoon" in s -> LocalTime.of(14, 0)
+            "noon" in s -> LocalTime.of(12, 0)
             "evening" in s -> LocalTime.of(18, 0)
             "night" in s -> LocalTime.of(20, 0)
             else -> LocalTime.of(9, 0)

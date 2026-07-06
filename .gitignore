@@ -15,3 +15,8 @@
 local.properties
 /.idea
 /app/build
+# Derived training artifacts (regenerate with training/generate_dataset.py)
+training/dataset.jsonl
+training/eval_prompts/
+training/out/
+__pycache__/

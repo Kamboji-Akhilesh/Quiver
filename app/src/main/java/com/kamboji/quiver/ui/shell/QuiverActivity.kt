@@ -15,6 +15,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import com.kamboji.quiver.screenshots.service.ScreenshotService
 
 /** Single-surface entry point for the redesigned Quiver hub. */
 class QuiverActivity : ComponentActivity() {
@@ -29,6 +30,10 @@ class QuiverActivity : ComponentActivity() {
         requestRuntimePermissions()
         ensureExactAlarms()
         ensureBackgroundAllowed()
+        // Self-heal screenshot monitoring: the OS kills the service on app
+        // updates and aggressive battery managers kill it at will, so restart
+        // it (if not paused) every time the app is opened.
+        ScreenshotService.startIfEnabled(this)
     }
 
     /**

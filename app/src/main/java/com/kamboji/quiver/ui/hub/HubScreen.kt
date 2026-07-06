@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.StickyNote2
@@ -59,6 +60,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kamboji.quiver.calendar.CalendarViewModel
 import com.kamboji.quiver.currency.CurrencyViewModel
 import com.kamboji.quiver.currency.Ui
+import com.kamboji.quiver.expenses.ExpensesViewModel
+import com.kamboji.quiver.expenses.data.ExpenseMath
 import com.kamboji.quiver.notes.NotesViewModel
 import com.kamboji.quiver.screenshots.data.SettingsManager
 import com.kamboji.quiver.screenshots.data.db.AppDatabase
@@ -86,6 +89,7 @@ private fun meta(app: AppKey): AppMeta = when (app) {
     AppKey.Currency -> AppMeta("Currency", "live & offline rates", Icons.Outlined.SwapHoriz)
     AppKey.Calendar -> AppMeta("Calendar", "tasks, events & calls", Icons.Outlined.CalendarMonth)
     AppKey.Notes -> AppMeta("Notes", "quick thoughts & lists", Icons.Outlined.StickyNote2)
+    AppKey.Expenses -> AppMeta("Expenses", "know where money goes", Icons.Outlined.Payments)
     AppKey.Hub -> AppMeta("Quiver", "your apps", Icons.Filled.AutoAwesome)
 }
 
@@ -115,6 +119,7 @@ fun HubScreen(state: QuiverState) {
     val calVm: CalendarViewModel = viewModel()
     val curVm: CurrencyViewModel = viewModel()
     val notesVm: NotesViewModel = viewModel()
+    val expVm: ExpensesViewModel = viewModel()
 
     // ---- real data ----
     val entries by calVm.entries.collectAsState()
@@ -122,6 +127,10 @@ fun HubScreen(state: QuiverState) {
     val todayCount = entries.count { localDate(it.startMillis) == today }
     val noteList by notesVm.notes.collectAsState()
     val notesCount = noteList.size
+    val expenseList by expVm.expenses.collectAsState()
+    val monthSpend = ExpenseMath.formatPaise(
+        ExpenseMath.summarize(ExpenseMath.inMonth(expenseList, java.time.YearMonth.now())).totalPaise,
+    )
 
     // Dashboard apps are a user-curated subset (default 2); the rest can be added.
     val hubPrefs = remember { HubPrefs(context) }
@@ -132,7 +141,7 @@ fun HubScreen(state: QuiverState) {
     }
     val dashApps = remember { mutableStateListOf<AppKey>().also { it.addAll(hubPrefs.dashboardApps()) } }
     var showAddPicker by remember { mutableStateOf(false) }
-    val allApps = listOf(AppKey.Screenshots, AppKey.Currency, AppKey.Calendar, AppKey.Notes)
+    val allApps = listOf(AppKey.Screenshots, AppKey.Currency, AppKey.Calendar, AppKey.Notes, AppKey.Expenses)
 
     // Only hit the currency API if its tile is actually on the dashboard.
     val currencyOnDash = AppKey.Currency in dashApps
@@ -232,6 +241,7 @@ fun HubScreen(state: QuiverState) {
             QuickAction("Convert", Icons.Outlined.SwapHoriz, Accents.Currency) { state.go(AppKey.Currency) }
             QuickAction("New event", Icons.Filled.Add, Accents.Calendar) { state.go(AppKey.Calendar); state.calendarStartNew = true }
             QuickAction("New note", Icons.Outlined.StickyNote2, Accents.Notes) { state.go(AppKey.Notes); state.notesStartNew = true }
+            QuickAction("Add expense", Icons.Outlined.Payments, Accents.Expenses) { state.go(AppKey.Expenses); state.expensesStartNew = true }
             QuickAction("Ask AI", Icons.Filled.AutoAwesome, Accents.Hub) { state.closeOverlays(); state.aiOpen = true }
         }
 
@@ -259,7 +269,7 @@ fun HubScreen(state: QuiverState) {
 
         val order = dashApps.sortedByDescending { state.pinned[it] == true }
         BentoGrid(
-            state, order, monitoring, todayCount, curRate, curVm.to, notesCount, hubPrefs,
+            state, order, monitoring, todayCount, curRate, curVm.to, notesCount, monthSpend, hubPrefs,
             onAddApp = { showAddPicker = true },
             onRemoveApp = { app ->
                 dashApps.remove(app)
@@ -382,7 +392,7 @@ private fun QuickAction(label: String, icon: ImageVector, accent: Accent, onClic
 }
 
 @Composable
-private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boolean, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int, hubPrefs: HubPrefs, onAddApp: () -> Unit, onRemoveApp: (AppKey) -> Unit) {
+private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boolean, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int, monthSpend: String, hubPrefs: HubPrefs, onAddApp: () -> Unit, onRemoveApp: (AppKey) -> Unit) {
     val colors = Quiver.colors
     val rows = packTiles(order) { state.pinned[it] == true }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -390,7 +400,7 @@ private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boole
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { app ->
                     val big = state.pinned[app] == true
-                    BentoTile(state, app, big, monitoring, todayCount, curRate, curTo, notesCount, hubPrefs, { onRemoveApp(app) }, Modifier.weight(1f))
+                    BentoTile(state, app, big, monitoring, todayCount, curRate, curTo, notesCount, monthSpend, hubPrefs, { onRemoveApp(app) }, Modifier.weight(1f))
                 }
                 if (row.size == 1 && state.pinned[row[0]] != true) Spacer(Modifier.weight(1f))
             }
@@ -437,6 +447,7 @@ private fun BentoTile(
     curRate: Double?,
     curTo: String,
     notesCount: Int,
+    monthSpend: String,
     hubPrefs: HubPrefs,
     onRemove: () -> Unit,
     modifier: Modifier,
@@ -491,7 +502,7 @@ private fun BentoTile(
             Text(m.name, fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
             Text(m.tag, fontSize = 12.5.sp, color = colors.dim)
             Spacer(Modifier.height(11.dp))
-            TileSummary(app, ac, monitoring, todayCount, curRate, curTo, notesCount)
+            TileSummary(app, ac, monitoring, todayCount, curRate, curTo, notesCount, monthSpend)
         }
     }
 }
@@ -504,7 +515,7 @@ private fun togglePin(state: QuiverState, app: AppKey, hubPrefs: HubPrefs) {
 }
 
 @Composable
-private fun TileSummary(app: AppKey, ac: Accent, monitoring: Boolean, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int) {
+private fun TileSummary(app: AppKey, ac: Accent, monitoring: Boolean, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int, monthSpend: String) {
     val colors = Quiver.colors
     when (app) {
         AppKey.Screenshots -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -522,6 +533,10 @@ private fun TileSummary(app: AppKey, ac: Accent, monitoring: Boolean, todayCount
         AppKey.Notes -> Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("$notesCount", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
             Text(if (notesCount == 1) "note" else "notes", fontSize = 12.sp, color = colors.dim)
+        }
+        AppKey.Expenses -> Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(monthSpend, fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
+            Text("this month", fontSize = 12.sp, color = colors.dim)
         }
         AppKey.Hub -> Unit
     }

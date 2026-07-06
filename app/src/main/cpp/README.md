@@ -27,12 +27,11 @@ JAVA_HOME="<Android Studio JBR>" ./gradlew.bat assembleDebug
 The first native build is slow (compiles ggml/llama). Subsequent builds are cached.
 
 ## 4. Use it
-Import or download a `.gguf` model in Quiver AI → the factory
-(`InferenceEngines`) routes it to `LlamaCppEngine`. Recommended small,
-tool-capable GGUFs: Qwen2.5-1.5B/3B-Instruct, Llama-3.2-3B-Instruct, Hammer2.1.
-
-To force valid tool JSON, pass the grammar when the agent constructs the engine:
-`LlamaCppEngine(context, path, grammar = <contents of training/grammar/quiver_tools.gbnf>)`.
+This is Quiver's only inference engine: the agent (`QuiverAgent`) constructs
+`LlamaCppEngine` directly with the curated Gemma GGUF (`AiModel`) and the
+tool-call grammar (`app/src/main/assets/quiver_tools.gbnf`), which constrains
+decoding to valid Quiver tool JSON. The fine-tuning pipeline for the model
+lives in `training/` (see training/README.md).
 
 ## Notes
 - The JNI in `llama-android.cpp` targets a recent llama.cpp C API. If it fails to

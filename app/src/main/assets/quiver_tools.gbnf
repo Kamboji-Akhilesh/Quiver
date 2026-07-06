@@ -1,7 +1,8 @@
 # GBNF grammar: forces the GGUF model to emit valid Quiver tool-call JSON.
 # Passed to llama.cpp's grammar sampler (root = "root") by LlamaCppEngine.
 
-root   ::= "{" ws "\"reply\"" ws ":" ws string ws "," ws "\"steps\"" ws ":" ws steps ws "}"
+# steps first, then reply — must match the shape in QuiverAgent's prompt.
+root   ::= "{" ws "\"steps\"" ws ":" ws steps ws "," ws "\"reply\"" ws ":" ws string ws "}"
 steps  ::= "[" ws (step (ws "," ws step)*)? ws "]"
 step   ::= "{" ws "\"tool\"" ws ":" ws string ws "," ws "\"args\"" ws ":" ws object ws "}"
 
@@ -11,7 +12,8 @@ array  ::= "[" ws (value (ws "," ws value)*)? ws "]"
 value  ::= string | number | object | array | "true" | "false" | "null"
 
 string ::= "\"" char* "\""
-char   ::= [^"\\] | "\\" (["\\/bfnrt] | "u" hex hex hex hex)
+# No raw control characters (newlines etc.) inside strings — org.json rejects them.
+char   ::= [^"\\\x00-\x1F] | "\\" (["\\/bfnrt] | "u" hex hex hex hex)
 hex    ::= [0-9a-fA-F]
 number ::= "-"? ("0" | [1-9] [0-9]*) ("." [0-9]+)? ([eE] [-+]? [0-9]+)?
 ws     ::= [ \t\n]*
