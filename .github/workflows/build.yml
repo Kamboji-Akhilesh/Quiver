@@ -26,13 +26,21 @@ jobs:
       - name: Install SDK packages
         run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
 
+      - name: Run unit tests
+        run: |
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest --no-daemon --stacktrace
+
+      - name: Validate training dataset
+        run: |
+          python3 training/generate_dataset.py
+          python3 training/validate_dataset.py
+
       - name: Build debug APK
         env:
           VERSION_CODE: ${{ github.run_number }}
           VERSION_NAME: "1.0.${{ github.run_number }}"
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Stage APK
         run: cp app/build/outputs/apk/debug/app-debug.apk Quiver.apk

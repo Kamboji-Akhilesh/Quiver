@@ -1,0 +1,37 @@
+{"lang": "en", "user": "jot down a list called Diwali shopping - diyas, candles, sweets and rangoli colors", "expect": [{"tool": "add_note", "args_contains": {"title": "*diwali*", "body": "*diyas*"}}]}
+{"lang": "en", "user": "I need to call the bank tomorrow at 11, set that up", "expect": [{"tool": "add_task", "args_contains": {"date": "{tomorrow}", "time": "11:00"}}]}
+{"lang": "en", "user": "gym session with Rohan next Saturday 7am, put it in", "expect": [{"tool": "add_event", "args_contains": {"date": "{saturday}", "time": "07:00"}}]}
+{"lang": "en", "user": "how many yen do I get for 500 dollars", "expect": [{"tool": "convert", "args_contains": {"amount": 500, "from": "USD", "to": "JPY"}}]}
+{"lang": "en", "user": "anything happening on my calendar tomorrow?", "expect": [{"tool": "list_agenda", "args_contains": {"date": "{tomorrow}"}}]}
+{"lang": "en", "user": "look up how to season a cast iron pan and keep the steps in a note", "expect": [{"tool": "web_search", "args_contains": {"query": "*cast iron*"}}]}
+{"lang": "en", "user": "throw tofu and spring onions onto my groceries note", "expect": [{"tool": "append_note", "args_contains": {"text": "*tofu*"}}]}
+{"lang": "en", "user": "hey there", "expect": []}
+{"lang": "en", "user": "wipe all my notes please", "expect": []}
+{"lang": "en", "user": "find a simple omelette recipe, save what I need to buy and remind me tomorrow morning to get it", "findings": "Search results for \"simple omelette recipe\":\n- Classic omelette: eggs 3, butter 1 tbsp, milk splash, salt, pepper, chives.\n- Whisk eggs, cook on low heat in butter, fold when just set.", "expect": [{"tool": "add_note", "args_contains": {"body": "*eggs*"}}, {"tool": "add_task", "args_contains": {"date": "{tomorrow}", "time": "09:00"}}]}
+{"lang": "en", "user": "what's in my trash from screenshots", "expect": [{"tool": "check_trash", "args_contains": {}}]}
+{"lang": "en", "user": "euro to rupee rate please", "expect": [{"tool": "get_rate", "args_contains": {"from": "EUR", "to": "INR"}}]}
+{"lang": "hi", "user": "परसों शाम 6 बजे बिजली वाले को बुलाना है, याद दिला देना", "expect": [{"tool": "add_task", "args_contains": {"date": "{day_after}", "time": "18:00"}}]}
+{"lang": "hi", "user": "दिवाली की खरीदारी की लिस्ट बना दो: दीये, मिठाई, रंगोली के रंग", "expect": [{"tool": "add_note", "args_contains": {"body": "*दीये*"}}]}
+{"lang": "hi", "user": "500 डॉलर में कितने रुपये मिलेंगे?", "expect": [{"tool": "convert", "args_contains": {"amount": 500, "from": "USD", "to": "INR"}}]}
+{"lang": "hi", "user": "कल मेरे कैलेंडर में क्या है?", "expect": [{"tool": "list_agenda", "args_contains": {"date": "{tomorrow}"}}]}
+{"lang": "bn", "user": "পরশু বিকেল ৪টায় দর্জির কাছে যেতে হবে, মনে করিয়ে দিও", "expect": [{"tool": "add_task", "args_contains": {"date": "{day_after}", "time": "16:00"}}]}
+{"lang": "bn", "user": "ঈদের বাজারের লিস্ট বানাও: সেমাই, দুধ, কিশমিশ", "expect": [{"tool": "add_note", "args_contains": {"body": "*সেমাই*"}}]}
+{"lang": "bn", "user": "100 ডলারে কত টাকা হয়?", "expect": [{"tool": "convert", "args_contains": {"amount": 100, "from": "USD", "to": "INR"}}]}
+{"lang": "bn", "user": "আগামীকাল আমার কী কী কাজ আছে?", "expect": [{"tool": "list_agenda", "args_contains": {"date": "{tomorrow}"}}]}
+{"lang": "ta", "user": "நாளை மறுநாள் காலை 8 மணிக்கு காய்கறி வாங்க ஞாபகப்படுத்து", "expect": [{"tool": "add_task", "args_contains": {"date": "{day_after}", "time": "08:00"}}]}
+{"lang": "ta", "user": "பொங்கல் பட்டியல் சேமி: கரும்பு, மஞ்சள், புது பானை", "expect": [{"tool": "add_note", "args_contains": {"body": "*கரும்பு*"}}]}
+{"lang": "ta", "user": "50 யூரோ எத்தனை ரூபாய்?", "expect": [{"tool": "convert", "args_contains": {"amount": 50, "from": "EUR", "to": "INR"}}]}
+{"lang": "ta", "user": "வெள்ளிக்கிழமை காலெண்டரில் என்ன இருக்கு?", "expect": [{"tool": "list_agenda", "args_contains": {"date": "{friday}"}}]}
+{"lang": "te", "user": "ఎల్లుండి సాయంత్రం 5కి కరెంటు బిల్లు కట్టాలి, గుర్తు చేయి", "expect": [{"tool": "add_task", "args_contains": {"date": "{day_after}", "time": "17:00"}}]}
+{"lang": "te", "user": "పండుగ సామాను జాబితా రాయి: పూలు, కొబ్బరికాయలు, అగరబత్తులు", "expect": [{"tool": "add_note", "args_contains": {"body": "*పూలు*"}}]}
+{"lang": "te", "user": "200 పౌండ్లు ఎన్ని రూపాయలు?", "expect": [{"tool": "convert", "args_contains": {"amount": 200, "from": "GBP", "to": "INR"}}]}
+{"lang": "te", "user": "రేపు నా షెడ్యూల్ ఏంటి?", "expect": [{"tool": "list_agenda", "args_contains": {"date": "{tomorrow}"}}]}
+{"lang": "mr", "user": "परवा दुपारी 3 वाजता गाडी सर्व्हिसिंगला द्यायची आठवण कर", "expect": [{"tool": "add_task", "args_contains": {"date": "{day_after}", "time": "15:00"}}]}
+{"lang": "mr", "user": "गणपतीच्या सजावटीची यादी कर: फुले, हार, मोदक", "expect": [{"tool": "add_note", "args_contains": {"body": "*फुले*"}}]}
+{"lang": "mr", "user": "300 दिरहॅमचे किती रुपये होतात?", "expect": [{"tool": "convert", "args_contains": {"amount": 300, "from": "AED", "to": "INR"}}]}
+{"lang": "mr", "user": "शुक्रवारी माझं वेळापत्रक काय आहे?", "expect": [{"tool": "list_agenda", "args_contains": {"date": "{friday}"}}]}
+{"lang": "en", "user": "i blew 450 on pizza tonight, note it down as an expense", "expect": [{"tool": "add_expense", "args_contains": {"amount": 450, "category": "food"}}]}
+{"lang": "en", "user": "where did my money go this month?", "expect": [{"tool": "list_expenses", "args_contains": {"period": "{this_month}"}}]}
+{"lang": "hi", "user": "मेट्रो कार्ड रिचार्ज पर 500 गए, खर्च में लिखो", "expect": [{"tool": "add_expense", "args_contains": {"amount": 500}}]}
+{"lang": "ta", "user": "பெட்ரோலுக்கு 300 ரூபாய் செலவு ஆச்சு, குறிச்சுக்கோ", "expect": [{"tool": "add_expense", "args_contains": {"amount": 300, "category": "transport"}}]}
+{"lang": "mr", "user": "गेल्या महिन्यात माझा एकूण खर्च किती होता?", "expect": [{"tool": "list_expenses", "args_contains": {"period": "{last_month}"}}]}

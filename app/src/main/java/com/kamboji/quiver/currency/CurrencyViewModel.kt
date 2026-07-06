@@ -32,10 +32,10 @@ class CurrencyViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = CurrencyRepository(app)
 
     // --- Converter tab ---
-    var amount by mutableStateOf("250")
+    var amount by mutableStateOf("100")
     var from by mutableStateOf("USD")
         private set
-    var to by mutableStateOf("EUR")
+    var to by mutableStateOf("INR")
         private set
     var range by mutableStateOf(HistoryRange.D30)
         private set
@@ -51,7 +51,14 @@ class CurrencyViewModel(app: Application) : AndroidViewModel(app) {
     private val _rates = MutableStateFlow<Ui<Cached<List<Currency>>>>(Ui.Loading)
     val rates = _rates.asStateFlow()
 
-    init {
+    private var started = false
+
+    /** Loads rates once, lazily — so the Frankfurter API is only hit when the
+     *  Currency app is actually used (or its tile is on the Home dashboard),
+     *  not on every launch. Safe to call repeatedly. */
+    fun ensureLoaded() {
+        if (started) return
+        started = true
         loadConverter()
         loadSeries()
         loadRates()

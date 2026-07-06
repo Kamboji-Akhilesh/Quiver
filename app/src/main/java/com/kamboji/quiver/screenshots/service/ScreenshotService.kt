@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Handler
@@ -13,9 +14,27 @@ import android.os.Looper
 import android.provider.MediaStore
 import android.util.Log
 import com.kamboji.quiver.R
+import com.kamboji.quiver.screenshots.data.SettingsManager
 import com.kamboji.quiver.screenshots.ui.MainActivity
 
 class ScreenshotService : Service() {
+
+    companion object {
+        /**
+         * Starts monitoring unless the user paused it. Called from every entry
+         * point (app launch, boot, app update) because the OS kills the service
+         * on package reinstall/update and START_STICKY doesn't cover that.
+         */
+        fun startIfEnabled(context: Context) {
+            if (!SettingsManager.isServiceEnabled(context)) return
+            val intent = Intent(context, ScreenshotService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }
+    }
 
     private lateinit var observer: ScreenshotObserver
 

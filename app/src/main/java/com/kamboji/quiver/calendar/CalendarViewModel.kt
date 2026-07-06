@@ -18,14 +18,24 @@ class CalendarViewModel(app: Application) : AndroidViewModel(app) {
     private val _entries = MutableStateFlow(store.getAll())
     val entries = _entries.asStateFlow()
 
+    // Reload when the store is written from elsewhere in the process (e.g. the
+    // full-screen call activity marking a task done or snoozing it).
+    private val storeListener = store.observe { _entries.value = store.getAll() }
+
+    override fun onCleared() {
+        store.stopObserving(storeListener)
+        super.onCleared()
+    }
+
     fun entriesForDay(date: LocalDate): List<CalendarEntry> =
         _entries.value
-            .filter { toLocalDate(it.startMillis) == date }
-            .sortedWith(compareByDescending<CalendarEntry> { it.allDay }.thenBy { it.startMillis })
+            .filter { it.occursOn(date) }
+            .sortedWith(compareByDescending<CalendarEntry> { it.allDay }.thenBy { timeOfDay(it.startMillis) })
 
-    /** Dates in the given month that have at least one entry (for grid dots). */
-    fun daysWithEntries(): Set<LocalDate> =
-        _entries.value.map { toLocalDate(it.startMillis) }.toSet()
+    private fun timeOfDay(millis: Long): Int {
+        val t = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalTime()
+        return t.hour * 60 + t.minute
+    }
 
     fun byId(id: Long): CalendarEntry? = _entries.value.firstOrNull { it.id == id }
 

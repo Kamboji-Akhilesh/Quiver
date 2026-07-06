@@ -3,6 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <!-- Quiver AI voice input (speech-to-text). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -12,6 +14,8 @@
     <!-- Calendar exact-time alerts. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+    <!-- Keep reminder alarms firing on aggressive (OEM) battery managers. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:ignore="ScopedStorage"/>
 
@@ -26,16 +30,25 @@
         android:theme="@style/Theme.ScreenshotCleaner">
 
         <!-- UI Activities -->
-        <!-- Bento hub is the launcher; it links to the mini-apps. -->
+        <!-- Redesigned single-surface hub is the launcher. -->
+        <!-- adjustResize is REQUIRED for imePadding() to work: without it the
+             window PANS when the keyboard opens, and bottom-sheet buttons end
+             up hidden under the IME (the recurring "vanishing button" bug). -->
         <activity
-            android:name=".hub.HubActivity"
+            android:name=".ui.shell.QuiverActivity"
             android:exported="true"
+            android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.ScreenshotCleaner">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Legacy bento hub, retained while screens migrate into the shell. -->
+        <activity
+            android:name=".hub.HubActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ScreenshotCleaner"/>
         <activity
             android:name=".currency.CurrencyActivity"
             android:exported="false"
@@ -55,6 +68,9 @@
             android:theme="@style/Theme.ScreenshotCleaner"/>
         <receiver
             android:name=".calendar.alert.AlertReceiver"
+            android:exported="false"/>
+        <receiver
+            android:name=".calendar.alert.AlertActionReceiver"
             android:exported="false"/>
         <activity
             android:name=".screenshots.ui.MainActivity"
@@ -95,14 +111,39 @@
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <!-- App updates/reinstalls kill the monitor service; restart it. -->
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
             </intent-filter>
         </receiver>
 
         <!-- Services -->
+        <!-- WorkManager's foreground service needs an explicit type on API 34+
+             for the model-download worker's progress notification. -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
         <service
             android:name=".screenshots.service.ScreenshotService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+        <!-- Runs Quiver AI agent tasks so they finish even if the app is closed. -->
+        <service
+            android:name=".ai.agent.AiAgentService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+        <!-- Auto-captures UPI/bank payment notifications into Expenses. Works
+             only after the user grants notification access; all parsing stays
+             on-device. -->
+        <service
+            android:name=".expenses.capture.PaymentCaptureService"
+            android:exported="false"
+            android:label="Quiver expense capture"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
 
     </application>
 
