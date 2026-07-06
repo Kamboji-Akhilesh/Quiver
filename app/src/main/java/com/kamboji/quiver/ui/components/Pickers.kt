@@ -27,7 +27,11 @@ import com.kamboji.quiver.ui.theme.Accent
 import com.kamboji.quiver.ui.theme.Display
 import com.kamboji.quiver.ui.theme.Quiver
 
-/** Material3 clock-dial time picker in a Quiver-styled dialog (24-hour). */
+/**
+ * Material3 clock-dial time picker in a Quiver-styled dialog. Shows a 12-hour
+ * AM/PM dial on purpose — the app displays times in 12-hour form everywhere —
+ * while [onConfirm] always receives the hour in 24-hour form (0–23).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QvTimePickerDialog(

@@ -70,6 +70,20 @@ class PaymentParserTest {
     }
 
     @Test
+    fun `incoming money with debit-sounding verbs is rejected`() {
+        // GPay phrases CREDITS with the word "paid" — direction matters.
+        assertNull(PaymentParser.parse("Ramesh Kumar paid you ₹1"))
+        assertNull(PaymentParser.parse("Amit sent you ₹500 using UPI"))
+        assertNull(PaymentParser.parse("Payment of Rs.500.00 made to your a/c XX1234 Ref 998877665544"))
+    }
+
+    @Test
+    fun `outgoing payments still pass despite directional filters`() {
+        assertNotNull(PaymentParser.parse("You paid ₹250 to Ramesh Tea Stall"))
+        assertNotNull(PaymentParser.parse("₹90 sent to amit@okhdfcbank via UPI"))
+    }
+
+    @Test
     fun `refund and cashback are rejected`() {
         assertNull(PaymentParser.parse("Refund of ₹250 processed to your account"))
         assertNull(PaymentParser.parse("Pay ₹1 and get ₹50 cashback on your next order!"))

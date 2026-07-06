@@ -34,11 +34,16 @@ object PaymentParser {
 
     private val REF = Regex("""(?i)\b(?:utr|ref(?:erence)?(?:\s*(?:no|number|id))?)\b[:\s.#]*([a-zA-Z0-9]{6,22})""")
 
-    // Checked FIRST: any of these kills the capture.
+    // Checked FIRST: any of these kills the capture. Includes DIRECTIONAL credit
+    // phrasings that reuse debit verbs — GPay says "Ramesh paid you ₹1" for money
+    // you RECEIVE, which would otherwise match the "paid" debit keyword and log
+    // incoming money as an expense.
     private val REJECT = listOf(
         "credited", "received", "refund", "reversed", "cashback", "failed", "declined",
         "request", "requested", "will be debited", "autopay", "due on", "offer", "reward",
         "win ", "expires", "otp", "balance is", "avl bal only",
+        "paid you", "pays you", "sent you", "to your account", "to your a/c",
+        "in your account", "in your a/c", "into your",
     )
     private val DEBIT = listOf("debited", "paid", "payment of", "sent", "spent", "purchase of", "txn of", "transaction of")
 

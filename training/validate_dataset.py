@@ -62,16 +62,24 @@ def check_step(step: dict) -> str | None:
             return "convert amount must be a number"
         if not (CODE_RE.match(str(args.get("from", ""))) and CODE_RE.match(str(args.get("to", "")))):
             return "convert needs 3-letter uppercase from/to codes"
-    if tool == "list_agenda" and not DATE_RE.match(str(args.get("date", ""))):
-        return f"list_agenda date must be YYYY-MM-DD, got {args.get('date')!r}"
-    if tool == "read_note" and not str(args.get("title_contains", "")).strip():
-        return "read_note needs title_contains"
+    # Optional args mirror the RUNTIME contract: list_agenda's date defaults to
+    # today, read_note's blank title_contains means "most recent note", and a
+    # missing add_expense category parses to OTHER. The generator still emits
+    # them explicitly as a matter of policy — but a plan the app would execute
+    # must not fail validation.
+    if tool == "list_agenda" and "date" in args and not DATE_RE.match(str(args["date"])):
+        return f"list_agenda date must be YYYY-MM-DD when present, got {args.get('date')!r}"
+    if tool == "read_note" and "title_contains" in args and not isinstance(args["title_contains"], str):
+        return "read_note title_contains must be a string"
     if tool == "add_expense":
         amt = args.get("amount")
         if not isinstance(amt, (int, float)) or amt <= 0:
             return f"add_expense amount must be a positive number, got {amt!r}"
-        if str(args.get("category", "")) not in CATEGORIES:
-            return f"add_expense category must be one of {sorted(CATEGORIES)}, got {args.get('category')!r}"
+        # Category is optional (runtime defaults to OTHER), but when the training
+        # data DOES name one it must be canonical — targets should teach the
+        # documented ids, not free-text the runtime happens to tolerate.
+        if "category" in args and str(args["category"]) not in CATEGORIES:
+            return f"add_expense category must be one of {sorted(CATEGORIES)} when present, got {args.get('category')!r}"
         if "date" in args and not DATE_RE.match(str(args["date"])):
             return f"add_expense date must be YYYY-MM-DD, got {args.get('date')!r}"
     if tool == "list_expenses" and "period" in args and not PERIOD_RE.match(str(args["period"])):
