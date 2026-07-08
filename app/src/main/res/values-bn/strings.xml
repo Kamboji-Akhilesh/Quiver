@@ -44,8 +44,8 @@
     <string name="onboarding_maybe_later">পরে</string>
 
     <!-- Calendar quick-add -->
-    <string name="quick_add_placeholder">দ্রুত যোগ — “আগামীকাল সন্ধ্যা ৬টায় ডেন্টিস্ট”</string>
-    <string name="quick_add_hint">এভাবে লিখুন: “আগামীকাল সন্ধ্যা ৬টায় ডেন্টিস্ট”</string>
+    <string name="quick_add_placeholder">দ্রুত যোগ — “ডেন্টিস্ট tomorrow 6pm”</string>
+    <string name="quick_add_hint">এভাবে লিখুন: “ডেন্টিস্ট tomorrow 6pm”</string>
     <string name="quick_add_added_task">টাস্ক যোগ হয়েছে · %1$s</string>
     <string name="quick_add_added_event">ইভেন্ট যোগ হয়েছে · %1$s</string>
 

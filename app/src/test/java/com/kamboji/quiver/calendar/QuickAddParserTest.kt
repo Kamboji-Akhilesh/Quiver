@@ -99,4 +99,37 @@ class QuickAddParserTest {
         assertNull(QuickAddParser.parse("tomorrow 6pm"))
         assertNull(QuickAddParser.parse("   "))
     }
+
+    /**
+     * A non-Latin title keeps its script while the English "when" tokens are still
+     * split off. This is the shape the localized `quick_add_placeholder` strings
+     * advertise, so it must keep working.
+     */
+    @Test
+    fun `non-Latin title with English when-tokens still splits`() {
+        val r = QuickAddParser.parse("डेंटिस्ट tomorrow 6pm")!!
+        assertEquals("डेंटिस्ट", r.title)
+        assertEquals("tomorrow", r.dateText)
+        assertEquals("6:00 pm", r.timeText)
+    }
+
+    /**
+     * KNOWN GAP: the "when" vocabulary is English-only, and `\d` is ASCII-only, so
+     * Indic day-words, dayparts and digits are not recognised — the whole line
+     * becomes the title and the entry lands on the selected day with no time.
+     * This pins current behaviour; if quick-add ever learns these languages, the
+     * localized example strings should be translated in full at the same time.
+     */
+    @Test
+    fun `Indic when-words are not parsed yet`() {
+        val hi = QuickAddParser.parse("कल शाम 6 बजे डेंटिस्ट")!!
+        assertEquals("कल शाम 6 बजे डेंटिस्ट", hi.title)
+        assertNull(hi.dateText)
+        assertNull(hi.timeText)
+        assertFalse(hi.hasWhen)
+
+        // Devanagari digits don't match \d either.
+        val mr = QuickAddParser.parse("उद्या संध्याकाळी ६ वाजता डेंटिस्ट")!!
+        assertNull(mr.timeText)
+    }
 }

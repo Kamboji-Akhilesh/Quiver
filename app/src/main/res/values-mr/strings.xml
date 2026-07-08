@@ -44,8 +44,8 @@
     <string name="onboarding_maybe_later">नंतर</string>
 
     <!-- Calendar quick-add -->
-    <string name="quick_add_placeholder">झटपट जोडा — “उद्या संध्याकाळी ६ वाजता डेंटिस्ट”</string>
-    <string name="quick_add_hint">असे लिहा: “उद्या संध्याकाळी ६ वाजता डेंटिस्ट”</string>
+    <string name="quick_add_placeholder">झटपट जोडा — “डेंटिस्ट tomorrow 6pm”</string>
+    <string name="quick_add_hint">असे लिहा: “डेंटिस्ट tomorrow 6pm”</string>
     <string name="quick_add_added_task">टास्क जोडले · %1$s</string>
     <string name="quick_add_added_event">इव्हेंट जोडले · %1$s</string>
 

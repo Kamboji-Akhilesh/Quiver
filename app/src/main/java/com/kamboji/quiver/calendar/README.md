@@ -50,6 +50,15 @@ silenced by the ringer.
 - Rule of thumb: a clock time or daypart → an **event**; a date only → a **task**;
   nothing at all → the currently selected day.
 
+> **Known gap:** the "when" vocabulary is **English-only** (`tomorrow`, `friday`,
+> `6pm`, `evening`), and the digit class is ASCII-only, so Indic day-words and
+> numerals aren't recognised — the line just becomes the title. The localized
+> placeholder strings therefore show a *code-mixed* example (translated title +
+> English tokens), which is what actually parses. `QuickAddParserTest` pins both
+> behaviours. Teaching the parser the other five languages would let those
+> examples be translated in full. (The AI agent has no such limit — it understands
+> all six languages and resolves the date itself.)
+
 ### UI
 `ui/calendar/CalendarScreen` — month / week / day views plus a day agenda, the
 quick-add field, and a shared add/edit composer for tasks and events.

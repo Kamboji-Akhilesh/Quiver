@@ -44,8 +44,8 @@
     <string name="onboarding_maybe_later">తర్వాత</string>
 
     <!-- Calendar quick-add -->
-    <string name="quick_add_placeholder">త్వరిత జోడింపు — “రేపు సాయంత్రం 6 గంటలకు దంతవైద్యుడు”</string>
-    <string name="quick_add_hint">ఇలా రాయండి: “రేపు సాయంత్రం 6 గంటలకు దంతవైద్యుడు”</string>
+    <string name="quick_add_placeholder">త్వరిత జోడింపు — “దంతవైద్యుడు tomorrow 6pm”</string>
+    <string name="quick_add_hint">ఇలా రాయండి: “దంతవైద్యుడు tomorrow 6pm”</string>
     <string name="quick_add_added_task">టాస్క్ జోడించబడింది · %1$s</string>
     <string name="quick_add_added_event">ఈవెంట్ జోడించబడింది · %1$s</string>
 

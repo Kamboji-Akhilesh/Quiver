@@ -44,8 +44,8 @@
     <string name="onboarding_maybe_later">बाद में</string>
 
     <!-- Calendar quick-add -->
-    <string name="quick_add_placeholder">क्विक ऐड — “कल शाम 6 बजे डेंटिस्ट”</string>
-    <string name="quick_add_hint">ऐसे लिखें: “कल शाम 6 बजे डेंटिस्ट”</string>
+    <string name="quick_add_placeholder">क्विक ऐड — “डेंटिस्ट tomorrow 6pm”</string>
+    <string name="quick_add_hint">ऐसे लिखें: “डेंटिस्ट tomorrow 6pm”</string>
     <string name="quick_add_added_task">टास्क जोड़ा · %1$s</string>
     <string name="quick_add_added_event">इवेंट जोड़ा · %1$s</string>
 
