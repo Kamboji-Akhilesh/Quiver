@@ -24,13 +24,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Restore
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,18 +46,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.res.stringResource
+import com.kamboji.quiver.R
 import com.kamboji.quiver.screenshots.data.SettingsManager
 import com.kamboji.quiver.screenshots.data.db.AppDatabase
 import com.kamboji.quiver.screenshots.data.db.HistoryItem
 import com.kamboji.quiver.screenshots.data.models.DeleteDelay
 import com.kamboji.quiver.screenshots.data.models.DelayUnit
+import com.kamboji.quiver.screenshots.search.ScreenshotMatch
+import com.kamboji.quiver.screenshots.search.ScreenshotSearch
 import com.kamboji.quiver.screenshots.service.ScreenshotService
 import com.kamboji.quiver.screenshots.util.TrashManager
+import com.kamboji.quiver.screenshots.worker.OcrBackfillWorker
 import com.kamboji.quiver.ui.components.Pill
 import com.kamboji.quiver.ui.components.QvToggle
 import com.kamboji.quiver.ui.components.SectionLabel
@@ -85,10 +97,14 @@ private val DELAYS = listOf(
 private fun labelFor(d: DeleteDelay): String =
     DELAYS.firstOrNull { it.second == d }?.first ?: "${d.value} ${d.unit.name.lowercase()}"
 
-/** Routes between the screenshots home and its deletion-history sub-screen. */
+/** Routes between the screenshots home and its history / search sub-screens. */
 @Composable
 fun ScreenshotsScreen(state: QuiverState) {
-    if (state.screenshotsScreen == "history") HistoryScreen(state) else HomeScreen(state)
+    when (state.screenshotsScreen) {
+        "history" -> HistoryScreen(state)
+        "search" -> SearchScreen(state)
+        else -> HomeScreen(state)
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -101,6 +117,7 @@ private fun HomeScreen(state: QuiverState) {
     var delay by remember { mutableStateOf(SettingsManager.getDelay(context)) }
     val dao = remember { AppDatabase.getDatabase(context).historyDao() }
     val history by remember { dao.getAllHistory() }.collectAsState(emptyList())
+    val textDao = remember { AppDatabase.getDatabase(context).screenshotTextDao() }
 
     fun setService(on: Boolean) {
         enabled = on
@@ -116,7 +133,7 @@ private fun HomeScreen(state: QuiverState) {
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 140.dp)) {
-        QvTopBar("Screenshots", ac, onBack = { state.go(AppKey.Hub) })
+        QvTopBar(stringResource(R.string.title_screenshots), ac, onBack = { state.go(AppKey.Hub) })
         Column(Modifier.padding(horizontal = 18.dp)) {
             // status hero
             Column(
@@ -179,6 +196,45 @@ private fun HomeScreen(state: QuiverState) {
             }
 
             Spacer(Modifier.height(16.dp))
+            // search-your-screenshots entry
+            val indexedCount by remember { textDao.observeCount() }.collectAsState(0)
+            Row(
+                Modifier.fillMaxWidth().glass(colors).clickable { state.screenshotsScreen = "search" }.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(ac.a.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
+                    androidx.compose.material3.Icon(Icons.Outlined.Search, null, Modifier.size(22.dp), tint = ac.txt(colors.dark))
+                }
+                Column(Modifier.weight(1f)) {
+                    Text("Search screenshots", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                    Text(
+                        if (indexedCount == 0) "Text is read on-device as you capture" else "$indexedCount searchable by their text",
+                        fontSize = 12.5.sp, color = colors.dim,
+                    )
+                }
+                androidx.compose.material3.Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(20.dp), tint = colors.dim)
+            }
+
+            Spacer(Modifier.height(12.dp))
+            // backfill older screenshots (charger-friendly)
+            Row(
+                Modifier.fillMaxWidth().glass(colors).clickable {
+                    OcrBackfillWorker.enqueue(context)
+                    state.toast("Indexing older screenshots while charging", ToastKind.Info)
+                }.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(ac.a.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
+                    androidx.compose.material3.Icon(Icons.Outlined.Bolt, null, Modifier.size(22.dp), tint = ac.txt(colors.dark))
+                }
+                Column(Modifier.weight(1f)) {
+                    Text("Index older screenshots", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                    Text("Reads existing shots for search — runs while charging", fontSize = 12.5.sp, color = colors.dim)
+                }
+                androidx.compose.material3.Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(20.dp), tint = colors.dim)
+            }
+
+            Spacer(Modifier.height(12.dp))
             // history link
             Row(
                 Modifier.fillMaxWidth().glass(colors).clickable { state.screenshotsScreen = "history" }.padding(16.dp),
@@ -325,4 +381,113 @@ private fun ActionChip(
 
 private fun formatWhen(ts: Long): String =
     SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date(ts))
+
+/** Full-text search over the on-device OCR index. */
+@Composable
+private fun SearchScreen(state: QuiverState) {
+    val colors = Quiver.colors
+    val ac = Accents.Screenshots
+    val context = LocalContext.current
+    val textDao = remember { AppDatabase.getDatabase(context).screenshotTextDao() }
+    var query by remember { mutableStateOf("") }
+    var results by remember { mutableStateOf<List<ScreenshotMatch>>(emptyList()) }
+
+    // Debounced query → DAO prefilter → in-memory ranking. Re-runs on each keystroke.
+    LaunchedEffect(query) {
+        val q = query.trim()
+        if (q.isEmpty()) { results = emptyList(); return@LaunchedEffect }
+        kotlinx.coroutines.delay(180)
+        val candidates = textDao.candidates(ScreenshotSearch.likeArg(q))
+        results = ScreenshotSearch.rank(q, candidates)
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        QvTopBar("Search screenshots", ac, onBack = { state.screenshotsScreen = "home" })
+        Column(Modifier.padding(horizontal = 18.dp)) {
+            // search field
+            Row(
+                Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(100.dp)).padding(horizontal = 18.dp, vertical = 13.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp),
+            ) {
+                androidx.compose.material3.Icon(Icons.Outlined.Search, null, Modifier.size(19.dp), tint = colors.dim)
+                Box(Modifier.weight(1f)) {
+                    if (query.isEmpty()) Text("wifi password, OTP, address…", color = colors.dim, fontSize = 14.5.sp)
+                    BasicTextField(
+                        query, { query = it }, singleLine = true,
+                        textStyle = TextStyle(color = colors.text, fontSize = 14.5.sp),
+                        cursorBrush = SolidColor(ac.a), modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+        }
+
+        if (query.isBlank()) {
+            SearchHint(ac, "Search the text inside your screenshots", "Everything is read on your phone — nothing is uploaded.")
+        } else if (results.isEmpty()) {
+            SearchHint(ac, "No matches", "Try different words, or index older screenshots from the Screenshots home.")
+        } else {
+            LazyColumn(
+                Modifier.fillMaxSize().padding(horizontal = 18.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 140.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                items(results, key = { it.row.mediaId }) { match ->
+                    ResultRow(match, ac) { openImage(context, match, state) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchHint(ac: com.kamboji.quiver.ui.theme.Accent, title: String, body: String) {
+    val colors = Quiver.colors
+    Column(Modifier.fillMaxWidth().padding(top = 60.dp, start = 32.dp, end = 32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            Modifier.size(88.dp).clip(RoundedCornerShape(30.dp)).background(ac.a.copy(alpha = 0.12f))
+                .border(1.dp, ac.a.copy(alpha = 0.25f), RoundedCornerShape(30.dp)),
+            contentAlignment = Alignment.Center,
+        ) { androidx.compose.material3.Icon(Icons.Outlined.Search, null, Modifier.size(40.dp), tint = ac.txt(colors.dark)) }
+        Spacer(Modifier.height(18.dp))
+        Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+        Spacer(Modifier.height(6.dp))
+        Text(body, fontSize = 13.5.sp, color = colors.dim, textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 19.sp)
+    }
+}
+
+@Composable
+private fun ResultRow(match: ScreenshotMatch, ac: com.kamboji.quiver.ui.theme.Accent, onOpen: () -> Unit) {
+    val colors = Quiver.colors
+    Row(
+        Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).clickable(onClick = onOpen).padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp),
+    ) {
+        Box(Modifier.size(44.dp).clip(RoundedCornerShape(13.dp)).background(ac.a.copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
+            androidx.compose.material3.Icon(Icons.Outlined.Image, null, Modifier.size(22.dp), tint = ac.txt(colors.dark))
+        }
+        Column(Modifier.weight(1f)) {
+            Text(match.snippet, fontSize = 13.sp, color = colors.text, maxLines = 2, lineHeight = 18.sp)
+            Text(
+                "${match.row.fileName} · ${formatWhen(match.row.capturedAt)}",
+                fontSize = 11.5.sp, color = colors.dim, fontFamily = Mono, maxLines = 1,
+                modifier = Modifier.padding(top = 3.dp),
+            )
+        }
+        androidx.compose.material3.Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(18.dp), tint = colors.dim)
+    }
+}
+
+/** Opens the matched screenshot in the system viewer; toasts if the file is gone. */
+private fun openImage(context: android.content.Context, match: ScreenshotMatch, state: QuiverState) {
+    val opened = runCatching {
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW)
+                .setDataAndType(android.net.Uri.parse(match.row.uri), "image/*")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+        true
+    }.getOrDefault(false)
+    if (!opened) state.toast("That screenshot is no longer on your phone — its text is still saved", ToastKind.Info)
+}
 

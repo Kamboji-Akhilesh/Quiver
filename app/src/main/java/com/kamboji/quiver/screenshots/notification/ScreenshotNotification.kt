@@ -10,6 +10,7 @@ import com.kamboji.quiver.R
 import com.kamboji.quiver.screenshots.data.SettingsManager
 import com.kamboji.quiver.screenshots.data.models.DeleteDelay
 import com.kamboji.quiver.screenshots.receiver.CancelReceiver
+import com.kamboji.quiver.screenshots.search.OcrIndexer
 import com.kamboji.quiver.screenshots.ui.EditDelayActivity
 import com.kamboji.quiver.screenshots.worker.DeleteWorker
 import java.util.UUID
@@ -23,6 +24,10 @@ object ScreenshotNotification {
 
         // Use uri hashcode as unique notification ID so each screenshot has its own notification
         val notificationId = uri.hashCode()
+
+        // OCR now — the image is guaranteed to still exist at detection time, so
+        // its text is searchable even after auto-clean removes the file later.
+        OcrIndexer.onScreenshot(context, uri)
 
         // Schedule deletion and get the unique work ID (pass notificationId so worker can dismiss it)
         val workId = DeleteWorker.schedule(context, uri, delay, notificationId)

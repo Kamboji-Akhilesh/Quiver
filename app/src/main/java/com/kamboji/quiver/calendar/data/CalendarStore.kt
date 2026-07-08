@@ -2,10 +2,12 @@ package com.kamboji.quiver.calendar.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.kamboji.quiver.widgets.WidgetRefresher
 import org.json.JSONArray
 
 /** Persists calendar entries on-device as JSON in SharedPreferences. */
 class CalendarStore(context: Context) {
+    private val appContext = context.applicationContext
     private val prefs =
         context.getSharedPreferences("calendar_store", Context.MODE_PRIVATE)
 
@@ -38,6 +40,8 @@ class CalendarStore(context: Context) {
         val arr = JSONArray()
         entries.forEach { arr.put(it.toJson()) }
         prefs.edit().putString(KEY_LIST, arr.toString()).apply()
+        // Every writer funnels through here, so the agenda widget stays current.
+        WidgetRefresher.calendarChanged(appContext)
     }
 
     fun nextId(): Long {

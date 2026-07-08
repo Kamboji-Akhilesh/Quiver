@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Static launcher shortcuts (long-press the app icon). Each action is
+     translated into a one-shot ShellCommand by QuiverActivity. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="new_note"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_note"
+        android:shortcutShortLabel="@string/shortcut_new_note"
+        android:shortcutLongLabel="@string/shortcut_new_note_long">
+        <intent
+            android:action="com.kamboji.quiver.NEW_NOTE"
+            android:targetPackage="com.kamboji.quiver"
+            android:targetClass="com.kamboji.quiver.ui.shell.QuiverActivity"/>
+    </shortcut>
+    <shortcut
+        android:shortcutId="new_task"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_task"
+        android:shortcutShortLabel="@string/shortcut_new_task"
+        android:shortcutLongLabel="@string/shortcut_new_task_long">
+        <intent
+            android:action="com.kamboji.quiver.NEW_TASK"
+            android:targetPackage="com.kamboji.quiver"
+            android:targetClass="com.kamboji.quiver.ui.shell.QuiverActivity"/>
+    </shortcut>
+    <shortcut
+        android:shortcutId="add_expense"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_expense"
+        android:shortcutShortLabel="@string/shortcut_add_expense"
+        android:shortcutLongLabel="@string/shortcut_add_expense_long">
+        <intent
+            android:action="com.kamboji.quiver.ADD_EXPENSE"
+            android:targetPackage="com.kamboji.quiver"
+            android:targetClass="com.kamboji.quiver.ui.shell.QuiverActivity"/>
+    </shortcut>
+    <shortcut
+        android:shortcutId="ask_ai"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_ai"
+        android:shortcutShortLabel="@string/shortcut_ask_ai"
+        android:shortcutLongLabel="@string/shortcut_ask_ai_long">
+        <intent
+            android:action="com.kamboji.quiver.ASK_AI"
+            android:targetPackage="com.kamboji.quiver"
+            android:targetClass="com.kamboji.quiver.ui.shell.QuiverActivity"/>
+    </shortcut>
+</shortcuts>

@@ -1,5 +1,6 @@
 package com.kamboji.quiver.ai.agent
 
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -24,6 +25,11 @@ object WhenResolver {
         val s = raw?.trim()?.lowercase().orEmpty()
         if (s.isEmpty()) return today
         runCatching { return LocalDate.parse(s) } // ISO YYYY-MM-DD
+        weekdayIn(s)?.let { dow ->
+            // "friday" = the coming Friday; said on a Friday it means next week.
+            val ahead = (dow.value - today.dayOfWeek.value + 7) % 7
+            return today.plusDays(if (ahead == 0) 7L else ahead.toLong())
+        }
         return when {
             "day after" in s -> today.plusDays(2)
             "tomorrow" in s -> today.plusDays(1)
@@ -31,6 +37,23 @@ object WhenResolver {
             "yesterday" in s -> today.minusDays(1)
             else -> today
         }
+    }
+
+    // \b-anchored so short forms can't fire inside other words ("mon" in
+    // "money", "sat" in "satisfy").
+    private val WEEKDAY = Regex(
+        "\\b(sun(?:day)?|mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?)\\b",
+    )
+
+    private fun weekdayIn(s: String): DayOfWeek? = when (WEEKDAY.find(s)?.value?.take(3)) {
+        "mon" -> DayOfWeek.MONDAY
+        "tue" -> DayOfWeek.TUESDAY
+        "wed" -> DayOfWeek.WEDNESDAY
+        "thu" -> DayOfWeek.THURSDAY
+        "fri" -> DayOfWeek.FRIDAY
+        "sat" -> DayOfWeek.SATURDAY
+        "sun" -> DayOfWeek.SUNDAY
+        else -> null
     }
 
     private fun parseTime(raw: String?): LocalTime {

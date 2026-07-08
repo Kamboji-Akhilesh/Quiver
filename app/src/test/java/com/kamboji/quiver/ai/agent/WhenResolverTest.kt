@@ -66,4 +66,31 @@ class WhenResolverTest {
         val at = local(WhenResolver.resolve("someday", "whenever", now))
         assertEquals(LocalDateTime.of(2027, 3, 5, 9, 0), at)
     }
+
+    // now is Friday 2027-03-05.
+
+    @Test
+    fun `weekday resolves to the coming occurrence`() {
+        val at = local(WhenResolver.resolve("monday", "09:00", now))
+        assertEquals(LocalDateTime.of(2027, 3, 8, 9, 0), at)
+    }
+
+    @Test
+    fun `same weekday as today means next week`() {
+        val at = local(WhenResolver.resolve("friday", "09:00", now))
+        assertEquals(LocalDateTime.of(2027, 3, 12, 9, 0), at)
+    }
+
+    @Test
+    fun `short weekday forms parse too`() {
+        val at = local(WhenResolver.resolve("sat", "09:00", now))
+        assertEquals(LocalDateTime.of(2027, 3, 6, 9, 0), at)
+    }
+
+    @Test
+    fun `weekday needs word boundaries`() {
+        // "mon" must not fire inside "money" — falls back to today.
+        val at = local(WhenResolver.resolve("money", "09:00", now))
+        assertEquals(LocalDateTime.of(2027, 3, 5, 9, 0), at)
+    }
 }

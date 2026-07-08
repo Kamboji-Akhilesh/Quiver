@@ -32,9 +32,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kamboji.quiver.R
 import com.kamboji.quiver.ui.theme.AppKey
 import com.kamboji.quiver.ui.theme.Accents
 import com.kamboji.quiver.ui.theme.Quiver
@@ -61,19 +63,19 @@ fun Dock(state: QuiverState, modifier: Modifier = Modifier) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                DockItem(Icons.Outlined.Home, "Home", state.app == AppKey.Hub, Accents.of(state.app).txt(colors.dark)) {
+                DockItem(Icons.Outlined.Home, stringResource(R.string.dock_home), state.app == AppKey.Hub, Accents.of(state.app).txt(colors.dark)) {
                     state.go(AppKey.Hub)
                 }
-                DockItem(Icons.Outlined.Search, "Search", false, colors.dim) {
+                DockItem(Icons.Outlined.Search, stringResource(R.string.dock_search), false, colors.dim) {
                     state.closeOverlays(); state.searchOpen = true
                 }
                 // Reserved gap that the floating AI button sits over.
                 Spacer(Modifier.width(60.dp))
-                DockItem(Icons.Outlined.GridView, "Apps", false, colors.dim) {
+                DockItem(Icons.Outlined.GridView, stringResource(R.string.dock_apps), false, colors.dim) {
                     state.closeOverlays(); state.launcherOpen = true
                 }
                 DockItem(
-                    Icons.Outlined.CalendarMonth, "Calendar",
+                    Icons.Outlined.CalendarMonth, stringResource(R.string.dock_calendar),
                     state.app == AppKey.Calendar, Accents.Calendar.txt(colors.dark),
                 ) { state.go(AppKey.Calendar) }
             }

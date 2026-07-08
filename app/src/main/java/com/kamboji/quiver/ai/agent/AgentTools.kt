@@ -8,6 +8,10 @@ import com.kamboji.quiver.calendar.data.CalendarEntry
 import com.kamboji.quiver.calendar.data.CalendarStore
 import com.kamboji.quiver.calendar.data.EntryType
 import com.kamboji.quiver.currency.data.CurrencyRepository
+import com.kamboji.quiver.currency.data.RateAlert
+import com.kamboji.quiver.currency.data.RateAlertLogic
+import com.kamboji.quiver.currency.data.RateAlertStore
+import com.kamboji.quiver.currency.worker.RateAlertWorker
 import com.kamboji.quiver.expenses.data.Expense
 import com.kamboji.quiver.expenses.data.ExpenseCategory
 import com.kamboji.quiver.expenses.data.ExpenseMath
@@ -15,6 +19,7 @@ import com.kamboji.quiver.expenses.data.ExpenseStore
 import com.kamboji.quiver.notes.data.Note
 import com.kamboji.quiver.notes.data.NotesStore
 import com.kamboji.quiver.screenshots.data.db.AppDatabase
+import com.kamboji.quiver.screenshots.search.ScreenshotSearch
 import kotlinx.coroutines.flow.first
 import org.json.JSONObject
 import java.time.Instant
@@ -50,10 +55,11 @@ class AgentTools(private val app: Context) {
     private val currency = CurrencyRepository(app)
     private val expenses = ExpenseStore(app)
     private val historyDao = AppDatabase.getDatabase(app).historyDao()
+    private val screenshotTextDao = AppDatabase.getDatabase(app).screenshotTextDao()
 
     val tools: List<AgentTool> = listOf(
         SearchWeb(), AddNote(), AppendNote(), AddTask(), AddEvent(), CheckTrash(), GetRate(), Convert(),
-        ListAgenda(), ReadNote(), AddExpense(), ListExpenses(),
+        ListAgenda(), ReadNote(), AddExpense(), ListExpenses(), SearchScreenshots(), AddRateAlert(),
     )
 
     fun byName(name: String): AgentTool? = tools.firstOrNull { it.name == name.trim() }
@@ -191,6 +197,30 @@ class AgentTools(private val app: Context) {
         return runCatching { currency.ratesWithNames(from).data.firstOrNull { it.symbol == to }?.rate }.getOrNull()
     }
 
+    private inner class AddRateAlert : AgentTool {
+        override val name = "add_rate_alert"
+        override val spec =
+            "add_rate_alert(from: string, to: string, threshold: number) — notify the user when the exchange rate of 1 [from] in [to] crosses [threshold]. from/to are 3-letter currency codes."
+        override suspend fun run(args: JSONObject): ToolResult {
+            val from = args.optString("from").trim().uppercase()
+            val to = args.optString("to").trim().uppercase()
+            val threshold = args.optDouble("threshold", Double.NaN)
+            if (from.length != 3 || to.length != 3) return ToolResult(false, "Need two currency codes, e.g. USD, INR")
+            if (threshold.isNaN() || threshold <= 0) return ToolResult(false, "Need a positive threshold")
+            val current = rateOf(from, to) ?: return ToolResult(false, "Couldn't find a rate for $from→$to")
+            val store = RateAlertStore(app)
+            val above = RateAlertLogic.directionAbove(current, threshold)
+            store.saveAll(
+                store.getAll() + RateAlert(
+                    store.nextId(), from, to, threshold, above, System.currentTimeMillis(), current,
+                ),
+            )
+            RateAlertWorker.ensureScheduled(app)
+            val dir = if (above) "rises past" else "falls below"
+            return ToolResult(true, "Alert set — I'll notify you when 1 $from $dir ${"%.4f".format(threshold).trimEnd('0').trimEnd('.')} $to")
+        }
+    }
+
     // --- Expenses ---
 
     private inner class AddExpense : AgentTool {
@@ -279,6 +309,32 @@ class AgentTools(private val app: Context) {
                 )
             val title = target.title.ifBlank { "Untitled" }
             return ToolResult(true, "Read note “$title”", data = "Note \"$title\":\n${target.body.ifBlank { "(empty)" }}")
+        }
+    }
+
+    private inner class SearchScreenshots : AgentTool {
+        override val name = "search_screenshots"
+        override val spec =
+            "search_screenshots(query: string) — search the text inside the user's screenshots (read on-device by OCR). The matching text comes back to you so you can answer, e.g. a wifi password or an address they screenshotted."
+        override suspend fun run(args: JSONObject): ToolResult {
+            val q = args.optString("query").trim()
+            if (q.isEmpty()) return ToolResult(false, "Empty search query")
+            val candidates = screenshotTextDao.candidates(ScreenshotSearch.likeArg(q))
+            val hits = ScreenshotSearch.rank(q, candidates, limit = 5)
+            if (hits.isEmpty()) {
+                return ToolResult(
+                    true, "No screenshots matched “$q”",
+                    data = "No screenshot text matched \"$q\". (Only screenshots taken since search was " +
+                        "enabled, or ones indexed via “Index older screenshots”, are searchable.)",
+                )
+            }
+            val digest = buildString {
+                appendLine("Screenshot text matching \"$q\":")
+                hits.forEach { m ->
+                    appendLine("- ${m.row.fileName}: ${m.snippet}")
+                }
+            }.trim()
+            return ToolResult(true, "Found ${hits.size} screenshot${if (hits.size == 1) "" else "s"} matching “$q”", data = digest)
         }
     }
 

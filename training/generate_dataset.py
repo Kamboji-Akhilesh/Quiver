@@ -75,6 +75,8 @@ SPEC_TEXT = "\n".join([
     '- read_note(title_contains: string) — read the most recent note whose title contains the given words. Its content comes back to you so you can answer or update it.',
     '- add_expense(amount: number, category: string, note: string, date: "YYYY-MM-DD") — record money spent (₹). Category is one of: food, groceries, transport, shopping, bills, health, entertainment, other. Date is optional (today if omitted).',
     '- list_expenses(period: "YYYY-MM") — the user\'s spending for that month: total, per-category breakdown and recent entries. The results come back to you so you can answer. Period is optional (this month if omitted).',
+    '- search_screenshots(query: string) — search the text inside the user\'s screenshots (read on-device by OCR). The matching text comes back to you so you can answer, e.g. a wifi password or an address they screenshotted.',
+    '- add_rate_alert(from: string, to: string, threshold: number) — notify the user when the exchange rate of 1 [from] in [to] crosses [threshold]. from/to are 3-letter currency codes.',
 ])
 
 # QuiverAgent.prompt() template (post-trimIndent), tokens substituted below.
@@ -91,7 +93,7 @@ When the user asks you to do something, reply with ONLY a JSON object, no prose 
 Rules:
 - Resolve relative dates yourself from today's date. Use "date":"YYYY-MM-DD" and 24h "time":"HH:mm". Dayparts: morning=09:00, afternoon=14:00, evening=18:00, night=20:00.
 - When the task needs information from the internet or facts you are unsure about (recipes, how-tos, prices, current facts), call web_search first — its results come back to you and you can then finish the task. Content you know well you may write yourself. Checklist items are lines like "- [ ] item".
-- To answer questions about the user's own calendar, notes or spending, call list_agenda, read_note or list_expenses first — their content comes back to you the same way.
+- To answer questions about the user's own calendar, notes, spending or screenshots, call list_agenda, read_note, list_expenses or search_screenshots first — their content comes back to you the same way.
 - You may use several steps in order. To add content under an existing note, use append_note.
 - If no action is needed (just chatting), return "steps":[] and put your answer in "reply".
 - Output JSON only.
@@ -107,7 +109,7 @@ JSON:'''
 def findings_block(findings: str) -> str:
     return (
         "\nYou already ran the information tools. Results:\n" + findings.strip() + "\n\n"
-        + "Now finish the user's request using these results (answer, or write the notes / tasks / events). Do not call web_search, list_agenda, read_note or list_expenses again.\n"
+        + "Now finish the user's request using these results (answer, or write the notes / tasks / events). Do not call web_search, list_agenda, read_note, list_expenses or search_screenshots again.\n"
     )
 
 
@@ -185,6 +187,8 @@ STEP_LABELS = {
     "check_trash": "Check the trash",
     "get_rate": "Check the exchange rate",
     "convert": "Convert the amount",
+    "search_screenshots": "Search the screenshots",
+    "add_rate_alert": "Set a rate alert",
 }
 
 

@@ -3,9 +3,11 @@ package com.kamboji.quiver.ai.engine
 import kotlinx.coroutines.flow.Flow
 
 /**
- * The on-device LLM backend contract. Quiver ships exactly one implementation
- * ([LlamaCppEngine] running the curated Gemma GGUF); the interface stays so the
- * agent code is engine-agnostic and testable.
+ * The on-device LLM backend contract, so the agent stays engine-agnostic.
+ *
+ * One implementation today: [MediaPipeEngine], running the Gemma `.task` bundle
+ * that [com.kamboji.quiver.ai.AiModel] points at. The interface stays so the
+ * agent code is testable and a future runtime (LiteRT-LM) can slot in.
  */
 interface InferenceEngine {
     /** Streams the completion for [prompt] token-by-token. */
