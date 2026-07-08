@@ -35,14 +35,12 @@ class QuiverAgent(
      */
     suspend fun run(userText: String, progress: (String) -> Unit, log: (String) -> Unit = {}): Result {
         progress("Loading model…")
-        // The GBNF grammar makes llama.cpp's sampler physically unable to emit
-        // anything but valid tool-call JSON in the agreed shape.
-        val grammar = runCatching {
-            app.assets.open("quiver_tools.gbnf").bufferedReader().use { it.readText() }
-        }.getOrNull()
+        // No grammar any more: the MediaPipe runtime can't constrain decoding, so a
+        // valid plan is coaxed out by low temperature + PlanJson.repair + the
+        // corrective round below rather than guaranteed by the sampler.
         // The engine stays resident between requests (EngineHolder) so only the
         // first message after a quiet period pays the model-load cost.
-        return EngineHolder.use(app, modelPath, grammar) { engine ->
+        return EngineHolder.use(app, modelPath) { engine ->
             val done = mutableListOf<String>()
             var findings: String? = null
             var reply: String? = null
@@ -177,9 +175,8 @@ class QuiverAgent(
         val time = now.format(DateTimeFormatter.ofPattern("HH:mm"))
         val zone = ZoneId.systemDefault().id
         // "steps" precedes "reply" in the shape: the model commits to tool calls
-        // before writing prose. The GBNF grammar and the fine-tuning dataset
-        // (training/generate_dataset.py mirrors this text byte-for-byte) encode
-        // exactly this shape — keep all three in sync.
+        // before writing prose. The fine-tuning dataset mirrors this text
+        // byte-for-byte (training/generate_dataset.py) — keep the two in sync.
         //
         // Placeholders are substituted AFTER trimIndent on purpose: interpolating
         // multi-line text (tool specs, findings) directly into the raw string
@@ -223,10 +220,9 @@ class QuiverAgent(
 
     private companion object {
         // Per-round watchdog so a wedged model surfaces an error instead of a
-        // permanent "Thinking…". The engine now honours cancellation mid-prefill
-        // (LlamaCppEngine's abort callback), so this timeout is actually enforced
-        // — before, a stuck prefill ignored it. 4 min is ample for one turn of a
-        // ~1B model even on a slow first run; longer just means a longer hang.
+        // permanent "Thinking…". MediaPipe honours cancellation mid-generation, so
+        // this timeout is actually enforced — the old llama.cpp prefill ignored it.
+        // 4 min is ample for one turn of a ~1B model even on a slow first run.
         const val GEN_TIMEOUT_MS = 240_000L
 
         // Plan → (info tools) → finish. One follow-up round is enough for a small

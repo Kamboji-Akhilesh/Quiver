@@ -216,8 +216,11 @@ and MediaPipe can run it on the **GPU**, where llama.cpp here was CPU-only.
   streaming via `ProgressListener` deltas, **GPU→CPU backend fallback**, and real
   cancellation (`cancelGenerateResponseAsync`) — unlike llama.cpp's
   uninterruptible prefill.
-- `EngineHolder` picks the backend from the model file's extension: `.task` →
-  MediaPipe, `.gguf` → llama.cpp. Reverting is a one-line `AiModel` change.
+- **llama.cpp is gone.** `LlamaCppEngine`, the JNI bridge, the CMake build, the
+  pinned llama.cpp submodule and the `quiver_tools.gbnf` asset were all removed
+  once `.task` shipped: APK 109.0 → 100.8 MB and no NDK/CMake step (build time
+  roughly halved). `EngineHolder` now constructs `MediaPipeEngine` directly.
+  Restoring the GGUF path means reverting that commit.
 - `maxTokens` budgets **input + output together**. The agent prompt (14 tool
   specs) is ~1k tokens, so we ask for 2048 and fall back to 1280 (some Gemma
   `.task` bundles bake a 1280 KV cache). A prompt that won't fit raises a precise
@@ -229,8 +232,9 @@ and MediaPipe can run it on the **GPU**, where llama.cpp here was CPU-only.
   needs `HF_TOKEN=hf_...` in `local.properties` (sent as a Bearer header); a 401/403
   now reports exactly that.
 - Follow-ups: MediaPipe LLM Inference is in maintenance mode (Google points to
-  LiteRT-LM; the same repo ships `.litertlm`). llama.cpp + its CMake native build
-  are still compiled in — stripping them would meaningfully shrink the APK.
+  LiteRT-LM; the same repo ships `.litertlm`). And `training/` still exports a
+  **GGUF** while the runtime loads a **`.task`** — the fine-tune pipeline needs a
+  `.task` bundling step before a trained model can ship.
 
 ## Fixes (post-roadmap hardening)
 

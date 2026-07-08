@@ -14,9 +14,9 @@ import kotlinx.coroutines.launch
 /**
  * Runs the Gemma `.task` bundle through MediaPipe's LLM Inference runtime.
  *
- * Chosen over [LlamaCppEngine] for speed and size: the int4 `.task` is ~530 MB
- * (vs ~720 MB GGUF) and MediaPipe can run it on the **GPU**, which is the real
- * fix for the multi-minute first token we saw on CPU-only llama.cpp.
+ * Chosen over the old llama.cpp/GGUF engine for speed and size: the int4 `.task`
+ * is ~530 MB (vs ~720 MB GGUF) and MediaPipe can run it on the **GPU**, which is
+ * the real fix for the multi-minute first token we saw on CPU-only llama.cpp.
  *
  * The trade-off, stated plainly: MediaPipe has **no GBNF grammar**, so valid
  * tool-call JSON is no longer *guaranteed* the way llama.cpp's constrained
@@ -130,7 +130,7 @@ class MediaPipeEngine(
 
     /**
      * Gemma instruction template. MediaPipe does not apply a chat template itself,
-     * so this must match the one used at fine-tune time (and LlamaCppEngine's).
+     * so this must match the one used at fine-tune time.
      */
     private fun applyTemplate(prompt: String): String =
         "<start_of_turn>user\n$prompt<end_of_turn>\n<start_of_turn>model\n"

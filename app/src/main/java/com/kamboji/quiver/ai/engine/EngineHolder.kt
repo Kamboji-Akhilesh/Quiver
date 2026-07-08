@@ -15,11 +15,11 @@ import kotlinx.coroutines.sync.withLock
  * requests, so only the first message after a quiet period pays the model-load
  * cost. The engine is freed after [IDLE_MS] without use.
  *
- * The backend is chosen from the model file's extension: `.task` →
- * [MediaPipeEngine] (the shipped model), `.gguf` → [LlamaCppEngine]. That keeps
- * a revert to GGUF (and its GBNF grammar) a one-line change in AiModel.
+ * [MediaPipeEngine] is the only backend: the llama.cpp/GGUF path (and its GBNF
+ * grammar) was removed once the `.task` model shipped — see git history if it
+ * ever needs to come back.
  *
- * All access is serialized through one mutex: the native context is single-
+ * All access is serialized through one mutex: the underlying session is single-
  * threaded, and AiAgentService can receive a second request while the first is
  * still generating.
  */
@@ -32,25 +32,16 @@ object EngineHolder {
     private var enginePath: String? = null
     private var evictJob: Job? = null
 
-    /** [grammar] only applies to the llama.cpp backend; MediaPipe has no GBNF. */
-    private fun newEngine(context: Context, modelPath: String, grammar: String?): InferenceEngine =
-        if (modelPath.endsWith(".gguf", ignoreCase = true)) {
-            LlamaCppEngine(context.applicationContext, modelPath, grammar)
-        } else {
-            MediaPipeEngine(context.applicationContext, modelPath)
-        }
-
     /** Runs [block] with a loaded engine, then re-arms the idle eviction timer. */
     suspend fun <T> use(
         context: Context,
         modelPath: String,
-        grammar: String?,
         block: suspend (InferenceEngine) -> T,
     ): T = mutex.withLock {
         evictJob?.cancel()
         if (enginePath != modelPath) {
             engine?.close()
-            engine = newEngine(context, modelPath, grammar)
+            engine = MediaPipeEngine(context.applicationContext, modelPath)
             enginePath = modelPath
         }
         try {

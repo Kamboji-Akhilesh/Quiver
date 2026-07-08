@@ -75,10 +75,11 @@ AgentTools  ──▶  NotesStore / CalendarStore / ExpenseStore / CurrencyRepo 
 - **`engine/`** — `MediaPipeEngine` runs the Gemma `.task` bundle on MediaPipe's
   LLM Inference runtime, trying the **GPU** first and falling back to CPU. It
   budgets `maxTokens` across input **and** output, and honours cancellation
-  mid-generation, which is what makes the watchdog enforceable. `LlamaCppEngine`
-  (JNI over llama.cpp, with the GBNF grammar) is still here for `.gguf` files;
-  `EngineHolder` picks the backend from the model's extension and keeps it
-  resident between messages so only the first request pays the load cost.
+  mid-generation, which is what makes the watchdog enforceable. `EngineHolder`
+  keeps the model resident between messages so only the first request after a
+  quiet period pays the load cost. (The old llama.cpp/GGUF engine, and the
+  bundled llama.cpp submodule, were removed once `.task` shipped — see git
+  history if that path is ever needed again.)
 - **`AiModel` / `ModelManager` / `ModelDownloadWorker`** — one curated model
   (Gemma 3 1B, int4 `.task`, ~530 MB), installed with a single tap into
   app-private storage (`filesDir/llm-models/`, no permissions, gone on uninstall).
@@ -102,11 +103,13 @@ Three artifacts encode the same tool-call format and **must change together**:
 | Runtime planning prompt | `agent/QuiverAgent.kt` (`prompt()`) + `agent/AgentTools.kt` (`spec`s) |
 | Training prompt mirror | `training/generate_dataset.py` |
 | Tool whitelist / validator | `training/validate_dataset.py` |
-| Output grammar (`.gguf` path only) | `training/grammar/quiver_tools.gbnf` **and** `app/src/main/assets/quiver_tools.gbnf` |
 
 Add or change a tool and you update all of these, then add scenarios/eval cases
 and retrain. See [`training/README.md`](../../../../../../../../training/README.md)
 and the standing rule in [`docs/ROADMAP.md`](../../../../../../../../docs/ROADMAP.md).
+
+`training/grammar/quiver_tools.gbnf` still documents the exact output shape, but
+nothing enforces it at runtime any more — MediaPipe can't do constrained decoding.
 
 > **Open gap after the MediaPipe switch:** `training/` exports a **GGUF**, but the
 > runtime now loads a **`.task`**. Before shipping a fine-tune, add a MediaPipe
@@ -116,7 +119,7 @@ and the standing rule in [`docs/ROADMAP.md`](../../../../../../../../docs/ROADMA
 ## Key files
 - `agent/` — `QuiverAgent`, `AgentTools`, `WhenResolver`, `WebSearch`,
   `AiAgentService`, `AgentBus`, `PlanJson`
-- `engine/` — `MediaPipeEngine`, `LlamaCppEngine`, `EngineHolder`, `InferenceEngine`
+- `engine/` — `MediaPipeEngine`, `EngineHolder`, `InferenceEngine`
 - `tts/` — `ReminderSpeaker`, `CartesiaTts`, `ReminderScript`, `ReminderVoiceSettings`
 - `AiModel.kt`, `ModelManager.kt`, `ModelDownloadWorker.kt`, `VoiceController.kt`
 - `ui/ai/QuiverAiPanel.kt` — the chat UI
