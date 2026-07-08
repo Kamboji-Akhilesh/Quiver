@@ -29,6 +29,7 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.kamboji.quiver.R
+import com.kamboji.quiver.ui.locale.AppLocale
 import com.kamboji.quiver.ui.shell.QuiverActivity
 import com.kamboji.quiver.ui.shell.ShellCommand
 
@@ -40,11 +41,14 @@ import com.kamboji.quiver.ui.shell.ShellCommand
 class QuickActionsWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        provideContent { Actions(context) }
+        // Widgets run outside an Activity, so they don't inherit the locale-wrapped
+        // base context — resolve labels against the user's chosen app language.
+        val localized = AppLocale.localized(context)
+        provideContent { Actions(context, localized) }
     }
 
     @Composable
-    private fun Actions(context: Context) {
+    private fun Actions(context: Context, localized: Context) {
         fun launch(action: String, mic: Boolean = false): Intent =
             Intent(context, QuiverActivity::class.java)
                 .setAction(action)
@@ -56,10 +60,10 @@ class QuickActionsWidget : GlanceAppWidget() {
                 .padding(horizontal = 6.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Action(R.drawable.ic_shortcut_note, "Note", launch(ShellCommand.ACTION_NEW_NOTE))
-            Action(R.drawable.ic_shortcut_task, "Task", launch(ShellCommand.ACTION_NEW_TASK))
-            Action(R.drawable.ic_shortcut_expense, "Expense", launch(ShellCommand.ACTION_ADD_EXPENSE))
-            Action(R.drawable.ic_shortcut_mic, "Speak", launch(ShellCommand.ACTION_ASK_AI, mic = true))
+            Action(R.drawable.ic_shortcut_note, localized.getString(R.string.widget_note), launch(ShellCommand.ACTION_NEW_NOTE))
+            Action(R.drawable.ic_shortcut_task, localized.getString(R.string.widget_task), launch(ShellCommand.ACTION_NEW_TASK))
+            Action(R.drawable.ic_shortcut_expense, localized.getString(R.string.widget_expense), launch(ShellCommand.ACTION_ADD_EXPENSE))
+            Action(R.drawable.ic_shortcut_mic, localized.getString(R.string.widget_speak), launch(ShellCommand.ACTION_ASK_AI, mic = true))
         }
     }
 

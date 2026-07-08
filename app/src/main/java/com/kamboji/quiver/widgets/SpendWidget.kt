@@ -26,12 +26,14 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import com.kamboji.quiver.R
 import com.kamboji.quiver.expenses.data.ExpenseMath
 import com.kamboji.quiver.expenses.data.ExpenseStore
 import com.kamboji.quiver.expenses.data.MonthSummary
+import com.kamboji.quiver.ui.locale.AppLocale
 import com.kamboji.quiver.ui.theme.AppKey
 import java.time.YearMonth
-import java.util.Locale
+import java.time.format.TextStyle as MonthNameStyle
 
 private val WidgetRose = ColorProvider(Color(0xFFFB7185))
 
@@ -41,18 +43,23 @@ class SpendWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val month = YearMonth.now()
         val summary = ExpenseMath.summarize(ExpenseMath.inMonth(ExpenseStore(context).getAll(), month))
-        provideContent { Spend(context, month, summary) }
+        // Widgets run outside an Activity, so they don't get the locale-wrapped base
+        // context; resolve strings and the month name in the user's chosen language.
+        val localized = AppLocale.localized(context)
+        provideContent { Spend(context, localized, month, summary) }
     }
 
     @Composable
-    private fun Spend(context: Context, month: YearMonth, summary: MonthSummary) {
+    private fun Spend(context: Context, localized: Context, month: YearMonth, summary: MonthSummary) {
+        val locale = AppLocale.locale(context)
+        val monthLabel = month.month.getDisplayName(MonthNameStyle.SHORT, locale)
         Column(
             GlanceModifier.fillMaxSize().background(WidgetBg).cornerRadius(24.dp)
                 .padding(14.dp)
                 .clickable(actionStartActivity(openShellIntent(context, AppKey.Expenses))),
         ) {
             Text(
-                month.month.name.uppercase(Locale.ENGLISH).take(3) + " SPEND",
+                localized.getString(R.string.widget_spend_title, monthLabel).uppercase(locale),
                 style = TextStyle(color = WidgetRose, fontSize = 11.sp, fontWeight = FontWeight.Bold),
             )
             Spacer(GlanceModifier.height(4.dp))
@@ -63,7 +70,7 @@ class SpendWidget : GlanceAppWidget() {
             Spacer(GlanceModifier.height(8.dp))
             if (summary.byCategory.isEmpty()) {
                 Text(
-                    "No expenses yet this month.",
+                    localized.getString(R.string.widget_no_expenses),
                     style = TextStyle(color = WidgetDim, fontSize = 12.sp),
                 )
             } else {

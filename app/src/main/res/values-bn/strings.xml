@@ -42,4 +42,21 @@
     <string name="onboarding_not_now">এখন নয়</string>
     <string name="onboarding_install_ai">AI মডেল ইনস্টল করুন</string>
     <string name="onboarding_maybe_later">পরে</string>
+
+    <!-- Calendar quick-add -->
+    <string name="quick_add_placeholder">দ্রুত যোগ — “আগামীকাল সন্ধ্যা ৬টায় ডেন্টিস্ট”</string>
+    <string name="quick_add_hint">এভাবে লিখুন: “আগামীকাল সন্ধ্যা ৬টায় ডেন্টিস্ট”</string>
+    <string name="quick_add_added_task">টাস্ক যোগ হয়েছে · %1$s</string>
+    <string name="quick_add_added_event">ইভেন্ট যোগ হয়েছে · %1$s</string>
+
+    <!-- Home-screen widgets -->
+    <string name="widget_note">নোট</string>
+    <string name="widget_task">টাস্ক</string>
+    <string name="widget_expense">খরচ</string>
+    <string name="widget_speak">বলুন</string>
+    <string name="widget_spend_title">%1$s-এর খরচ</string>
+    <string name="widget_no_expenses">এই মাসে এখনও কোনো খরচ নেই।</string>
+    <string name="widget_today">আজ</string>
+    <string name="widget_nothing_scheduled">কিছুই নির্ধারিত নেই — উপভোগ করুন।</string>
+    <string name="widget_more">+%1$d আরও</string>
 </resources>

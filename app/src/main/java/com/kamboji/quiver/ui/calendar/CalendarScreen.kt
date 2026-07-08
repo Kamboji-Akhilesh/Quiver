@@ -72,6 +72,7 @@ import com.kamboji.quiver.ui.components.QuiverModalSheet
 import com.kamboji.quiver.ui.components.QvDatePickerDialog
 import com.kamboji.quiver.ui.components.QvIconButton
 import com.kamboji.quiver.ui.components.QvTimePickerDialog
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.kamboji.quiver.R
 import com.kamboji.quiver.ui.components.QvTopBar
@@ -91,6 +92,7 @@ import java.time.YearMonth
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 private val CallPink = Color(0xFFFB7185)
 private val TaskAmber = Color(0xFFFBBF24)
@@ -129,6 +131,7 @@ fun CalendarScreen(state: QuiverState) {
     val colors = Quiver.colors
     val vm: CalendarViewModel = viewModel()
     val entries by vm.entries.collectAsState()
+    val context = LocalContext.current
 
     var month by remember { mutableStateOf(YearMonth.now()) }
     var selected by remember { mutableStateOf(LocalDate.now()) }
@@ -140,7 +143,7 @@ fun CalendarScreen(state: QuiverState) {
     fun quickAdd() {
         val q = QuickAddParser.parse(quickText)
         if (q == null) {
-            state.toast("Try “dentist tomorrow 6pm”", ToastKind.Info)
+            state.toast(context.getString(R.string.quick_add_hint), ToastKind.Info)
             return
         }
         // No date in the text → the day selected in the month view.
@@ -159,12 +162,12 @@ fun CalendarScreen(state: QuiverState) {
         val d = localDate(start)
         selected = d
         month = YearMonth.from(d)
-        val t = Instant.ofEpochMilli(start).atZone(ZoneId.systemDefault()).toLocalTime().format(TIME_12H)
-        state.toast(
-            "Added ${if (type == EntryType.TASK) "task" else "event"} · " +
-                "${d.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)} ${d.dayOfMonth}, $t",
-            ToastKind.Success,
-        )
+        // Locale.getDefault() is set by AppLocale.wrap, so the month name follows
+        // the chosen app language rather than being an English enum name.
+        val whenLabel = Instant.ofEpochMilli(start).atZone(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("MMM d, h:mm a", Locale.getDefault()))
+        val added = if (type == EntryType.TASK) R.string.quick_add_added_task else R.string.quick_add_added_event
+        state.toast(context.getString(added, whenLabel), ToastKind.Success)
         quickText = ""
     }
 
@@ -202,7 +205,7 @@ fun CalendarScreen(state: QuiverState) {
                 ) {
                     Box(Modifier.weight(1f)) {
                         if (quickText.isEmpty()) {
-                            Text("Quick add — “dentist tomorrow 6pm”", color = colors.dim, fontSize = 13.5.sp)
+                            Text(stringResource(R.string.quick_add_placeholder), color = colors.dim, fontSize = 13.5.sp)
                         }
                         BasicTextField(
                             quickText, { quickText = it }, singleLine = true,

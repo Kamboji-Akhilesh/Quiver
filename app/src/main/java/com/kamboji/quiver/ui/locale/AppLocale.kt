@@ -47,6 +47,19 @@ object AppLocale {
     }
 
     /**
+     * The effective locale for [context]: the chosen language, or the device's when
+     * following the system. Pure — no side effects, safe to call off the main thread.
+     */
+    fun locale(context: Context): Locale {
+        val lang = current(context)
+        return if (lang == AppLang.SYSTEM) {
+            context.resources.configuration.locales.get(0) ?: Locale.getDefault()
+        } else {
+            Locale.forLanguageTag(lang.tag)
+        }
+    }
+
+    /**
      * Wraps [base] so its resources resolve in the chosen language. Call from an
      * Activity's attachBaseContext. [base] always carries the device's system
      * configuration, so SYSTEM resolves back to the real device locale — this
@@ -54,15 +67,19 @@ object AppLocale {
      * the user switches away from a fixed language back to System.
      */
     fun wrap(base: Context): Context {
-        val cfg = base.resources.configuration
-        val lang = current(base)
-        val locale = if (lang == AppLang.SYSTEM) {
-            cfg.locales.get(0) ?: Locale.getDefault()
-        } else {
-            Locale.forLanguageTag(lang.tag)
-        }
+        val locale = locale(base)
         Locale.setDefault(locale)
-        val config = Configuration(cfg).apply { setLocale(locale) }
+        return localized(base, locale)
+    }
+
+    /**
+     * Like [wrap] but WITHOUT touching `Locale.getDefault()`. Widgets render from a
+     * background thread in the same process as the UI, so mutating the process-wide
+     * default locale from there could race the activity; they pass the locale
+     * explicitly to any formatter instead.
+     */
+    fun localized(base: Context, locale: Locale = locale(base)): Context {
+        val config = Configuration(base.resources.configuration).apply { setLocale(locale) }
         return base.createConfigurationContext(config)
     }
 }

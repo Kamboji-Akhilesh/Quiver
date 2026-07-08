@@ -35,9 +35,11 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import com.kamboji.quiver.R
 import com.kamboji.quiver.calendar.alert.AlertScheduler
 import com.kamboji.quiver.calendar.data.CalendarEntry
 import com.kamboji.quiver.calendar.data.CalendarStore
+import com.kamboji.quiver.ui.locale.AppLocale
 import com.kamboji.quiver.ui.shell.QuiverActivity
 import com.kamboji.quiver.ui.shell.ShellCommand
 import com.kamboji.quiver.ui.theme.AppKey
@@ -45,6 +47,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 // Quiver dark-glass look, independent of the launcher theme.
 internal val WidgetBg = ColorProvider(Color(0xFF0D1B26))
@@ -53,7 +56,13 @@ internal val WidgetDim = ColorProvider(Color(0xFF8FA3B0))
 internal val WidgetAmber = ColorProvider(Color(0xFFFBBF24))
 internal val WidgetSky = ColorProvider(Color(0xFF38BDF8))
 
-private val DAY_FMT = DateTimeFormatter.ofPattern("EEE d MMM")
+/**
+ * Built per render rather than held as a static: `ofPattern` bakes in whatever
+ * `Locale.getDefault()` was at class-load, which would freeze the widget's date to
+ * the language the app happened to start in.
+ */
+private fun dayFormatter(locale: Locale): DateTimeFormatter =
+    DateTimeFormatter.ofPattern("EEE d MMM", locale)
 private val TIME_FMT = DateTimeFormatter.ofPattern("h:mm a")
 
 /** Deep link into the shell, same route the app shortcuts use. */
@@ -79,11 +88,15 @@ class AgendaWidget : GlanceAppWidget() {
                     .thenByDescending { it.allDay }
                     .thenBy { localMinutes(it.startMillis) },
             )
-        provideContent { Agenda(context, today, items) }
+        // Widgets run outside an Activity, so they don't inherit the locale-wrapped
+        // base context — resolve strings and the date in the chosen app language.
+        val localized = AppLocale.localized(context)
+        provideContent { Agenda(context, localized, today, items) }
     }
 
     @Composable
-    private fun Agenda(context: Context, today: LocalDate, items: List<CalendarEntry>) {
+    private fun Agenda(context: Context, localized: Context, today: LocalDate, items: List<CalendarEntry>) {
+        val locale = AppLocale.locale(context)
         Column(
             GlanceModifier.fillMaxSize().background(WidgetBg).cornerRadius(24.dp)
                 .padding(14.dp)
@@ -91,12 +104,12 @@ class AgendaWidget : GlanceAppWidget() {
         ) {
             Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "TODAY",
+                    localized.getString(R.string.widget_today).uppercase(locale),
                     style = TextStyle(color = WidgetSky, fontSize = 11.sp, fontWeight = FontWeight.Bold),
                 )
                 Spacer(GlanceModifier.width(8.dp))
                 Text(
-                    today.format(DAY_FMT),
+                    today.format(dayFormatter(locale)),
                     style = TextStyle(color = WidgetDim, fontSize = 11.sp, fontWeight = FontWeight.Medium),
                 )
             }
@@ -104,7 +117,7 @@ class AgendaWidget : GlanceAppWidget() {
 
             if (items.isEmpty()) {
                 Text(
-                    "Nothing scheduled — enjoy it.",
+                    localized.getString(R.string.widget_nothing_scheduled),
                     style = TextStyle(color = WidgetDim, fontSize = 13.sp),
                     modifier = GlanceModifier.padding(vertical = 10.dp),
                 )
@@ -112,7 +125,7 @@ class AgendaWidget : GlanceAppWidget() {
                 items.take(5).forEach { e -> EntryRow(e) }
                 if (items.size > 5) {
                     Text(
-                        "+${items.size - 5} more",
+                        localized.getString(R.string.widget_more, items.size - 5),
                         style = TextStyle(color = WidgetDim, fontSize = 11.sp),
                         modifier = GlanceModifier.padding(top = 2.dp),
                     )

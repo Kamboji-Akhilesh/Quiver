@@ -42,4 +42,21 @@
     <string name="onboarding_not_now">இப்போது வேண்டாம்</string>
     <string name="onboarding_install_ai">AI மாடலை நிறுவு</string>
     <string name="onboarding_maybe_later">பிறகு</string>
+
+    <!-- Calendar quick-add -->
+    <string name="quick_add_placeholder">விரைவு சேர்ப்பு — “நாளை மாலை 6 மணிக்கு பல் மருத்துவர்”</string>
+    <string name="quick_add_hint">இப்படி எழுதுங்கள்: “நாளை மாலை 6 மணிக்கு பல் மருத்துவர்”</string>
+    <string name="quick_add_added_task">பணி சேர்க்கப்பட்டது · %1$s</string>
+    <string name="quick_add_added_event">நிகழ்வு சேர்க்கப்பட்டது · %1$s</string>
+
+    <!-- Home-screen widgets -->
+    <string name="widget_note">குறிப்பு</string>
+    <string name="widget_task">பணி</string>
+    <string name="widget_expense">செலவு</string>
+    <string name="widget_speak">பேசு</string>
+    <string name="widget_spend_title">%1$s செலவு</string>
+    <string name="widget_no_expenses">இந்த மாதம் இதுவரை செலவு இல்லை.</string>
+    <string name="widget_today">இன்று</string>
+    <string name="widget_nothing_scheduled">எதுவும் திட்டமிடப்படவில்லை — அனுபவியுங்கள்.</string>
+    <string name="widget_more">+%1$d மேலும்</string>
 </resources>

@@ -29,8 +29,8 @@ The class is no-arg so the runtime can instantiate it without DI.
 
 ## Two things that will bite you
 **Version pin.** `androidx.appfunctions` is pinned to **alpha08**, *not* the
-latest. alpha09/alpha10 require **AGP 9.1.0+**; this module is on AGP 8.9.1 and
-upgrading AGP risks the llama.cpp CMake native build. **Bump the two together.**
+latest. alpha09/alpha10 require **AGP 9.1.0+**; this module is on AGP 8.9.1.
+**Bump the two together.**
 
 alpha08 API quirks:
 - `@AppFunction` lives in `androidx.appfunctions.service` (the

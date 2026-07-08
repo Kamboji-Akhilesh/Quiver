@@ -6,7 +6,7 @@ Your data, in a file you own.
 Everything in Quiver lives only on your phone — that's the point. But it also
 means a lost or wiped phone loses your notes, calendar and spending history. And
 Android's own auto-backup silently *fails* if the app's data exceeds a 25 MB
-quota, which Quiver's ~720 MB downloaded AI model blows through instantly.
+quota, which Quiver's ~530 MB downloaded AI model blows through instantly.
 
 ## The solution
 Two independent safety nets:
@@ -28,8 +28,8 @@ The pure merge logic is unit-tested.
 `res/xml/backup_rules.xml` and `res/xml/data_extraction_rules.xml` include
 **only `sharedpref`** — where all three stores and the settings live. Deliberately
 excluded:
-- `files/llm-models` — the ~720 MB GGUF would break the 25 MB quota and kill
-  backup entirely. It's re-downloadable with one tap.
+- `files/llm-models` — the ~530 MB `.task` model bundle would break the 25 MB
+  quota and kill backup entirely. It's re-downloadable with one tap.
 - The screenshot history/OCR database — device-specific (it references
   `MediaStore` ids that mean nothing on another phone).
 

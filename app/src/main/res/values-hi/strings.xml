@@ -42,4 +42,21 @@
     <string name="onboarding_not_now">अभी नहीं</string>
     <string name="onboarding_install_ai">AI मॉडल इंस्टॉल करें</string>
     <string name="onboarding_maybe_later">बाद में</string>
+
+    <!-- Calendar quick-add -->
+    <string name="quick_add_placeholder">क्विक ऐड — “कल शाम 6 बजे डेंटिस्ट”</string>
+    <string name="quick_add_hint">ऐसे लिखें: “कल शाम 6 बजे डेंटिस्ट”</string>
+    <string name="quick_add_added_task">टास्क जोड़ा · %1$s</string>
+    <string name="quick_add_added_event">इवेंट जोड़ा · %1$s</string>
+
+    <!-- Home-screen widgets -->
+    <string name="widget_note">नोट</string>
+    <string name="widget_task">टास्क</string>
+    <string name="widget_expense">खर्च</string>
+    <string name="widget_speak">बोलें</string>
+    <string name="widget_spend_title">%1$s का खर्च</string>
+    <string name="widget_no_expenses">इस महीने अभी कोई खर्च नहीं।</string>
+    <string name="widget_today">आज</string>
+    <string name="widget_nothing_scheduled">कुछ भी शेड्यूल नहीं — मज़े करें।</string>
+    <string name="widget_more">+%1$d और</string>
 </resources>

@@ -64,4 +64,23 @@
     <string name="onboarding_not_now">Not now</string>
     <string name="onboarding_install_ai">Install AI model</string>
     <string name="onboarding_maybe_later">Maybe later</string>
+
+    <!-- Calendar quick-add -->
+    <string name="quick_add_placeholder">Quick add — “dentist tomorrow 6pm”</string>
+    <string name="quick_add_hint">Try “dentist tomorrow 6pm”</string>
+    <!-- %1$s is the date and time, e.g. "Jul 8, 6:00 pm" -->
+    <string name="quick_add_added_task">Added task · %1$s</string>
+    <string name="quick_add_added_event">Added event · %1$s</string>
+
+    <!-- Home-screen widgets -->
+    <string name="widget_note">Note</string>
+    <string name="widget_task">Task</string>
+    <string name="widget_expense">Expense</string>
+    <string name="widget_speak">Speak</string>
+    <!-- %1$s is the abbreviated month name, e.g. "Jul" -->
+    <string name="widget_spend_title">%1$s spend</string>
+    <string name="widget_no_expenses">No expenses yet this month.</string>
+    <string name="widget_today">Today</string>
+    <string name="widget_nothing_scheduled">Nothing scheduled — enjoy it.</string>
+    <string name="widget_more">+%1$d more</string>
 </resources>

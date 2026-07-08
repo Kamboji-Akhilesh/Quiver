@@ -27,12 +27,18 @@ meanwhile, are unreliable: a small model will happily *say* it set a reminder
 without setting one, or emit malformed JSON that crashes the caller.
 
 **The solution.** A hybrid design. The model only ever **plans** — it emits a JSON
-list of tool calls, constrained by a **GBNF grammar** that makes invalid output
-physically impossible at decode time. Then plain Kotlin **executes** those steps
-against the real mini-app stores. The model writes the *content* (a recipe, a
-checklist); code owns the dates, storage and side effects. When it needs facts it
-doesn't have, it runs a tool first (web search, your calendar, your notes) and
-re-plans with the real results.
+list of tool calls. Then plain Kotlin **executes** those steps against the real
+mini-app stores. The model writes the *content* (a recipe, a checklist); code owns
+the dates, storage and side effects. When it needs facts it doesn't have, it runs a
+tool first (web search, your calendar, your notes) and re-plans with the real
+results.
+
+The plan has to survive a small model, so three things guard it: low-temperature
+decoding, a repair pass (`PlanJson`) that fixes truncation and unterminated
+strings, and a corrective retry round when the model answers in prose instead of
+JSON. Malformed plans get recovered — the engine runs Gemma as a MediaPipe `.task`
+bundle, which (unlike the GGUF/llama.cpp engine this replaced) can't do constrained
+decoding, so valid JSON is *repaired*, not *guaranteed*.
 
 So an AI-created note is indistinguishable from one you typed, it works offline,
 and it can't silently no-op. It runs as a foreground service, so it keeps working
@@ -122,7 +128,7 @@ into Quiver. Same stores, so the item shows up in-app identically.
 
 ### 💾 Backup & export
 **Problem:** everything lives only on your phone — and Android's auto-backup
-silently dies on the ~720 MB AI model.
+silently dies on the ~530 MB AI model.
 **Solution:** a versioned JSON export you own (Hub → "Your data"), whose import
 **merges by content, never by id**, and reschedules restored reminders. Auto-backup
 rules are scoped to `sharedpref` only, so the quota is never blown.
@@ -187,15 +193,17 @@ docs/ROADMAP.md       # what shipped, phase by phase, and why
 
 - **JDK 21** (e.g. Android Studio's bundled JBR), Android Gradle Plugin 8.9.1,
   Gradle 8.11.1, Kotlin 2.1.0, compileSdk/targetSdk 36, minSdk 29.
-- The native AI engine builds llama.cpp via CMake — the submodule is pinned:
-  `git submodule update --init --recursive`
+- No NDK/CMake step: the AI engine is MediaPipe's LLM Inference runtime, a plain
+  AAR. (The vendored llama.cpp submodule was removed when the `.task` engine shipped.)
+- To download the model in-app you need a HuggingFace read token — the model repo
+  is gated. Put `HF_TOKEN=hf_...` in `local.properties` (gitignored).
 - `./gradlew :app:assembleDebug`
 - `./gradlew test` for the unit tests (money math, payment parsing, date
   resolution, screenshot search ranking, backup merge, quick-add).
 - Open in Android Studio and Run, or `./gradlew installDebug` to a device.
 
-> ⚠️ `androidx.appfunctions` is pinned to **alpha08**: alpha09+ needs AGP 9.1.0+,
-> and bumping AGP risks the llama.cpp CMake build. Bump the two together.
+> ⚠️ `androidx.appfunctions` is pinned to **alpha08**: alpha09+ requires AGP
+> 9.1.0+, and this module is on AGP 8.9.1. Bump the two together.
 
 ## Roadmap & history
 

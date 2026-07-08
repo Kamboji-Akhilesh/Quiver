@@ -16,9 +16,12 @@ val cartesiaApiKey: String = run {
     props.getProperty("CARTESIA_API_KEY") ?: System.getenv("CARTESIA_API_KEY") ?: ""
 }
 
-// HuggingFace read token, only needed to download a GATED model repo. Put
-// `HF_TOKEN=hf_...` in local.properties (gitignored) or set it as a CI env var.
-// Empty by default — public repos (the shipped model) download without it.
+// HuggingFace read token. REQUIRED to download the shipped model: AiModel
+// .DOWNLOAD_URL points at litert-community/Gemma3-1B-IT, a GATED repo that 401s
+// (or 403s, if you haven't accepted the Gemma license) for anonymous requests —
+// ModelDownloadWorker sends this as a Bearer header and surfaces those codes.
+// Put `HF_TOKEN=hf_...` in local.properties (gitignored) or set it as a CI env
+// var. Empty by default, in which case the in-app model download fails.
 val hfToken: String = run {
     val props = Properties()
     rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { props.load(it) }

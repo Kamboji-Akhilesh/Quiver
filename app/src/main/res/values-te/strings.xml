@@ -42,4 +42,21 @@
     <string name="onboarding_not_now">ఇప్పుడు వద్దు</string>
     <string name="onboarding_install_ai">AI మోడల్‌ను ఇన్‌స్టాల్ చేయి</string>
     <string name="onboarding_maybe_later">తర్వాత</string>
+
+    <!-- Calendar quick-add -->
+    <string name="quick_add_placeholder">త్వరిత జోడింపు — “రేపు సాయంత్రం 6 గంటలకు దంతవైద్యుడు”</string>
+    <string name="quick_add_hint">ఇలా రాయండి: “రేపు సాయంత్రం 6 గంటలకు దంతవైద్యుడు”</string>
+    <string name="quick_add_added_task">టాస్క్ జోడించబడింది · %1$s</string>
+    <string name="quick_add_added_event">ఈవెంట్ జోడించబడింది · %1$s</string>
+
+    <!-- Home-screen widgets -->
+    <string name="widget_note">నోట్</string>
+    <string name="widget_task">టాస్క్</string>
+    <string name="widget_expense">ఖర్చు</string>
+    <string name="widget_speak">మాట్లాడు</string>
+    <string name="widget_spend_title">%1$s ఖర్చు</string>
+    <string name="widget_no_expenses">ఈ నెలలో ఇంకా ఖర్చులు లేవు.</string>
+    <string name="widget_today">ఈ రోజు</string>
+    <string name="widget_nothing_scheduled">ఏమీ షెడ్యూల్ చేయలేదు — ఆనందించండి.</string>
+    <string name="widget_more">+%1$d మరిన్ని</string>
 </resources>
