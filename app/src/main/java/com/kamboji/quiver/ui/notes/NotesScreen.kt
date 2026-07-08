@@ -1,6 +1,10 @@
 package com.kamboji.quiver.ui.notes
 
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -40,7 +44,9 @@ import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.FormatQuote
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.StrikethroughS
 import androidx.compose.material.icons.outlined.CheckBox
 import androidx.compose.material.icons.outlined.Edit
@@ -51,6 +57,7 @@ import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -62,6 +69,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -70,11 +78,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.collectAsState
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kamboji.quiver.ai.VoiceController
+import com.kamboji.quiver.ui.locale.AppLocale
 import com.kamboji.quiver.notes.NotesViewModel
 import com.kamboji.quiver.notes.data.Note
 import com.kamboji.quiver.ui.components.QuiverModalSheet
 import com.kamboji.quiver.ui.components.QvIconButton
+import androidx.compose.ui.res.stringResource
+import com.kamboji.quiver.R
 import com.kamboji.quiver.ui.components.QvTopBar
 import com.kamboji.quiver.ui.components.SectionLabel
 import com.kamboji.quiver.ui.components.glass
@@ -122,7 +135,7 @@ private fun NotesList(state: QuiverState, vm: NotesViewModel, onNew: () -> Unit,
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            QvTopBar("Notes", ac, onBack = { state.go(AppKey.Hub) })
+            QvTopBar(stringResource(R.string.title_notes), ac, onBack = { state.go(AppKey.Hub) })
             // search
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 18.dp).glass(colors, RoundedCornerShape(100.dp))
@@ -274,6 +287,7 @@ private fun ActionRow(icon: androidx.compose.ui.graphics.vector.ImageVector, lab
 @Composable
 private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
     val dark = Quiver.colors.dark
+    val context = LocalContext.current
     val existing = remember(id) { id?.let { vm.byId(it) } }
     var title by remember { mutableStateOf(existing?.title ?: "") }
     var bodyValue by remember { mutableStateOf(TextFieldValue(existing?.body ?: "")) }
@@ -286,6 +300,31 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
     var preview by remember { mutableStateOf(existing != null) }
     val nc = NotePalette.of(colorId)
     val fg = nc.onBg(dark)
+
+    // Voice dictation: platform STT (no recording kept) inserts at the cursor.
+    val voice = remember { VoiceController(context) }
+    DisposableEffect(Unit) { onDispose { voice.release() } }
+    var listening by remember { mutableStateOf(false) }
+    fun startDictation() {
+        listening = true
+        voice.startListening(
+            AppLocale.current(context).voiceLang(),
+            onPartial = {},
+            onResult = { text -> if (text.isNotBlank()) bodyValue = insertAtCursor(bodyValue, text); listening = false },
+            onError = { listening = false },
+        )
+    }
+    val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) startDictation()
+    }
+    fun toggleMic() {
+        if (listening) { voice.stopListening(); listening = false; return }
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            startDictation()
+        } else {
+            micPermission.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
 
     fun save() {
         if (discarded) return
@@ -368,6 +407,20 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    // Voice dictation — inserts the transcript at the cursor.
+                    Box(
+                        Modifier.size(38.dp).clip(RoundedCornerShape(10.dp))
+                            .background(if (listening) nc.accent else fg.copy(alpha = 0.08f))
+                            .clickable { toggleMic() },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            if (listening) Icons.Filled.Stop else Icons.Filled.Mic,
+                            if (listening) "Stop dictation" else "Dictate",
+                            Modifier.size(20.dp),
+                            tint = if (listening) Color.White else fg,
+                        )
+                    }
                     FmtButton(label = "H1", fg = fg) { bodyValue = linePrefix(bodyValue, "# ") }
                     FmtButton(label = "H2", fg = fg) { bodyValue = linePrefix(bodyValue, "## ") }
                     FmtButton(icon = Icons.Filled.FormatBold, fg = fg) { bodyValue = wrap(bodyValue, "**") }
@@ -408,6 +461,17 @@ private fun FmtButton(label: String? = null, icon: androidx.compose.ui.graphics.
         if (icon != null) Icon(icon, label, Modifier.size(20.dp), tint = fg)
         else Text(label ?: "", color = fg, fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }
+}
+
+/** Inserts [insert] at the cursor (replacing any selection), spacing it from adjacent words. */
+private fun insertAtCursor(v: TextFieldValue, insert: String): TextFieldValue {
+    val start = minOf(v.selection.start, v.selection.end)
+    val end = maxOf(v.selection.start, v.selection.end)
+    val text = v.text
+    val needsLeadSpace = start > 0 && !text[start - 1].isWhitespace()
+    val piece = (if (needsLeadSpace) " " else "") + insert
+    val newText = text.substring(0, start) + piece + text.substring(end)
+    return TextFieldValue(newText, TextRange(start + piece.length))
 }
 
 /** Wraps the current selection (or inserts at the cursor) with [marker], e.g. ** for bold. */

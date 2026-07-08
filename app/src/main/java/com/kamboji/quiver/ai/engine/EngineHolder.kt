@@ -11,9 +11,13 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * Keeps the llama.cpp engine (and its ~800 MB of mapped weights) resident
- * between agent requests, so only the first message after a quiet period pays
- * the model-load cost. The engine is freed after [IDLE_MS] without use.
+ * Keeps the inference engine (and its loaded weights) resident between agent
+ * requests, so only the first message after a quiet period pays the model-load
+ * cost. The engine is freed after [IDLE_MS] without use.
+ *
+ * The backend is chosen from the model file's extension: `.task` →
+ * [MediaPipeEngine] (the shipped model), `.gguf` → [LlamaCppEngine]. That keeps
+ * a revert to GGUF (and its GBNF grammar) a one-line change in AiModel.
  *
  * All access is serialized through one mutex: the native context is single-
  * threaded, and AiAgentService can receive a second request while the first is
@@ -24,9 +28,17 @@ object EngineHolder {
     private val mutex = Mutex()
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
-    private var engine: LlamaCppEngine? = null
+    private var engine: InferenceEngine? = null
     private var enginePath: String? = null
     private var evictJob: Job? = null
+
+    /** [grammar] only applies to the llama.cpp backend; MediaPipe has no GBNF. */
+    private fun newEngine(context: Context, modelPath: String, grammar: String?): InferenceEngine =
+        if (modelPath.endsWith(".gguf", ignoreCase = true)) {
+            LlamaCppEngine(context.applicationContext, modelPath, grammar)
+        } else {
+            MediaPipeEngine(context.applicationContext, modelPath)
+        }
 
     /** Runs [block] with a loaded engine, then re-arms the idle eviction timer. */
     suspend fun <T> use(
@@ -38,7 +50,7 @@ object EngineHolder {
         evictJob?.cancel()
         if (enginePath != modelPath) {
             engine?.close()
-            engine = LlamaCppEngine(context.applicationContext, modelPath, grammar)
+            engine = newEngine(context, modelPath, grammar)
             enginePath = modelPath
         }
         try {

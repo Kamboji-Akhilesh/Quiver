@@ -1,0 +1,45 @@
+<resources>
+    <!-- Settings / language -->
+    <string name="settings_language">భాష</string>
+    <string name="settings_language_system">సిస్టమ్ డిఫాల్ట్</string>
+
+    <!-- Hub -->
+    <string name="hub_caught_up">అంతా తాజాగా ఉంది</string>
+    <string name="greeting_morning">శుభోదయం</string>
+    <string name="greeting_afternoon">శుభ మధ్యాహ్నం</string>
+    <string name="greeting_evening">శుభ సాయంత్రం</string>
+    <string name="qa_clean">ఇప్పుడు క్లీన్ చేయి</string>
+    <string name="qa_convert">మార్చు</string>
+    <string name="qa_new_event">కొత్త ఈవెంట్</string>
+    <string name="qa_new_note">కొత్త నోట్</string>
+    <string name="qa_add_expense">ఖర్చు జోడించు</string>
+    <string name="qa_ask_ai">AIని అడుగు</string>
+    <string name="section_mini_apps">మినీ యాప్‌లు</string>
+    <string name="section_recent">ఇటీవలి కార్యకలాపం</string>
+    <string name="section_your_data">మీ డేటా</string>
+    <string name="title_calendar">క్యాలెండర్</string>
+    <string name="title_notes">నోట్స్</string>
+    <string name="title_expenses">ఖర్చులు</string>
+    <string name="title_screenshots">స్క్రీన్‌షాట్‌లు</string>
+    <string name="title_currency">కరెన్సీ</string>
+
+    <!-- Dock -->
+    <string name="dock_home">హోమ్</string>
+    <string name="dock_search">వెతుకు</string>
+    <string name="dock_apps">యాప్‌లు</string>
+    <string name="dock_calendar">క్యాలెండర్</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_skip">దాటవేయి</string>
+    <string name="onboarding_p1_title">అంతా మీ ఫోన్‌లోనే</string>
+    <string name="onboarding_p1_body">స్క్రీన్‌షాట్లు, కరెన్సీ, క్యాలెండర్, నోట్స్, ఖర్చులు — ఒకే అసిస్టెంట్‌తో కలిపిన చిన్న సాధనాలు. ఖాతా లేదు, క్లౌడ్ లేదు: మీ డేటా ఈ పరికరాన్ని వదలదు.</string>
+    <string name="onboarding_p2_title">నిజంగా ఉపయోగపడే అలర్ట్‌లు</string>
+    <string name="onboarding_p2_body">Quiver రిమైండర్ల కోసం మిమ్మల్ని పిలుస్తుంది, కొత్త స్క్రీన్‌షాట్లను శుభ్రం చేయమని సూచిస్తుంది, పేమెంట్ నోటిఫికేషన్ల నుంచి UPI ఖర్చులను నమోదు చేస్తుంది. దీనికి ముందు Androidకి మీ అనుమతి కావాలి.</string>
+    <string name="onboarding_p3_title">మీ పరికరంలోనే నడిచే AI</string>
+    <string name="onboarding_p3_body">%1$s (%2$s) \"రేపు సాయంత్రం\" లాంటి రిమైండర్లను ఇంగ్లీష్, हिन्दी, বাংলা, தமிழ், తెలుగు, मराठी-లో నిర్వహిస్తుంది — పూర్తిగా ఆఫ్‌లైన్. ఇప్పుడు లేదా తర్వాత AI బటన్ నుంచి ఇన్‌స్టాల్ చేయండి.</string>
+    <string name="onboarding_continue">కొనసాగించు</string>
+    <string name="onboarding_allow_notifications">నోటిఫికేషన్లను అనుమతించు</string>
+    <string name="onboarding_not_now">ఇప్పుడు వద్దు</string>
+    <string name="onboarding_install_ai">AI మోడల్‌ను ఇన్‌స్టాల్ చేయి</string>
+    <string name="onboarding_maybe_later">తర్వాత</string>
+</resources>

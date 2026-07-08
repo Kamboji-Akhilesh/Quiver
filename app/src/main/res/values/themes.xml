@@ -42,6 +42,15 @@
 
     <style name="Theme.ScreenshotCleaner" parent="Base.Theme.ScreenshotCleaner" />
 
+    <!-- Share router: translucent window so its Compose scrim + option card
+         float over the app the user shared from. -->
+    <style name="Theme.ScreenshotCleaner.Share" parent="Base.Theme.ScreenshotCleaner">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+
     <!-- Dialog theme for popups -->
     <style name="Theme.ScreenshotCleaner.Dialog" parent="Theme.Material3.DayNight.Dialog">
         <item name="colorPrimary">@color/md_theme_light_primary</item>

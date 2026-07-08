@@ -16,6 +16,15 @@ val cartesiaApiKey: String = run {
     props.getProperty("CARTESIA_API_KEY") ?: System.getenv("CARTESIA_API_KEY") ?: ""
 }
 
+// HuggingFace read token, only needed to download a GATED model repo. Put
+// `HF_TOKEN=hf_...` in local.properties (gitignored) or set it as a CI env var.
+// Empty by default — public repos (the shipped model) download without it.
+val hfToken: String = run {
+    val props = Properties()
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { props.load(it) }
+    props.getProperty("HF_TOKEN") ?: System.getenv("HF_TOKEN") ?: ""
+}
+
 android {
     namespace = "com.kamboji.quiver"
     compileSdk = 36
@@ -37,6 +46,7 @@ android {
         ndk { abiFilters += "arm64-v8a" }
 
         buildConfigField("String", "CARTESIA_API_KEY", "\"$cartesiaApiKey\"")
+        buildConfigField("String", "HF_TOKEN", "\"$hfToken\"")
     }
 
     buildFeatures {
@@ -86,6 +96,12 @@ android {
     }
 }
 
+// AppFunctions KSP: aggregate this module's @AppFunction declarations into the
+// metadata the OS assistant (Gemini) reads.
+ksp {
+    arg("appfunctions:aggregateAppFunctions", "true")
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
@@ -113,6 +129,22 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     debugImplementation(libs.compose.ui.tooling)
+
+    // Home-screen widgets (agenda / quick actions / month spend)
+    implementation(libs.androidx.glance.appwidget)
+
+    // On-device LLM runtime: runs the Gemma 3 1B .task (MediaPipe LLM Inference).
+    implementation(libs.mediapipe.tasks.genai)
+
+    // On-device OCR for screenshot search (bundled Latin + Devanagari models)
+    implementation(libs.mlkit.text.recognition)
+    implementation(libs.mlkit.text.recognition.devanagari)
+
+    // AppFunctions — expose Quiver actions to the OS assistant (Gemini, SDK 36+).
+    // Alpha API, pinned; all usage isolated in the appfunctions/ package.
+    implementation(libs.androidx.appfunctions)
+    implementation(libs.androidx.appfunctions.service)
+    ksp(libs.androidx.appfunctions.compiler)
 
     // Currency networking
     implementation(libs.kotlinx.coroutines.android)

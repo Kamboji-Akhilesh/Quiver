@@ -14,7 +14,11 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -26,6 +30,7 @@ import com.kamboji.quiver.ui.expenses.ExpensesScreen
 import com.kamboji.quiver.ui.hub.HubScreen
 import com.kamboji.quiver.ui.ai.QuiverAiPanel
 import com.kamboji.quiver.ui.notes.NotesScreen
+import com.kamboji.quiver.ui.onboarding.OnboardingOverlay
 import com.kamboji.quiver.ui.screenshots.ScreenshotsScreen
 import com.kamboji.quiver.ui.theme.Accents
 import com.kamboji.quiver.ui.theme.AppKey
@@ -38,9 +43,23 @@ import com.kamboji.quiver.ui.theme.QuiverTheme
  * sheet / call) plus the toast — all sharing one [QuiverState].
  */
 @Composable
-fun QuiverApp() {
+fun QuiverApp(
+    command: ShellCommand? = null,
+    onCommandConsumed: () -> Unit = {},
+    showOnboarding: Boolean = false,
+    onOnboarded: () -> Unit = {},
+) {
     val state = remember { QuiverState() }
     val accent = Accents.of(state.app)
+    var onboarding by remember { mutableStateOf(showOnboarding) }
+
+    // Apply a deep-link command (app shortcut / share router) exactly once.
+    LaunchedEffect(command) {
+        if (command != null) {
+            command.applyTo(state)
+            onCommandConsumed()
+        }
+    }
 
     // System back: unwind overlays/screens instead of leaving the app. Disabled
     // (falls through to exit) only when sitting on the Hub with nothing open.
@@ -52,7 +71,7 @@ fun QuiverApp() {
             state.searchOpen -> state.searchOpen = false
             state.aiOpen -> state.aiOpen = false
             state.launcherOpen -> state.launcherOpen = false
-            state.app == AppKey.Screenshots && state.screenshotsScreen == "history" -> state.screenshotsScreen = "home"
+            state.app == AppKey.Screenshots && state.screenshotsScreen != "home" -> state.screenshotsScreen = "home"
             state.app != AppKey.Hub -> state.go(AppKey.Hub)
         }
     }
@@ -90,10 +109,26 @@ fun QuiverApp() {
             // Overlays (each draws its own scrim / sheet, above the dock)
             if (state.launcherOpen) Launcher(state)
             if (state.searchOpen) SearchOverlay(state)
-            if (state.aiOpen) QuiverAiPanel(onClose = { state.aiOpen = false })
+            if (state.aiOpen) QuiverAiPanel(
+                initialInput = state.aiPrefill,
+                startMic = state.aiStartMic,
+                onClose = { state.aiOpen = false; state.aiPrefill = null; state.aiStartMic = false },
+            )
 
             // Full-screen call alert sits above everything but the toast.
             if (state.call != null) CallAlert(state)
+
+            // First-run onboarding covers the whole shell until dismissed.
+            if (onboarding) {
+                OnboardingOverlay { openAi ->
+                    onboarding = false
+                    onOnboarded()
+                    if (openAi) {
+                        state.closeOverlays()
+                        state.aiOpen = true
+                    }
+                }
+            }
 
             // Toast on top of everything
             ToastHost(

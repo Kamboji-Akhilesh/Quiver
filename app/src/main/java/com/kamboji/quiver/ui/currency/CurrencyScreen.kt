@@ -29,10 +29,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.outlined.CloudQueue
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.TrendingUp
@@ -55,19 +58,27 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.res.stringResource
+import com.kamboji.quiver.R
 import com.kamboji.quiver.currency.CurrencyViewModel
 import com.kamboji.quiver.currency.HistoryRange
 import com.kamboji.quiver.currency.Ui
 import com.kamboji.quiver.currency.data.Cached
 import com.kamboji.quiver.currency.data.Currency
+import com.kamboji.quiver.currency.data.RateAlert
+import com.kamboji.quiver.currency.data.RateAlertLogic
+import com.kamboji.quiver.currency.data.RateAlertStore
 import com.kamboji.quiver.currency.data.RatePoint
+import com.kamboji.quiver.currency.worker.RateAlertWorker
 import com.kamboji.quiver.ui.components.QuiverModalSheet
 import com.kamboji.quiver.ui.components.QvTopBar
 import com.kamboji.quiver.ui.components.SectionLabel
@@ -106,13 +117,14 @@ fun CurrencyScreen(state: QuiverState) {
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 140.dp)) {
-            QvTopBar("Currency", ac, onBack = { state.go(AppKey.Hub) })
+            QvTopBar(stringResource(R.string.title_currency), ac, onBack = { state.go(AppKey.Hub) })
             Column(Modifier.padding(horizontal = 18.dp)) {
-                Segmented(listOf("convert" to "Convert", "rates" to "Rates", "info" to "Info"), tab, ac) { tab = it }
+                Segmented(listOf("convert" to "Convert", "rates" to "Rates", "alerts" to "Alerts", "info" to "Info"), tab, ac) { tab = it }
                 Spacer(Modifier.height(16.dp))
                 when (tab) {
                     "convert" -> ConvertTab(vm, ac) { pickerFor = it }
                     "rates" -> RatesTab(vm, ac)
+                    "alerts" -> AlertsTab(vm, ac)
                     else -> InfoTab(vm, ac)
                 }
             }
@@ -487,6 +499,130 @@ private fun CurrencyPicker(vm: CurrencyViewModel, forFrom: Boolean, onPick: (Str
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AlertsTab(vm: CurrencyViewModel, ac: Accent) {
+    val colors = Quiver.colors
+    val context = LocalContext.current
+    val store = remember { RateAlertStore(context) }
+    var alerts by remember { mutableStateOf(store.getAll()) }
+    val converter by vm.converter.collectAsState()
+    val list = (converter as? Ui.Data)?.value?.data ?: emptyList()
+    val rate = vm.rateOf(vm.to, list)
+    var threshold by remember { mutableStateOf("") }
+
+    fun reload() { alerts = store.getAll() }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // create card for the currently-selected pair
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))
+                .background(Brush.linearGradient(listOf(ac.a.copy(alpha = if (colors.dark) 0.18f else 0.14f), ac.b.copy(alpha = 0.08f))))
+                .border(1.dp, ac.a.copy(alpha = 0.3f), RoundedCornerShape(22.dp)).padding(18.dp),
+        ) {
+            Text("Alert me when", fontSize = 12.sp, color = colors.dim, fontWeight = FontWeight.SemiBold)
+            Text(
+                "1 ${vm.from} ${flag(vm.from)} → ${vm.to} ${flag(vm.to)}",
+                fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            Text(
+                if (rate != null) "now ${fmt4(rate)} ${vm.to}" else "rate unavailable",
+                fontSize = 12.5.sp, color = colors.dim, fontFamily = Mono,
+            )
+            Spacer(Modifier.height(14.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("crosses", fontSize = 13.sp, color = colors.dim)
+                Row(
+                    Modifier.weight(1f).clip(RoundedCornerShape(14.dp))
+                        .background(if (colors.dark) Color(0x2E000000) else Color(0x8CFFFFFF))
+                        .border(1.dp, colors.border, RoundedCornerShape(14.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.weight(1f)) {
+                        if (threshold.isEmpty()) Text("e.g. ${rate?.let { fmt(it) } ?: "90"}", color = colors.dim, fontSize = 16.sp, fontFamily = Mono)
+                        BasicTextField(
+                            threshold, { threshold = it.filter { c -> c.isDigit() || c == '.' } },
+                            textStyle = TextStyle(color = colors.text, fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = Mono),
+                            cursorBrush = SolidColor(ac.a), singleLine = true,
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    Text(vm.to, fontSize = 13.sp, color = colors.dim, fontFamily = Mono)
+                }
+                val ready = threshold.toDoubleOrNull() != null && rate != null
+                Box(
+                    Modifier.clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(listOf(ac.a, ac.b)))
+                        .graphicsLayer { alpha = if (ready) 1f else 0.5f }
+                        .clickable {
+                            val t = threshold.toDoubleOrNull() ?: return@clickable
+                            val cur = rate ?: return@clickable
+                            store.saveAll(
+                                store.getAll() + RateAlert(
+                                    store.nextId(), vm.from, vm.to, t,
+                                    RateAlertLogic.directionAbove(cur, t), System.currentTimeMillis(), cur,
+                                ),
+                            )
+                            RateAlertWorker.ensureScheduled(context)
+                            reload(); threshold = ""
+                        }.padding(horizontal = 16.dp, vertical = 12.dp),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.Filled.Add, "Add alert", Modifier.size(20.dp), tint = Color(0xFF08120D)) }
+            }
+        }
+
+        if (alerts.isEmpty()) {
+            Column(Modifier.fillMaxWidth().padding(top = 30.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    Modifier.size(80.dp).clip(RoundedCornerShape(28.dp)).background(ac.a.copy(alpha = 0.12f))
+                        .border(1.dp, ac.a.copy(alpha = 0.25f), RoundedCornerShape(28.dp)),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.Outlined.NotificationsActive, null, Modifier.size(36.dp), tint = ac.txt(colors.dark)) }
+                Spacer(Modifier.height(14.dp))
+                Text("No rate alerts", fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+                Text("We check every few hours and ping you when a rate crosses your number.", fontSize = 12.5.sp, color = colors.dim, lineHeight = 18.sp, modifier = Modifier.padding(top = 4.dp, start = 20.dp, end = 20.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            }
+        } else {
+            SectionLabel("Your alerts")
+            alerts.forEach { a -> AlertRow(a) { store.saveAll(store.getAll().filterNot { it.id == a.id }); reload() } }
+        }
+    }
+}
+
+@Composable
+private fun AlertRow(alert: RateAlert, onDelete: () -> Unit) {
+    val colors = Quiver.colors
+    val done = alert.triggered
+    Row(
+        Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
+                .background((if (done) Color(0xFF34D399) else Accents.Currency.a).copy(alpha = 0.16f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                if (done) Icons.Filled.Check else Icons.Outlined.NotificationsActive, null,
+                Modifier.size(20.dp), tint = if (done) Color(0xFF34D399) else Accents.Currency.txt(colors.dark),
+            )
+        }
+        Column(Modifier.weight(1f)) {
+            Text(
+                "1 ${alert.from} ${if (alert.above) "≥" else "≤"} ${fmt4(alert.threshold)} ${alert.to}",
+                fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text,
+            )
+            Text(
+                if (done) "Triggered · last ${fmt4(alert.lastRate)}" else "Watching · now ${fmt4(alert.lastRate)}",
+                fontSize = 11.5.sp, color = colors.dim,
+            )
+        }
+        Box(Modifier.size(38.dp).clip(CircleShape).clickable(onClick = onDelete), contentAlignment = Alignment.Center) {
+            Icon(Icons.Filled.DeleteOutline, "Delete alert", Modifier.size(20.dp), tint = colors.dim)
         }
     }
 }

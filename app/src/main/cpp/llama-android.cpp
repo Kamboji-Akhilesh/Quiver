@@ -7,7 +7,10 @@
 
 #include <jni.h>
 #include <android/log.h>
+#include <algorithm>
+#include <atomic>
 #include <string>
+#include <thread>
 #include <vector>
 #include "llama.h"
 
@@ -17,6 +20,10 @@ namespace {
 struct Handle {
     llama_model* model = nullptr;
     llama_context* ctx = nullptr;
+    // Flipped by nativeCancel from another thread; ggml's abort callback polls it
+    // during compute so a wedged prefill/decode can be interrupted (the agent
+    // watchdog can only cancel between tokens otherwise, never during prefill).
+    std::atomic<bool> cancel{false};
 };
 bool g_backend_ready = false;
 }
@@ -34,6 +41,11 @@ Java_com_kamboji_quiver_ai_engine_LlamaCppEngine_nativeLoad(
     env->ReleaseStringUTFChars(jpath, path);
     if (!model) { LOGE("model load failed"); return 0; }
 
+    // Allocate the handle first so its cancel flag has a stable address for the
+    // abort callback wired into the context below.
+    Handle* h = new Handle();
+    h->model = model;
+
     llama_context_params cp = llama_context_default_params();
     cp.n_ctx = nCtx > 0 ? (uint32_t) nCtx : 2048;
     // n_batch is the max tokens per llama_decode call and the whole prompt is
@@ -41,10 +53,24 @@ Java_com_kamboji_quiver_ai_engine_LlamaCppEngine_nativeLoad(
     // longer than n_batch fail outright (the agent prompt is ~800 tokens).
     // n_ubatch (physical chunk) stays at its default; llama.cpp splits internally.
     cp.n_batch = cp.n_ctx;
-    llama_context* ctx = llama_init_from_model(model, cp);
-    if (!ctx) { llama_model_free(model); return 0; }
+    // Threads: the default (4) leaves cores idle during prefill — the compute-
+    // bound first-token stage that gates the "Thinking…" state. Prefill (batch)
+    // scales with cores, so give it all of them; per-token decode is more
+    // memory-bound, so cap it at 4 to avoid big.LITTLE scheduling overhead.
+    const int hw = std::max(1, (int) std::thread::hardware_concurrency());
+    cp.n_threads = std::min(hw, 4);
+    cp.n_threads_batch = hw;
+    // Abort hook: returns true to make ggml bail out of the current compute, so a
+    // cancelled/timed-out request stops even mid-prefill.
+    cp.abort_callback = [](void* data) -> bool {
+        return static_cast<std::atomic<bool>*>(data)->load(std::memory_order_relaxed);
+    };
+    cp.abort_callback_data = &h->cancel;
 
-    return (jlong) new Handle{model, ctx};
+    h->ctx = llama_init_from_model(model, cp);
+    if (!h->ctx) { llama_model_free(model); delete h; return 0; }
+
+    return (jlong) h;
 }
 
 namespace {
@@ -82,6 +108,7 @@ Java_com_kamboji_quiver_ai_engine_LlamaCppEngine_nativeComplete(
         jint maxTokens, jobject jcallback) {
     Handle* h = reinterpret_cast<Handle*>(handle);
     if (!h) return;
+    h->cancel.store(false, std::memory_order_relaxed); // clear any prior cancel
     const llama_vocab* vocab = llama_model_get_vocab(h->model);
 
     jclass cbClass = env->GetObjectClass(jcallback);
@@ -133,6 +160,14 @@ Java_com_kamboji_quiver_ai_engine_LlamaCppEngine_nativeComplete(
     if (grammar) env->ReleaseStringUTFChars(jgrammar, grammar);
     llama_sampler_free(smpl);
     llama_memory_clear(llama_get_memory(h->ctx), true); // older API: llama_kv_cache_clear(h->ctx)
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_kamboji_quiver_ai_engine_LlamaCppEngine_nativeCancel(
+        JNIEnv*, jobject, jlong handle) {
+    Handle* h = reinterpret_cast<Handle*>(handle);
+    if (h) h->cancel.store(true, std::memory_order_relaxed);
 }
 
 extern "C"

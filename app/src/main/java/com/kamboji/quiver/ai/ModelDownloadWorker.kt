@@ -10,6 +10,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.kamboji.quiver.BuildConfig
 import com.kamboji.quiver.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -45,13 +46,26 @@ class ModelDownloadWorker(appContext: Context, params: WorkerParameters) :
         try {
             var offset = if (tmp.isFile) tmp.length() else 0L
             val req = Request.Builder().url(AiModel.DOWNLOAD_URL)
-                .apply { if (offset > 0) header("Range", "bytes=$offset-") }
+                .apply {
+                    // Gated HuggingFace repos need a Bearer token; public ones ignore it.
+                    // OkHttp drops this header on the cross-host redirect to HF's
+                    // pre-signed CDN URL, so the token never leaks past the resolve hop.
+                    if (BuildConfig.HF_TOKEN.isNotBlank()) header("Authorization", "Bearer ${BuildConfig.HF_TOKEN}")
+                    if (offset > 0) header("Range", "bytes=$offset-")
+                }
                 .build()
             client.newCall(req).execute().use { resp ->
                 when {
                     resp.code == 206 -> Unit // resuming where we left off
                     resp.code == 416 -> { tmp.delete(); return@withContext Result.retry() } // stale .part
                     resp.isSuccessful -> { tmp.delete(); offset = 0L } // server ignored Range: restart
+                    // The shipped model lives in a GATED HuggingFace repo: without a
+                    // token the resolve request 401s (403 if the licence isn't accepted).
+                    resp.code == 401 || resp.code == 403 ->
+                        return@withContext fail(
+                            "This model is gated (HTTP ${resp.code}). Accept its licence on HuggingFace, " +
+                                "then add HF_TOKEN=hf_... to local.properties and rebuild.",
+                        )
                     resp.code in 400..499 ->
                         return@withContext fail("Download failed (HTTP ${resp.code}). The model URL may have moved — update the app.")
                     else -> return@withContext Result.retry()

@@ -56,7 +56,13 @@ class LlamaCppEngine(
             }
             close()
         }
-        awaitClose { job.cancel() }
+        awaitClose {
+            // Signal the native side to bail out of compute (even mid-prefill),
+            // then cancel the IO job. Without this, a wedged prefill ignores the
+            // agent's timeout because there's no token callback to stop at.
+            if (handle != 0L) runCatching { nativeCancel(handle) }
+            job.cancel()
+        }
     }
 
     /**
@@ -74,6 +80,7 @@ class LlamaCppEngine(
 
     private external fun nativeLoad(path: String, nCtx: Int): Long
     private external fun nativeComplete(handle: Long, prompt: String, grammar: String?, maxTokens: Int, callback: TokenCallback)
+    private external fun nativeCancel(handle: Long)
     private external fun nativeFree(handle: Long)
 
     companion object {

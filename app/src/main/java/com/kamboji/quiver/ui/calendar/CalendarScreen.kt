@@ -25,8 +25,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
@@ -51,10 +54,13 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kamboji.quiver.ai.agent.WhenResolver
 import com.kamboji.quiver.calendar.CalendarViewModel
+import com.kamboji.quiver.calendar.QuickAddParser
 import com.kamboji.quiver.calendar.data.AlertLead
 import com.kamboji.quiver.calendar.data.AlertStyle
 import com.kamboji.quiver.calendar.data.CalendarEntry
@@ -66,6 +72,8 @@ import com.kamboji.quiver.ui.components.QuiverModalSheet
 import com.kamboji.quiver.ui.components.QvDatePickerDialog
 import com.kamboji.quiver.ui.components.QvIconButton
 import com.kamboji.quiver.ui.components.QvTimePickerDialog
+import androidx.compose.ui.res.stringResource
+import com.kamboji.quiver.R
 import com.kamboji.quiver.ui.components.QvTopBar
 import com.kamboji.quiver.ui.components.glass
 import com.kamboji.quiver.ui.shell.QuiverState
@@ -125,6 +133,40 @@ fun CalendarScreen(state: QuiverState) {
     var month by remember { mutableStateOf(YearMonth.now()) }
     var selected by remember { mutableStateOf(LocalDate.now()) }
     var sheet by remember { mutableStateOf<CalSheet?>(null) }
+    var quickText by remember { mutableStateOf("") }
+
+    // Natural-language quick-add: "dentist tomorrow 6pm" → parsed and saved
+    // without opening the composer. Deterministic — no AI involved.
+    fun quickAdd() {
+        val q = QuickAddParser.parse(quickText)
+        if (q == null) {
+            state.toast("Try “dentist tomorrow 6pm”", ToastKind.Info)
+            return
+        }
+        // No date in the text → the day selected in the month view.
+        val start = WhenResolver.resolve(q.dateText ?: selected.toString(), q.timeText)
+        // A clock time (or daypart) reads as an appointment; otherwise a to-do.
+        val type = if (q.timeText != null) EntryType.EVENT else EntryType.TASK
+        vm.upsert(
+            CalendarEntry(
+                id = 0L, type = type, title = q.title, startMillis = start,
+                endMillis = if (type == EntryType.EVENT) start + 3_600_000 else null,
+                allDay = false, done = false,
+                alertStyle = AlertStyle.NOTIFICATION, alertLead = AlertLead.AT_TIME,
+                createdAtMillis = System.currentTimeMillis(),
+            ),
+        )
+        val d = localDate(start)
+        selected = d
+        month = YearMonth.from(d)
+        val t = Instant.ofEpochMilli(start).atZone(ZoneId.systemDefault()).toLocalTime().format(TIME_12H)
+        state.toast(
+            "Added ${if (type == EntryType.TASK) "task" else "event"} · " +
+                "${d.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)} ${d.dayOfMonth}, $t",
+            ToastKind.Success,
+        )
+        quickText = ""
+    }
 
     val today = LocalDate.now()
     val dayItems = entries.filter { it.occursOn(selected) }
@@ -139,7 +181,7 @@ fun CalendarScreen(state: QuiverState) {
         Column(Modifier.fillMaxSize()) {
             // Pinned header so the Add button never scrolls away.
             QvTopBar(
-                "Calendar", ac, onBack = { state.go(AppKey.Hub) },
+                stringResource(R.string.title_calendar), ac, onBack = { state.go(AppKey.Hub) },
                 trailing = {
                     QvIconButton(
                         Icons.Filled.Add, { sheet = CalSheet.New }, size = 42.dp,
@@ -151,6 +193,33 @@ fun CalendarScreen(state: QuiverState) {
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                     .padding(horizontal = 18.dp).padding(bottom = 150.dp),
             ) {
+                // quick add — one line, no composer
+                Row(
+                    Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp))
+                        .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Box(Modifier.weight(1f)) {
+                        if (quickText.isEmpty()) {
+                            Text("Quick add — “dentist tomorrow 6pm”", color = colors.dim, fontSize = 13.5.sp)
+                        }
+                        BasicTextField(
+                            quickText, { quickText = it }, singleLine = true,
+                            textStyle = TextStyle(color = colors.text, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold),
+                            cursorBrush = SolidColor(ac.a),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { quickAdd() }),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    QvIconButton(
+                        Icons.AutoMirrored.Filled.ArrowForward, { quickAdd() },
+                        size = 36.dp, iconSize = 18.dp, background = colors.surf, tint = ac.txt(colors.dark),
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+
                 // month card
                 Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {

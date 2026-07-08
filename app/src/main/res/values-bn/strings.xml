@@ -1,0 +1,45 @@
+<resources>
+    <!-- Settings / language -->
+    <string name="settings_language">ভাষা</string>
+    <string name="settings_language_system">সিস্টেম ডিফল্ট</string>
+
+    <!-- Hub -->
+    <string name="hub_caught_up">সবকিছু আপ-টু-ডেট</string>
+    <string name="greeting_morning">সুপ্রভাত</string>
+    <string name="greeting_afternoon">শুভ অপরাহ্ন</string>
+    <string name="greeting_evening">শুভ সন্ধ্যা</string>
+    <string name="qa_clean">এখন পরিষ্কার করুন</string>
+    <string name="qa_convert">রূপান্তর</string>
+    <string name="qa_new_event">নতুন ইভেন্ট</string>
+    <string name="qa_new_note">নতুন নোট</string>
+    <string name="qa_add_expense">খরচ যোগ করুন</string>
+    <string name="qa_ask_ai">AI-কে জিজ্ঞাসা করুন</string>
+    <string name="section_mini_apps">মিনি অ্যাপস</string>
+    <string name="section_recent">সাম্প্রতিক কার্যকলাপ</string>
+    <string name="section_your_data">আপনার ডেটা</string>
+    <string name="title_calendar">ক্যালেন্ডার</string>
+    <string name="title_notes">নোট</string>
+    <string name="title_expenses">খরচ</string>
+    <string name="title_screenshots">স্ক্রিনশট</string>
+    <string name="title_currency">কারেন্সি</string>
+
+    <!-- Dock -->
+    <string name="dock_home">হোম</string>
+    <string name="dock_search">খুঁজুন</string>
+    <string name="dock_apps">অ্যাপস</string>
+    <string name="dock_calendar">ক্যালেন্ডার</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_skip">এড়িয়ে যান</string>
+    <string name="onboarding_p1_title">সবকিছু আপনার ফোনে</string>
+    <string name="onboarding_p1_body">স্ক্রিনশট, কারেন্সি, ক্যালেন্ডার, নোট আর খরচ — একটি অ্যাসিস্ট্যান্ট দিয়ে জোড়া ছোট ছোট টুল। কোনো অ্যাকাউন্ট নেই, কোনো ক্লাউড নেই: আপনার ডেটা এই ডিভাইস ছাড়ে না।</string>
+    <string name="onboarding_p2_title">সত্যিই কাজে লাগে এমন অ্যালার্ট</string>
+    <string name="onboarding_p2_body">Quiver রিমাইন্ডারের জন্য আপনাকে ডাকে, নতুন স্ক্রিনশট পরিষ্কারের প্রস্তাব দেয়, আর পেমেন্ট নোটিফিকেশন থেকে UPI খরচ লিখে রাখে। এর জন্য Android-এর আগে আপনার অনুমতি দরকার।</string>
+    <string name="onboarding_p3_title">আপনার অন-ডিভাইস AI</string>
+    <string name="onboarding_p3_body">%1$s (%2$s) \"আগামীকাল সন্ধ্যা\"-র মতো রিমাইন্ডার ইংরেজি, হিন্দি, বাংলা, தமிழ், తెలుగు আর मराठी-তে সামলায় — সম্পূর্ণ অফলাইন। এখনই বা পরে AI বোতাম থেকে ইনস্টল করুন।</string>
+    <string name="onboarding_continue">এগিয়ে যান</string>
+    <string name="onboarding_allow_notifications">নোটিফিকেশন অনুমতি দিন</string>
+    <string name="onboarding_not_now">এখন নয়</string>
+    <string name="onboarding_install_ai">AI মডেল ইনস্টল করুন</string>
+    <string name="onboarding_maybe_later">পরে</string>
+</resources>
