@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.DirectionsRun
 import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Search
@@ -91,6 +92,7 @@ fun Launcher(state: QuiverState) {
         AppKey.Notes to Icons.Outlined.StickyNote2,
         AppKey.Expenses to Icons.Outlined.Payments,
         AppKey.Focus to Icons.Outlined.SelfImprovement,
+        AppKey.Move to Icons.Outlined.DirectionsRun,
     )
     QuiverModalSheet(onDismiss = { state.launcherOpen = false }) { _ ->
         Column(

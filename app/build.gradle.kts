@@ -138,6 +138,10 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.okhttp)
 
+    // Move tracker: fused location (same engine Strava/Google Fit use) + OpenStreetMap tiles.
+    implementation(libs.play.services.location)
+    implementation(libs.osmdroid)
+
     testImplementation(libs.junit)
     testImplementation(libs.org.json)
     androidTestImplementation(libs.androidx.junit)

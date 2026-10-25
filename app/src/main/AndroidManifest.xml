@@ -8,6 +8,11 @@
     <!-- Bank-SMS expense capture (on-device only; non-bank senders are never parsed). -->
     <uses-permission android:name="android.permission.READ_SMS"/>
     <uses-permission android:name="android.permission.RECEIVE_SMS"/>
+    <!-- Move tracker: precise GPS while recording (foreground service only — no background location), step counter. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION"/>
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -188,6 +193,12 @@
                 <action android:name="android.provider.Telephony.SMS_RECEIVED" />
             </intent-filter>
         </receiver>
+
+        <!-- Move tracker: records while the screen is off; started only from the Move screen. -->
+        <service
+            android:name=".move.MoveService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
 
         <!-- Focus: Shorts/Reels blocker. Only sees YouTube + Instagram (see focus_service.xml). -->
         <service

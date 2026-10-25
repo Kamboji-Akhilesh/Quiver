@@ -1,0 +1,568 @@
+package com.kamboji.quiver.ui.move
+
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import com.kamboji.quiver.R
+import com.kamboji.quiver.move.Fix
+import com.kamboji.quiver.move.Gpx
+import com.kamboji.quiver.move.MoveFormat
+import com.kamboji.quiver.move.MovePrefs
+import com.kamboji.quiver.move.MoveRecorder
+import com.kamboji.quiver.move.MoveRecovery
+import com.kamboji.quiver.move.MoveSummary
+import com.kamboji.quiver.move.MoveType
+import com.kamboji.quiver.move.TrackMath
+import com.kamboji.quiver.move.TrackTuning
+import com.kamboji.quiver.move.data.MoveDatabase
+import com.kamboji.quiver.move.data.MoveEntity
+import com.kamboji.quiver.move.data.PointEntity
+import com.kamboji.quiver.ui.components.Pill
+import com.kamboji.quiver.ui.components.QvTopBar
+import com.kamboji.quiver.ui.components.SectionLabel
+import com.kamboji.quiver.ui.components.glass
+import com.kamboji.quiver.ui.shell.QuiverState
+import com.kamboji.quiver.ui.shell.ToastKind
+import com.kamboji.quiver.ui.theme.Accents
+import com.kamboji.quiver.ui.theme.AppKey
+import com.kamboji.quiver.ui.theme.Display
+import com.kamboji.quiver.ui.theme.Mono
+import com.kamboji.quiver.ui.theme.Quiver
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.DayOfWeek
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalAdjusters
+
+private val DATE_FMT = DateTimeFormatter.ofPattern("EEE d MMM · h:mm a")
+
+/** Monday 00:00 this week, local time — the hub tile and "This week" both use it. */
+fun startOfWeekMillis(): Long =
+    LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+@Composable
+fun MoveScreen(state: QuiverState) {
+    val context = LocalContext.current
+    val live by MoveRecorder.live.collectAsState()
+    val finished by MoveRecorder.finished.collectAsState()
+    var detailId by remember { mutableStateOf<Long?>(null) }
+
+    // Recording ended → open its summary, once.
+    LaunchedEffect(finished) {
+        finished?.let { detailId = it; MoveRecorder.finished.value = null }
+    }
+    // Close anything the OS killed mid-recording.
+    LaunchedEffect(Unit) { withContext(Dispatchers.IO) { MoveRecovery.finishOrphans(context) } }
+
+    val current = live
+    when {
+        current != null -> LiveScreen(state, current)
+        detailId != null -> {
+            BackHandler { detailId = null }
+            DetailScreen(state, detailId!!) { detailId = null }
+        }
+        else -> HomeScreen(state) { detailId = it }
+    }
+}
+
+// ---------------------------------------------------------------- home
+
+@Composable
+private fun HomeScreen(state: QuiverState, onOpen: (Long) -> Unit) {
+    val ac = Accents.Move
+    val colors = Quiver.colors
+    val context = LocalContext.current
+    val prefs = remember { MovePrefs(context) }
+    val dao = remember { MoveDatabase.get(context).dao() }
+    val moves by remember { dao.finished() }.collectAsState(emptyList())
+    var type by remember { mutableStateOf(prefs.lastType) }
+    var weightDialog by remember { mutableStateOf(false) }
+    var weight by remember { mutableStateOf(prefs.weightKg) }
+
+    val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
+        if (granted[Manifest.permission.ACCESS_FINE_LOCATION] == true) MoveRecorder.start(context, type)
+        else state.toast("Precise location is needed to record", ToastKind.Info)
+    }
+    fun start() {
+        permissions.launch(
+            buildList {
+                add(Manifest.permission.ACCESS_FINE_LOCATION)
+                add(Manifest.permission.ACCESS_COARSE_LOCATION)
+                if (type.countsSteps) add(Manifest.permission.ACTIVITY_RECOGNITION)
+                if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)
+            }.toTypedArray(),
+        )
+    }
+
+    val weekStart = startOfWeekMillis()
+    val week = moves.filter { it.startedAt >= weekStart }
+
+    Column(Modifier.fillMaxSize()) {
+        QvTopBar(stringResource(R.string.title_move), ac, onBack = { state.go(AppKey.Hub) })
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp).padding(bottom = 150.dp),
+        ) {
+            // Start card
+            Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MoveType.entries.forEach { t -> Pill(t.label, t == type, ac, { type = t }) }
+                }
+                Box(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(100.dp))
+                        .background(Brush.linearGradient(listOf(ac.a, ac.b)))
+                        .clickable { start() }.padding(vertical = 16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Filled.PlayArrow, null, Modifier.size(22.dp), tint = Color.White)
+                        Text("Start ${type.label.lowercase()}", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Text(
+                    "Recorded on this phone only — routes never leave it. The map is fetched from OpenStreetMap while you look at it.",
+                    fontSize = 11.5.sp, color = colors.faint, lineHeight = 15.sp,
+                )
+            }
+
+            Spacer(Modifier.height(18.dp))
+            SectionLabel("This week")
+            Row(Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).padding(16.dp)) {
+                Stat("%.1f km".format(week.sumOf { it.distanceM } / 1000), "distance", Modifier.weight(1f))
+                Stat("${week.size}", if (week.size == 1) "activity" else "activities", Modifier.weight(1f))
+                Stat(MoveFormat.duration(week.sumOf { it.movingMs }), "moving", Modifier.weight(1f))
+            }
+            Text(
+                "Calories use ${"%.0f".format(weight)} kg · change",
+                fontSize = 12.sp, color = colors.dim,
+                modifier = Modifier.padding(top = 8.dp, start = 2.dp).clickable { weightDialog = true },
+            )
+
+            Spacer(Modifier.height(18.dp))
+            SectionLabel("Activities")
+            if (moves.isEmpty()) {
+                Text("No activities yet — pick a type and start.", fontSize = 13.sp, color = colors.dim, modifier = Modifier.padding(top = 6.dp))
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                moves.forEach { m -> ActivityRow(m) { onOpen(m.id) } }
+            }
+        }
+    }
+
+    if (weightDialog) WeightDialog(weight, onDismiss = { weightDialog = false }) {
+        prefs.weightKg = it
+        weight = it
+        weightDialog = false
+    }
+}
+
+@Composable
+private fun ActivityRow(m: MoveEntity, onClick: () -> Unit) {
+    val colors = Quiver.colors
+    val ac = Accents.Move
+    Row(
+        Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp),
+    ) {
+        RouteThumb(
+            MoveSummary.parsePreview(m.preview), ac.a,
+            Modifier.size(58.dp).clip(RoundedCornerShape(14.dp)).background(ac.a.copy(alpha = 0.10f)),
+        )
+        Column(Modifier.weight(1f)) {
+            Text(MoveSummary.title(m.moveType, m.startedAt), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
+            Text(formatDate(m.startedAt), fontSize = 11.5.sp, color = colors.dim)
+            Text(
+                "${MoveFormat.km(m.distanceM)} · ${MoveFormat.duration(m.movingMs)} · ${MoveFormat.rate(m.moveType, m.distanceM, m.movingMs)}",
+                fontSize = 12.sp, fontFamily = Mono, color = colors.text, modifier = Modifier.padding(top = 3.dp),
+            )
+        }
+    }
+}
+
+// ---------------------------------------------------------------- live
+
+@Composable
+private fun LiveScreen(state: QuiverState, live: MoveRecorder.Live) {
+    val ac = Accents.Move
+    val colors = Quiver.colors
+    val context = LocalContext.current
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var confirmDiscard by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1000) } }
+
+    Column(Modifier.fillMaxSize()) {
+        QvTopBar("Recording ${live.type.label.lowercase()}", ac, onBack = { state.go(AppKey.Hub) }, trailing = { GpsBadge(live.accuracyM) })
+        MoveMap(
+            live.track, follow = true, accent = ac.a, dark = colors.dark,
+            modifier = Modifier.fillMaxWidth().height(260.dp).padding(horizontal = 18.dp).clip(RoundedCornerShape(24.dp)),
+        )
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("%.2f".format(live.distanceM / 1000), fontSize = 64.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
+            Text("kilometres", fontSize = 13.sp, color = colors.dim)
+            Spacer(Modifier.height(18.dp))
+            Row(Modifier.fillMaxWidth()) {
+                Stat(MoveFormat.duration(live.movingMs), "moving time", Modifier.weight(1f))
+                Stat(
+                    if (live.type == MoveType.Ride) MoveFormat.speed((live.speedMps ?: 0.0) * 3.6)
+                    else MoveFormat.pace(live.speedMps?.takeIf { it >= live.type.pauseSpeedMps }?.let { (1000 / it).toLong() }),
+                    if (live.type == MoveType.Ride) "speed" else "current pace",
+                    Modifier.weight(1f),
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.fillMaxWidth()) {
+                Stat(MoveFormat.rate(live.type, live.distanceM, live.movingMs), if (live.type == MoveType.Ride) "avg speed" else "avg pace", Modifier.weight(1f))
+                Stat("%.0f m".format(live.elevationGainM), "climb", Modifier.weight(1f))
+                if (live.type.countsSteps) Stat("${live.steps}", "steps", Modifier.weight(1f))
+                else Stat(MoveFormat.duration(now - live.startedAt), "elapsed", Modifier.weight(1f))
+            }
+        }
+        Spacer(Modifier.weight(1f))
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 28.dp).padding(bottom = 36.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically,
+        ) {
+            RoundButton(
+                if (live.paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                if (live.paused) "Resume" else "Pause", ac.a,
+            ) { if (live.paused) MoveRecorder.resume(context) else MoveRecorder.pause(context) }
+            RoundButton(Icons.Filled.Stop, "Finish", Color(0xFFFB7185)) { MoveRecorder.finish(context) }
+        }
+        Text(
+            "Discard", fontSize = 12.sp, color = colors.faint,
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 20.dp).clickable { confirmDiscard = true },
+        )
+    }
+
+    if (confirmDiscard) ConfirmDialog(
+        "Discard this ${live.type.label.lowercase()}?", "It won't be saved.", "Discard",
+        onDismiss = { confirmDiscard = false },
+    ) { confirmDiscard = false; MoveRecorder.discard(context) }
+}
+
+@Composable
+private fun GpsBadge(accuracyM: Float?) {
+    val colors = Quiver.colors
+    val (label, color) = when {
+        accuracyM == null -> "Finding GPS…" to colors.faint
+        accuracyM <= 10f -> "GPS ±${accuracyM.toInt()} m" to Color(0xFF34D399)
+        accuracyM <= TrackTuning.MAX_ACCURACY_M -> "GPS ±${accuracyM.toInt()} m" to Color(0xFFFBBF24)
+        else -> "Weak GPS" to Color(0xFFFB7185)
+    }
+    Row(
+        Modifier.clip(RoundedCornerShape(100.dp)).background(color.copy(alpha = 0.15f)).padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(Modifier.size(7.dp).clip(CircleShape).background(color))
+        Text(label, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = color)
+    }
+}
+
+// ---------------------------------------------------------------- detail
+
+@Composable
+private fun DetailScreen(state: QuiverState, id: Long, onBack: () -> Unit) {
+    val ac = Accents.Move
+    val colors = Quiver.colors
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val dao = remember { MoveDatabase.get(context).dao() }
+    var confirmDelete by remember { mutableStateOf(false) }
+
+    val loaded by produceState<Pair<MoveEntity, List<PointEntity>>?>(null, id) {
+        value = withContext(Dispatchers.IO) { dao.byId(id)?.let { it to dao.points(id) } }
+    }
+    val (move, points) = loaded ?: run {
+        Column(Modifier.fillMaxSize()) { QvTopBar(stringResource(R.string.title_move), ac, onBack = onBack) }
+        return
+    }
+    val type = move.moveType
+    val title = MoveSummary.title(type, move.startedAt)
+    val track = remember(points) { MoveSummary.replay(type, points).track }
+
+    val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/gpx+xml")) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch(Dispatchers.IO) {
+            // Raw fixes (only the hopeless ones dropped): Strava then smooths them itself, like its own recordings.
+            val raw = points.map { it.toFix() }.filter { it.accM <= TrackTuning.MAX_ACCURACY_M }
+            runCatching {
+                context.contentResolver.openOutputStream(uri)!!.use { it.write(Gpx.write(title, type, raw).toByteArray()) }
+            }.onSuccess { withContext(Dispatchers.Main) { state.toast("GPX saved") } }
+                .onFailure { withContext(Dispatchers.Main) { state.toast("Export failed", ToastKind.Error) } }
+        }
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        QvTopBar(title, ac, onBack = onBack)
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp).padding(bottom = 150.dp)) {
+            Text(formatDate(move.startedAt), fontSize = 12.5.sp, color = colors.dim, modifier = Modifier.padding(start = 2.dp, bottom = 10.dp))
+            if (track.size > 1) {
+                MoveMap(
+                    track, follow = false, accent = ac.a, dark = colors.dark,
+                    modifier = Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(24.dp)),
+                )
+                Spacer(Modifier.height(14.dp))
+            }
+            Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(Modifier.fillMaxWidth()) {
+                    Stat(MoveFormat.km(move.distanceM), "distance", Modifier.weight(1f))
+                    Stat(MoveFormat.duration(move.movingMs), "moving time", Modifier.weight(1f))
+                    Stat(MoveFormat.rate(type, move.distanceM, move.movingMs), if (type == MoveType.Ride) "avg speed" else "avg pace", Modifier.weight(1f))
+                }
+                Row(Modifier.fillMaxWidth()) {
+                    Stat("%.0f m".format(move.elevationGainM), "climb", Modifier.weight(1f))
+                    Stat(MoveFormat.duration(move.elapsedMs), "elapsed", Modifier.weight(1f))
+                    Stat(if (move.steps > 0) "${move.steps}" else "${move.calories}", if (move.steps > 0) "steps" else "kcal", Modifier.weight(1f))
+                }
+                if (move.steps > 0) Text("≈ ${move.calories} kcal", fontSize = 12.sp, color = colors.dim)
+            }
+
+            if (move.splits.isNotEmpty()) {
+                Spacer(Modifier.height(18.dp))
+                SectionLabel("Splits")
+                Splits(move.splits, type)
+            }
+
+            val profile = remember(track) { elevationProfile(track) }
+            if (profile.size > 2) {
+                Spacer(Modifier.height(18.dp))
+                SectionLabel("Elevation")
+                ElevationChart(profile, ac.a, Modifier.fillMaxWidth().height(110.dp).glass(colors, RoundedCornerShape(20.dp)).padding(12.dp))
+            }
+
+            Spacer(Modifier.height(18.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Pill("Export GPX", false, ac, { exporter.launch("${title.replace(' ', '-')}-${LocalDate.now()}.gpx") })
+                Pill("Delete", false, Accents.Expenses, { confirmDelete = true })
+            }
+            Text(
+                "GPX opens in Strava, Google Earth or any map app — uploading it to Strava is the fairest way to compare numbers.",
+                fontSize = 11.5.sp, color = colors.faint, lineHeight = 15.sp, modifier = Modifier.padding(top = 10.dp),
+            )
+        }
+    }
+
+    if (confirmDelete) ConfirmDialog("Delete this activity?", "Its route and stats are removed from this phone.", "Delete", onDismiss = { confirmDelete = false }) {
+        confirmDelete = false
+        scope.launch {
+            withContext(Dispatchers.IO) { dao.delete(id) }
+            state.toast("Activity deleted", ToastKind.Error)
+            onBack()
+        }
+    }
+}
+
+@Composable
+private fun Splits(splits: List<Long>, type: MoveType) {
+    val colors = Quiver.colors
+    val ac = Accents.Move
+    val fastest = splits.min()
+    Column(Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        splits.forEachIndexed { i, ms ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("${i + 1}", fontSize = 12.sp, fontFamily = Mono, color = colors.dim, modifier = Modifier.width(22.dp))
+                Box(Modifier.weight(1f).height(10.dp)) {
+                    // Faster split → longer bar, like Strava.
+                    Box(
+                        Modifier.fillMaxWidth((fastest.toFloat() / ms).coerceIn(0.15f, 1f)).height(10.dp)
+                            .clip(RoundedCornerShape(5.dp)).background(if (ms == fastest) ac.a else ac.a.copy(alpha = 0.45f)),
+                    )
+                }
+                Text(
+                    if (type == MoveType.Ride) MoveFormat.speed(3600.0 / (ms / 1000.0)) else MoveFormat.pace(ms / 1000),
+                    fontSize = 12.sp, fontFamily = Mono, color = colors.text,
+                )
+            }
+        }
+    }
+}
+
+/** (cumulative distance m, altitude m) along the cleaned track. */
+private fun elevationProfile(track: List<Fix>): List<Pair<Double, Double>> {
+    var d = 0.0
+    return track.zipWithNext().mapNotNull { (a, b) ->
+        d += TrackMath.distanceM(a, b)
+        b.altM?.let { d to it }
+    }
+}
+
+@Composable
+private fun ElevationChart(profile: List<Pair<Double, Double>>, color: Color, modifier: Modifier) {
+    Canvas(modifier) {
+        val maxD = profile.last().first.coerceAtLeast(1.0)
+        val minA = profile.minOf { it.second }
+        val span = (profile.maxOf { it.second } - minA).coerceAtLeast(10.0)
+        fun pt(p: Pair<Double, Double>) = Offset((p.first / maxD * size.width).toFloat(), (size.height - (p.second - minA) / span * size.height).toFloat())
+        val line = Path().apply { profile.forEachIndexed { i, p -> pt(p).let { if (i == 0) moveTo(it.x, it.y) else lineTo(it.x, it.y) } } }
+        val fill = Path().apply { addPath(line); lineTo(size.width, size.height); lineTo(0f, size.height); close() }
+        drawPath(fill, Brush.verticalGradient(listOf(color.copy(alpha = 0.35f), Color.Transparent)))
+        drawPath(line, color, style = Stroke(width = 4f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+// ---------------------------------------------------------------- shared bits
+
+@Composable
+private fun RouteThumb(points: List<Pair<Double, Double>>, color: Color, modifier: Modifier) {
+    Canvas(modifier.padding(8.dp)) {
+        if (points.size < 2) return@Canvas
+        val minLat = points.minOf { it.first }
+        val maxLat = points.maxOf { it.first }
+        val minLon = points.minOf { it.second }
+        val maxLon = points.maxOf { it.second }
+        // Keep the route's real shape: one scale for both axes (lon shrinks with latitude).
+        val lonScale = kotlin.math.cos(Math.toRadians((minLat + maxLat) / 2))
+        val spanX = ((maxLon - minLon) * lonScale).coerceAtLeast(1e-9)
+        val spanY = (maxLat - minLat).coerceAtLeast(1e-9)
+        val scale = minOf(size.width / spanX, size.height / spanY)
+        val ox = (size.width - spanX * scale) / 2
+        val oy = (size.height - spanY * scale) / 2
+        val path = Path()
+        points.forEachIndexed { i, (lat, lon) ->
+            val x = (ox + (lon - minLon) * lonScale * scale).toFloat()
+            val y = (oy + (maxLat - lat) * scale).toFloat()
+            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        drawPath(path, color, style = Stroke(width = 4f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+@Composable
+private fun Stat(value: String, label: String, modifier: Modifier = Modifier) {
+    val colors = Quiver.colors
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text, maxLines = 1)
+        Text(label, fontSize = 11.5.sp, color = colors.dim, maxLines = 1)
+    }
+}
+
+@Composable
+private fun RoundButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, color: Color, onClick: () -> Unit) {
+    val colors = Quiver.colors
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(
+            Modifier.size(76.dp).clip(CircleShape).background(color).clickable(onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) { Icon(icon, label, Modifier.size(34.dp), tint = Color.White) }
+        Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
+    }
+}
+
+@Composable
+private fun ConfirmDialog(title: String, body: String, action: String, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    val colors = Quiver.colors
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
+                .background(if (colors.dark) Color(0xFF14141F) else Color(0xFFFAFBFE))
+                .border(1.dp, colors.border, RoundedCornerShape(28.dp)).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+            Text(body, fontSize = 13.sp, color = colors.dim)
+            Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Pill("Cancel", false, Accents.Move, onDismiss, Modifier.weight(1f))
+                Pill(action, true, Accents.Expenses, onConfirm, Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeightDialog(current: Double, onDismiss: () -> Unit, onSave: (Double) -> Unit) {
+    val colors = Quiver.colors
+    var text by remember { mutableStateOf("%.0f".format(current)) }
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
+                .background(if (colors.dark) Color(0xFF14141F) else Color(0xFFFAFBFE))
+                .border(1.dp, colors.border, RoundedCornerShape(28.dp)).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("Your weight", fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+            Text("Only used to estimate calories. Stays on this phone.", fontSize = 13.sp, color = colors.dim)
+            Box(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(100.dp)).background(colors.surf)
+                    .border(1.dp, colors.border, RoundedCornerShape(100.dp)).padding(horizontal = 16.dp, vertical = 12.dp),
+            ) {
+                BasicTextField(
+                    text, { new -> text = new.filter { it.isDigit() || it == '.' }.take(5) }, singleLine = true,
+                    textStyle = TextStyle(color = colors.text, fontSize = 15.sp), cursorBrush = SolidColor(Accents.Move.a),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth(),
+                )
+                Text("kg", fontSize = 15.sp, color = colors.dim, modifier = Modifier.align(Alignment.CenterEnd))
+            }
+            Pill("Save", true, Accents.Move, {
+                text.toDoubleOrNull()?.takeIf { it in 25.0..300.0 }?.let(onSave)
+            }, Modifier.fillMaxWidth())
+        }
+    }
+}
+
+private fun formatDate(millis: Long): String = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(DATE_FMT)

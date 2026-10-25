@@ -35,6 +35,7 @@ import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.DirectionsRun
 import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Search
@@ -79,6 +80,8 @@ import com.kamboji.quiver.currency.data.RateAlertStore
 import com.kamboji.quiver.expenses.data.ExpenseMath
 import com.kamboji.quiver.expenses.data.ExpenseStore
 import com.kamboji.quiver.focus.FocusPrefs
+import com.kamboji.quiver.move.data.MoveDatabase
+import com.kamboji.quiver.ui.move.startOfWeekMillis
 import com.kamboji.quiver.notes.NotesViewModel
 import com.kamboji.quiver.notes.data.NotesStore
 import com.kamboji.quiver.screenshots.data.SettingsManager
@@ -112,6 +115,7 @@ private fun meta(app: AppKey): AppMeta = when (app) {
     AppKey.Notes -> AppMeta("quick thoughts & lists", Icons.Outlined.StickyNote2)
     AppKey.Expenses -> AppMeta("where money goes", Icons.Outlined.Payments)
     AppKey.Focus -> AppMeta("block shorts & reels", Icons.Outlined.SelfImprovement)
+    AppKey.Move -> AppMeta("run, walk, ride, hike", Icons.Outlined.DirectionsRun)
     AppKey.Hub -> AppMeta("your apps", Icons.Filled.AutoAwesome)
 }
 
@@ -164,7 +168,7 @@ fun HubScreen(state: QuiverState) {
     val dashApps = remember { mutableStateListOf<AppKey>().also { it.addAll(hubPrefs.dashboardApps()) } }
     var showAddPicker by remember { mutableStateOf(false) }
     var showLangSheet by remember { mutableStateOf(false) }
-    val allApps = listOf(AppKey.Screenshots, AppKey.Currency, AppKey.Calendar, AppKey.Notes, AppKey.Expenses, AppKey.Focus)
+    val allApps = listOf(AppKey.Screenshots, AppKey.Currency, AppKey.Calendar, AppKey.Notes, AppKey.Expenses, AppKey.Focus, AppKey.Move)
 
     // Only hit the currency API if its tile is actually on the dashboard.
     val currencyOnDash = AppKey.Currency in dashApps
@@ -701,6 +705,14 @@ private fun TileSummary(app: AppKey, ac: Accent, monitoring: Boolean, todayCount
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("$blocked", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
                 Text("blocked today", fontSize = 12.sp, color = colors.dim)
+            }
+        }
+        AppKey.Move -> {
+            val context = LocalContext.current
+            val weekKm by remember { MoveDatabase.get(context).dao().distanceSince(startOfWeekMillis()) }.collectAsState(0.0)
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("%.1f".format(weekKm / 1000), fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
+                Text("km this week", fontSize = 12.sp, color = colors.dim)
             }
         }
         AppKey.Hub -> Unit

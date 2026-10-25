@@ -44,6 +44,7 @@
     <string name="title_expenses">Expenses</string>
     <string name="title_screenshots">Screenshots</string>
     <string name="title_currency">Currency</string>
+    <string name="title_move">Move</string>
     <string name="title_focus">Focus</string>
     <string name="focus_service_description">Blocks YouTube Shorts and Instagram Reels by pressing Back when their player opens. Quiver only receives events from those two apps, only checks which screen is showing, never reads its text, and nothing leaves your phone.</string>
 

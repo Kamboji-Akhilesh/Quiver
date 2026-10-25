@@ -27,6 +27,7 @@ import com.kamboji.quiver.ui.components.Aurora
 import com.kamboji.quiver.ui.currency.CurrencyScreen
 import com.kamboji.quiver.ui.expenses.ExpensesScreen
 import com.kamboji.quiver.ui.focus.FocusScreen
+import com.kamboji.quiver.ui.move.MoveScreen
 import com.kamboji.quiver.ui.hub.HubScreen
 import com.kamboji.quiver.ui.ai.QuiverAiPanel
 import com.kamboji.quiver.ui.notes.NotesScreen
@@ -90,6 +91,7 @@ fun QuiverApp(
                     AppKey.Notes -> NotesScreen(state)
                     AppKey.Expenses -> ExpensesScreen(state)
                     AppKey.Focus -> FocusScreen(state)
+                    AppKey.Move -> MoveScreen(state)
                 }
             }
 

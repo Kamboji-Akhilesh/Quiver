@@ -80,6 +80,7 @@ object Accents {
     val Notes = Accent(a = Color(0xFFFBBF24), b = Color(0xFFF59E0B), deep = Color(0xFFB45309), glow = Color(0xFFFBBF24))
     val Expenses = Accent(a = Color(0xFFFB7185), b = Color(0xFFE11D48), deep = Color(0xFFBE123C), glow = Color(0xFFFB7185))
     val Focus = Accent(a = Color(0xFF2DD4BF), b = Color(0xFF0D9488), deep = Color(0xFF0F766E), glow = Color(0xFF2DD4BF))
+    val Move = Accent(a = Color(0xFFFB923C), b = Color(0xFFEA580C), deep = Color(0xFFC2410C), glow = Color(0xFFFB923C))
 
     fun of(app: AppKey): Accent = when (app) {
         AppKey.Hub -> Hub
@@ -89,11 +90,12 @@ object Accents {
         AppKey.Notes -> Notes
         AppKey.Expenses -> Expenses
         AppKey.Focus -> Focus
+        AppKey.Move -> Move
     }
 }
 
 /** The primary surfaces the dock and accent system switch between. */
-enum class AppKey { Hub, Screenshots, Currency, Calendar, Notes, Expenses, Focus }
+enum class AppKey { Hub, Screenshots, Currency, Calendar, Notes, Expenses, Focus, Move }
 
 /** Localised display name — the same string as the app's screen title. */
 val AppKey.titleRes: Int
@@ -105,6 +107,7 @@ val AppKey.titleRes: Int
         AppKey.Notes -> R.string.title_notes
         AppKey.Expenses -> R.string.title_expenses
         AppKey.Focus -> R.string.title_focus
+        AppKey.Move -> R.string.title_move
     }
 
 val LocalQuiverColors = staticCompositionLocalOf { DarkColors }
