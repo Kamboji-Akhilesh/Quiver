@@ -91,21 +91,5 @@
     </style>
 
     <!-- Bottom Sheet style -->
-    <style name="Theme.ScreenshotCleaner.BottomSheet" parent="Theme.Material3.DayNight.BottomSheetDialog">
-        <item name="colorPrimary">@color/md_theme_light_primary</item>
-        <item name="colorSurface">@color/md_theme_light_surface</item>
-        <item name="bottomSheetStyle">@style/Widget.ScreenshotCleaner.BottomSheet</item>
-    </style>
 
-    <style name="Widget.ScreenshotCleaner.BottomSheet" parent="Widget.Material3.BottomSheet">
-        <item name="shapeAppearance">@style/ShapeAppearance.ScreenshotCleaner.LargeComponent</item>
-    </style>
-
-    <style name="ShapeAppearance.ScreenshotCleaner.LargeComponent" parent="ShapeAppearance.Material3.LargeComponent">
-        <item name="cornerFamily">rounded</item>
-        <item name="cornerSizeTopLeft">28dp</item>
-        <item name="cornerSizeTopRight">28dp</item>
-        <item name="cornerSizeBottomLeft">0dp</item>
-        <item name="cornerSizeBottomRight">0dp</item>
-    </style>
 </resources>

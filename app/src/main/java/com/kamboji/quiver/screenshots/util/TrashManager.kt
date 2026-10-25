@@ -25,10 +25,30 @@ object TrashManager {
     }
 
     /**
-     * Moves a screenshot to trash and returns the HistoryItem.
-     * Returns null if the operation fails.
+     * Moves a screenshot to trash and returns the HistoryItem. Needs all-files
+     * access for the delete. Returns null if the operation fails.
      */
-    suspend fun moveToTrash(context: Context, uri: Uri): HistoryItem? = withContext(Dispatchers.IO) {
+    suspend fun moveToTrash(context: Context, uri: Uri): HistoryItem? {
+        val item = copyToTrash(context, uri) ?: return null
+        return withContext(Dispatchers.IO) {
+            try {
+                val rowsDeleted = context.contentResolver.delete(uri, null, null)
+                Log.d("SS_APP", "TrashManager: Deleted $rowsDeleted rows from MediaStore")
+                item
+            } catch (e: Exception) {
+                Log.e("SS_APP", "TrashManager: Failed to delete original", e)
+                discard(item)
+                null
+            }
+        }
+    }
+
+    /**
+     * Copies a screenshot into the trash WITHOUT deleting the original — only
+     * read access is needed. Used when the delete must go through the system's
+     * confirmation dialog; record the item only once the user allows it.
+     */
+    suspend fun copyToTrash(context: Context, uri: Uri): HistoryItem? = withContext(Dispatchers.IO) {
         try {
             val contentResolver = context.contentResolver
 
@@ -55,11 +75,7 @@ object TrashManager {
                 }
             }
 
-            // Delete original from MediaStore
-            val rowsDeleted = contentResolver.delete(uri, null, null)
-            Log.d("SS_APP", "TrashManager: Deleted $rowsDeleted rows from MediaStore")
-
-            Log.d("SS_APP", "TrashManager: Moved $fileName to trash at ${trashFile.absolutePath}")
+            Log.d("SS_APP", "TrashManager: Copied $fileName to trash at ${trashFile.absolutePath}")
 
             HistoryItem(
                 originalPath = originalPath + fileName,
@@ -68,9 +84,14 @@ object TrashManager {
                 canRestore = true
             )
         } catch (e: Exception) {
-            Log.e("SS_APP", "TrashManager: Failed to move to trash", e)
+            Log.e("SS_APP", "TrashManager: Failed to copy to trash", e)
             null
         }
+    }
+
+    /** Drops a trash copy whose original was never deleted (user denied, or delete failed). */
+    fun discard(item: HistoryItem) {
+        item.trashPath?.let { File(it).delete() }
     }
 
     /**

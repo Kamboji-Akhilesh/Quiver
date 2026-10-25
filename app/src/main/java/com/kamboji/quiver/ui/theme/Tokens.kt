@@ -9,6 +9,7 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import com.kamboji.quiver.R
 
 /**
  * Surface/text tokens for one brightness, mirroring the design's `T` object.
@@ -78,6 +79,7 @@ object Accents {
     val Calendar = Accent(a = Color(0xFF38BDF8), b = Color(0xFF2563EB), deep = Color(0xFF0369A1), glow = Color(0xFF38BDF8))
     val Notes = Accent(a = Color(0xFFFBBF24), b = Color(0xFFF59E0B), deep = Color(0xFFB45309), glow = Color(0xFFFBBF24))
     val Expenses = Accent(a = Color(0xFFFB7185), b = Color(0xFFE11D48), deep = Color(0xFFBE123C), glow = Color(0xFFFB7185))
+    val Focus = Accent(a = Color(0xFF2DD4BF), b = Color(0xFF0D9488), deep = Color(0xFF0F766E), glow = Color(0xFF2DD4BF))
 
     fun of(app: AppKey): Accent = when (app) {
         AppKey.Hub -> Hub
@@ -86,11 +88,24 @@ object Accents {
         AppKey.Calendar -> Calendar
         AppKey.Notes -> Notes
         AppKey.Expenses -> Expenses
+        AppKey.Focus -> Focus
     }
 }
 
 /** The primary surfaces the dock and accent system switch between. */
-enum class AppKey { Hub, Screenshots, Currency, Calendar, Notes, Expenses }
+enum class AppKey { Hub, Screenshots, Currency, Calendar, Notes, Expenses, Focus }
+
+/** Localised display name — the same string as the app's screen title. */
+val AppKey.titleRes: Int
+    get() = when (this) {
+        AppKey.Hub -> R.string.app_name
+        AppKey.Screenshots -> R.string.title_screenshots
+        AppKey.Currency -> R.string.title_currency
+        AppKey.Calendar -> R.string.title_calendar
+        AppKey.Notes -> R.string.title_notes
+        AppKey.Expenses -> R.string.title_expenses
+        AppKey.Focus -> R.string.title_focus
+    }
 
 val LocalQuiverColors = staticCompositionLocalOf { DarkColors }
 val LocalAccent = staticCompositionLocalOf { Accents.Hub }

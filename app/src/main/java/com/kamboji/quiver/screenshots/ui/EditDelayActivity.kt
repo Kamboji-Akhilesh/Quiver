@@ -4,135 +4,85 @@ import android.app.NotificationManager
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
-import android.view.Gravity
-import android.widget.LinearLayout
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.work.WorkManager
-import com.kamboji.quiver.screenshots.data.models.DeleteDelay
+import com.kamboji.quiver.screenshots.data.models.DELAY_PRESETS
 import com.kamboji.quiver.screenshots.data.models.DelayUnit
+import com.kamboji.quiver.screenshots.data.models.DeleteDelay
 import com.kamboji.quiver.screenshots.notification.ScreenshotNotification
 import com.kamboji.quiver.screenshots.worker.DeleteWorker
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.textfield.TextInputEditText
-import com.google.android.material.textfield.TextInputLayout
+import com.kamboji.quiver.ui.components.Pill
+import com.kamboji.quiver.ui.components.QuiverModalSheet
+import com.kamboji.quiver.ui.theme.Accents
+import com.kamboji.quiver.ui.theme.Display
+import com.kamboji.quiver.ui.theme.Quiver
+import com.kamboji.quiver.ui.theme.QuiverTheme
 import java.util.UUID
 
-class EditDelayActivity : AppCompatActivity() {
+/**
+ * The screenshot notification's "Edit time" action: a Quiver-styled sheet that
+ * floats over whatever app the user is in (translucent window), so changing
+ * the delay never pulls them into Quiver.
+ */
+class EditDelayActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        Log.d("SS_APP", "EditDelayActivity: onCreate")
-
-        // Get the data from the intent
-        val workIdString = intent.getStringExtra("work_id")
+        val workId = intent.getStringExtra("work_id")?.let { runCatching { UUID.fromString(it) }.getOrNull() }
         val notificationId = intent.getIntExtra("notification_id", -1)
-        val uriString = intent.getStringExtra("uri")
-
-        if (workIdString == null || uriString == null) {
+        val uri = intent.getStringExtra("uri")?.let(Uri::parse)
+        if (workId == null || uri == null) {
             Log.e("SS_APP", "EditDelayActivity: Missing data")
             finish()
             return
         }
 
-        val uri = Uri.parse(uriString)
-        val workId = UUID.fromString(workIdString)
-
-        // Show the time picker dialog
-        showTimePickerDialog(workId, notificationId, uri)
-    }
-
-    private fun showTimePickerDialog(oldWorkId: UUID, notificationId: Int, uri: Uri) {
-        val options = arrayOf(
-            "1 minute",
-            "2 minutes",
-            "5 minutes",
-            "10 minutes",
-            "30 minutes",
-            "1 hour",
-            "2 hours",
-            "Custom time..."
-        )
-
-        val delays = arrayOf(
-            DeleteDelay(1, DelayUnit.MINUTES),
-            DeleteDelay(2, DelayUnit.MINUTES),
-            DeleteDelay(5, DelayUnit.MINUTES),
-            DeleteDelay(10, DelayUnit.MINUTES),
-            DeleteDelay(30, DelayUnit.MINUTES),
-            DeleteDelay(1, DelayUnit.HOURS),
-            DeleteDelay(2, DelayUnit.HOURS),
-            null // Custom
-        )
-
-        MaterialAlertDialogBuilder(this, com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog)
-            .setTitle("Delete screenshot after...")
-            .setItems(options) { _, which ->
-                if (which == options.size - 1) {
-                    // Custom time selected
-                    showCustomTimeDialog(oldWorkId, notificationId, uri)
-                } else {
-                    val selectedDelay = delays[which]!!
-                    rescheduleDelete(oldWorkId, notificationId, uri, selectedDelay)
+        enableEdgeToEdge()
+        setContent {
+            QuiverTheme(dark = true, accent = Accents.Screenshots) {
+                QuiverModalSheet(onDismiss = { finish() }) { hide ->
+                    DelayPicker(
+                        onPick = { rescheduleDelete(workId, notificationId, uri, it); hide() },
+                        onInvalid = { Toast.makeText(this, "Enter a number of minutes", Toast.LENGTH_SHORT).show() },
+                    )
                 }
             }
-            .setNegativeButton("Cancel") { _, _ ->
-                finish()
-            }
-            .setOnCancelListener {
-                finish()
-            }
-            .show()
-    }
-
-    private fun showCustomTimeDialog(oldWorkId: UUID, notificationId: Int, uri: Uri) {
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(64, 32, 64, 16)
-            gravity = Gravity.CENTER_HORIZONTAL
         }
-
-        val inputLayout = TextInputLayout(this, null, com.google.android.material.R.attr.textInputFilledStyle).apply {
-            hint = "Minutes"
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        }
-
-        val editText = TextInputEditText(inputLayout.context).apply {
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        }
-
-        inputLayout.addView(editText)
-        layout.addView(inputLayout)
-
-        MaterialAlertDialogBuilder(this, com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog)
-            .setTitle("Custom time")
-            .setMessage("Enter the number of minutes before deletion")
-            .setView(layout)
-            .setPositiveButton("Set") { _, _ ->
-                val minutes = editText.text.toString().toLongOrNull()
-                if (minutes != null && minutes > 0) {
-                    val customDelay = DeleteDelay(minutes, DelayUnit.MINUTES)
-                    rescheduleDelete(oldWorkId, notificationId, uri, customDelay)
-                } else {
-                    Toast.makeText(this, "Please enter a valid number", Toast.LENGTH_SHORT).show()
-                    finish()
-                }
-            }
-            .setNegativeButton("Cancel") { _, _ ->
-                finish()
-            }
-            .setOnCancelListener {
-                finish()
-            }
-            .show()
     }
 
     private fun rescheduleDelete(oldWorkId: UUID, notificationId: Int, uri: Uri, newDelay: DeleteDelay) {
@@ -153,8 +103,47 @@ class EditDelayActivity : AppCompatActivity() {
         // Show a new notification with updated time
         ScreenshotNotification.showUpdatedNotification(this, uri, newWorkId, newDelay)
 
-        Toast.makeText(this, "Will delete in ${newDelay.value} ${newDelay.unit.name.lowercase()}", Toast.LENGTH_SHORT).show()
-        finish()
+        Toast.makeText(this, "Will delete in ${newDelay.describe()}", Toast.LENGTH_SHORT).show()
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DelayPicker(onPick: (DeleteDelay) -> Unit, onInvalid: () -> Unit) {
+    val colors = Quiver.colors
+    val ac = Accents.Screenshots
+    var minutes by remember { mutableStateOf("") }
+    Column(
+        Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 30.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Text("Delete screenshot after…", fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            DELAY_PRESETS.forEach { (label, d) -> Pill(label, false, ac, { onPick(d) }) }
+        }
+        Text("Or a custom time", fontSize = 13.sp, color = colors.dim)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(
+                Modifier.weight(1f).clip(RoundedCornerShape(100.dp)).background(colors.surf)
+                    .border(1.dp, colors.border, RoundedCornerShape(100.dp)).padding(horizontal = 16.dp, vertical = 12.dp),
+            ) {
+                if (minutes.isEmpty()) Text("Minutes", color = colors.faint, fontSize = 14.sp)
+                BasicTextField(
+                    minutes, { new -> minutes = new.filter(Char::isDigit).take(5) }, singleLine = true,
+                    textStyle = TextStyle(color = colors.text, fontSize = 14.sp),
+                    cursorBrush = SolidColor(ac.a),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            Box(
+                Modifier.clip(RoundedCornerShape(100.dp)).background(Brush.linearGradient(listOf(ac.a, ac.b)))
+                    .clickable {
+                        val m = minutes.toLongOrNull()
+                        if (m != null && m > 0) onPick(DeleteDelay(m, DelayUnit.MINUTES)) else onInvalid()
+                    }
+                    .padding(horizontal = 22.dp, vertical = 12.dp),
+            ) { Text("Set", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
+        }
+    }
+}

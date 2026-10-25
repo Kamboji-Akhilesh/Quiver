@@ -5,6 +5,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <!-- Quiver AI voice input (speech-to-text). -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- Bank-SMS expense capture (on-device only; non-bank senders are never parsed). -->
+    <uses-permission android:name="android.permission.READ_SMS"/>
+    <uses-permission android:name="android.permission.RECEIVE_SMS"/>
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -72,18 +75,6 @@
         </activity>
         <!-- Legacy bento hub, retained while screens migrate into the shell. -->
         <activity
-            android:name=".hub.HubActivity"
-            android:exported="false"
-            android:theme="@style/Theme.ScreenshotCleaner"/>
-        <activity
-            android:name=".currency.CurrencyActivity"
-            android:exported="false"
-            android:theme="@style/Theme.ScreenshotCleaner"/>
-        <activity
-            android:name=".calendar.CalendarActivity"
-            android:exported="false"
-            android:theme="@style/Theme.ScreenshotCleaner"/>
-        <activity
             android:name=".calendar.EventCallActivity"
             android:exported="false"
             android:excludeFromRecents="true"
@@ -99,9 +90,6 @@
             android:name=".calendar.alert.AlertActionReceiver"
             android:exported="false"/>
         <activity
-            android:name=".screenshots.ui.MainActivity"
-            android:exported="false"/>
-        <activity
             android:name=".screenshots.ui.DeleteConfirmActivity"
             android:theme="@style/Theme.ScreenshotCleaner.Dialog"
             android:excludeFromRecents="true"
@@ -111,19 +99,9 @@
             android:taskAffinity=""/>
         <activity
             android:name=".screenshots.ui.EditDelayActivity"
-            android:theme="@style/Theme.ScreenshotCleaner.Dialog"
+            android:theme="@style/Theme.ScreenshotCleaner.Share"
             android:excludeFromRecents="true"
             android:taskAffinity=""/>
-        <activity
-            android:name=".screenshots.ui.HistoryActivity"
-            android:theme="@style/Theme.ScreenshotCleaner"
-            android:exported="false"
-            android:parentActivityName=".screenshots.ui.MainActivity"/>
-        <activity
-            android:name=".screenshots.ui.ImagePreviewActivity"
-            android:theme="@style/Theme.ScreenshotCleaner"
-            android:exported="false"
-            android:parentActivityName=".screenshots.ui.HistoryActivity"/>
 
         <!-- Home-screen widgets (Glance) -->
         <receiver
@@ -162,11 +140,6 @@
 
         <!-- Broadcast Receivers -->
         <receiver android:name=".screenshots.receiver.CancelReceiver"/>
-        <receiver android:name=".screenshots.receiver.DeleteRequestReceiver" android:exported="false">
-            <intent-filter>
-                <action android:name="REQUEST_DELETE"/>
-            </intent-filter>
-        </receiver>
         <receiver
             android:name=".screenshots.receiver.BootReceiver"
             android:exported="false">
@@ -204,6 +177,30 @@
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
+        </service>
+
+        <!-- Bank-SMS expense capture: SMS_RECEIVED only schedules an inbox scan (SmsCapture). -->
+        <receiver
+            android:name=".expenses.capture.SmsReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Focus: Shorts/Reels blocker. Only sees YouTube + Instagram (see focus_service.xml). -->
+        <service
+            android:name=".focus.FocusService"
+            android:exported="false"
+            android:label="Quiver Focus (Shorts &amp; Reels blocker)"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/focus_service" />
         </service>
 
     </application>

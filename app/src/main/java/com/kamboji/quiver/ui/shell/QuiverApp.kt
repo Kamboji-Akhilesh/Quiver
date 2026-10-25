@@ -14,19 +14,19 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.kamboji.quiver.ui.calendar.CalendarScreen
-import com.kamboji.quiver.ui.calendar.CallAlert
 import com.kamboji.quiver.ui.components.Aurora
 import com.kamboji.quiver.ui.currency.CurrencyScreen
 import com.kamboji.quiver.ui.expenses.ExpensesScreen
+import com.kamboji.quiver.ui.focus.FocusScreen
 import com.kamboji.quiver.ui.hub.HubScreen
 import com.kamboji.quiver.ui.ai.QuiverAiPanel
 import com.kamboji.quiver.ui.notes.NotesScreen
@@ -40,7 +40,7 @@ import com.kamboji.quiver.ui.theme.QuiverTheme
 /**
  * The whole app as one surface: an aurora-washed background, the active mini-app
  * screen, the floating dock, and any open overlays (search / AI / launcher /
- * sheet / call) plus the toast — all sharing one [QuiverState].
+ * sheet) plus the toast — all sharing one [QuiverState].
  */
 @Composable
 fun QuiverApp(
@@ -64,10 +64,9 @@ fun QuiverApp(
     // System back: unwind overlays/screens instead of leaving the app. Disabled
     // (falls through to exit) only when sitting on the Hub with nothing open.
     val onHubIdle = state.app == AppKey.Hub && !state.searchOpen && !state.aiOpen &&
-        !state.launcherOpen && state.call == null
+        !state.launcherOpen
     BackHandler(enabled = !onHubIdle) {
         when {
-            state.call != null -> state.call = null
             state.searchOpen -> state.searchOpen = false
             state.aiOpen -> state.aiOpen = false
             state.launcherOpen -> state.launcherOpen = false
@@ -90,6 +89,7 @@ fun QuiverApp(
                     AppKey.Calendar -> CalendarScreen(state)
                     AppKey.Notes -> NotesScreen(state)
                     AppKey.Expenses -> ExpensesScreen(state)
+                    AppKey.Focus -> FocusScreen(state)
                 }
             }
 
@@ -114,9 +114,6 @@ fun QuiverApp(
                 startMic = state.aiStartMic,
                 onClose = { state.aiOpen = false; state.aiPrefill = null; state.aiStartMic = false },
             )
-
-            // Full-screen call alert sits above everything but the toast.
-            if (state.call != null) CallAlert(state)
 
             // First-run onboarding covers the whole shell until dismissed.
             if (onboarding) {

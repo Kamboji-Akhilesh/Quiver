@@ -90,11 +90,21 @@ so you can dictate instead of type.
 ### 💸 Expenses — *tracks itself*
 **Problem:** manual expense tracking never lasts, and every "free" tracker wants
 your bank credentials.
-**Solution:** Quiver reads your **UPI/bank payment notifications on-device** and
-turns them into expense entries you just confirm. Nothing is uploaded; money is
+**Solution:** Quiver reads your **bank SMS and UPI-app notifications on-device**
+and turns them into expense entries you just confirm. Only bank sender IDs
+(`AX-HDFCBK`) are ever parsed — a friend's "I paid ₹500" never becomes an expense. Nothing is uploaded; money is
 stored in paise as integers, so the math is never wrong. Month totals, per-category
 bars, day-grouped list.
 → [`expenses/`](app/src/main/java/com/kamboji/quiver/expenses/README.md)
+
+### 🧘 Focus — *no more accidental Shorts*
+**Problem:** you open YouTube or Instagram for one thing and lose an hour to
+Shorts/Reels; blocker apps that fix this want to watch everything you do.
+**Solution:** the moment the Shorts or Reels player opens, Quiver presses Back
+(or closes the app). Its accessibility access is limited by Android to **only
+YouTube and Instagram**; it checks which screen is showing, never reads text,
+and keeps nothing but a "blocked today" count.
+→ [`focus/`](app/src/main/java/com/kamboji/quiver/focus/FocusPolicy.kt)
 
 ---
 
@@ -171,14 +181,15 @@ app/src/main/java/com/kamboji/quiver/
 │   ├── ai/           # the Quiver AI chat panel
 │   ├── onboarding/   # first-run flow
 │   ├── locale/       # per-app language switching
-│   └── {calendar,notes,expenses,screenshots,currency}/   # the screens
+│   └── {calendar,notes,expenses,screenshots,currency,focus}/   # the screens
 │
 ├── ai/               # on-device agent: engine, tools, planner, TTS, model mgmt
 ├── screenshots/      # auto-cleaner + OCR index & search
 ├── currency/         # offline-first converter + rate alerts
 ├── calendar/         # tasks/events, alarms, full-screen call alerts
 ├── notes/            # note model + store
-├── expenses/         # expense model + store + UPI notification capture
+├── expenses/         # expense model + store + bank-SMS / UPI capture
+├── focus/            # Shorts/Reels blocker (accessibility service + policy)
 │
 ├── widgets/          # Glance home-screen widgets
 ├── share/            # share-sheet router + shortcut/intent bridge

@@ -50,8 +50,6 @@ or you miss it.
 - `worker/RateAlertWorker.kt` — the background check
 - `CurrencyViewModel.kt` — converter / rates / series / alerts state
 - `ui/currency/CurrencyScreen.kt` — the tabbed screen
-- `CurrencyUi.kt` — shared widgets: offline banner, currency dropdown, range
-  radio, and the Canvas line chart
 
 ## Permissions
 `INTERNET`, `ACCESS_NETWORK_STATE`.

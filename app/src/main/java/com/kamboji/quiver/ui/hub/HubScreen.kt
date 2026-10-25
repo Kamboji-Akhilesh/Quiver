@@ -35,6 +35,7 @@ import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.StickyNote2
@@ -57,6 +58,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -71,8 +73,11 @@ import com.kamboji.quiver.calendar.data.CalendarStore
 import com.kamboji.quiver.currency.CurrencyViewModel
 import com.kamboji.quiver.currency.Ui
 import com.kamboji.quiver.expenses.ExpensesViewModel
+import com.kamboji.quiver.currency.worker.RateAlertWorker
+import com.kamboji.quiver.currency.data.RateAlertStore
 import com.kamboji.quiver.expenses.data.ExpenseMath
 import com.kamboji.quiver.expenses.data.ExpenseStore
+import com.kamboji.quiver.focus.FocusPrefs
 import com.kamboji.quiver.notes.NotesViewModel
 import com.kamboji.quiver.notes.data.NotesStore
 import com.kamboji.quiver.screenshots.data.SettingsManager
@@ -87,6 +92,7 @@ import com.kamboji.quiver.ui.shell.ToastKind
 import com.kamboji.quiver.ui.theme.Accent
 import com.kamboji.quiver.ui.theme.Accents
 import com.kamboji.quiver.ui.theme.AppKey
+import com.kamboji.quiver.ui.theme.titleRes
 import com.kamboji.quiver.ui.theme.Body
 import com.kamboji.quiver.ui.theme.Display
 import com.kamboji.quiver.ui.theme.Mono
@@ -96,15 +102,16 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Calendar
 
-private data class AppMeta(val name: String, val tag: String, val icon: ImageVector)
+private data class AppMeta(val tag: String, val icon: ImageVector)
 
 private fun meta(app: AppKey): AppMeta = when (app) {
-    AppKey.Screenshots -> AppMeta("Screenshots", "clear the clutter", Icons.Outlined.Image)
-    AppKey.Currency -> AppMeta("Currency", "live & offline rates", Icons.Outlined.SwapHoriz)
-    AppKey.Calendar -> AppMeta("Calendar", "tasks, events & calls", Icons.Outlined.CalendarMonth)
-    AppKey.Notes -> AppMeta("Notes", "quick thoughts & lists", Icons.Outlined.StickyNote2)
-    AppKey.Expenses -> AppMeta("Expenses", "know where money goes", Icons.Outlined.Payments)
-    AppKey.Hub -> AppMeta("Quiver", "your apps", Icons.Filled.AutoAwesome)
+    AppKey.Screenshots -> AppMeta("clear the clutter", Icons.Outlined.Image)
+    AppKey.Currency -> AppMeta("live & offline rates", Icons.Outlined.SwapHoriz)
+    AppKey.Calendar -> AppMeta("tasks, events & calls", Icons.Outlined.CalendarMonth)
+    AppKey.Notes -> AppMeta("quick thoughts & lists", Icons.Outlined.StickyNote2)
+    AppKey.Expenses -> AppMeta("know where money goes", Icons.Outlined.Payments)
+    AppKey.Focus -> AppMeta("block shorts & reels", Icons.Outlined.SelfImprovement)
+    AppKey.Hub -> AppMeta("your apps", Icons.Filled.AutoAwesome)
 }
 
 private fun greetingRes(): Int = when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
@@ -156,7 +163,7 @@ fun HubScreen(state: QuiverState) {
     val dashApps = remember { mutableStateListOf<AppKey>().also { it.addAll(hubPrefs.dashboardApps()) } }
     var showAddPicker by remember { mutableStateOf(false) }
     var showLangSheet by remember { mutableStateOf(false) }
-    val allApps = listOf(AppKey.Screenshots, AppKey.Currency, AppKey.Calendar, AppKey.Notes, AppKey.Expenses)
+    val allApps = listOf(AppKey.Screenshots, AppKey.Currency, AppKey.Calendar, AppKey.Notes, AppKey.Expenses, AppKey.Focus)
 
     // Only hit the currency API if its tile is actually on the dashboard.
     val currencyOnDash = AppKey.Currency in dashApps
@@ -387,7 +394,7 @@ private fun AddAppSheet(available: List<AppKey>, onAdd: (AppKey) -> Unit, onDism
                             Icon(m.icon, null, Modifier.size(20.dp), tint = ac.txt(colors.dark))
                         }
                         Column(Modifier.weight(1f)) {
-                            Text(m.name, fontSize = 14.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                            Text(stringResource(app.titleRes), fontSize = 14.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
                             Text(m.tag, fontSize = 12.sp, color = colors.dim)
                         }
                         Text("Add", color = ac.txt(colors.dark), fontSize = 13.sp, fontWeight = FontWeight.Bold)
@@ -440,6 +447,7 @@ private fun DataSection(state: QuiverState) {
                 NotesStore(context).getAll(),
                 CalendarStore(context).getAll(),
                 ExpenseStore(context).getAll(),
+                RateAlertStore(context).getAll(),
             )
             context.contentResolver.openOutputStream(uri)!!.use { it.write(doc.toString(2).toByteArray()) }
         }.onSuccess { state.toast("Backup saved") }
@@ -466,17 +474,24 @@ private fun DataSection(state: QuiverState) {
             val exp = QuiverBackup.mergeExpenses(expStore.getAll(), imported.expenses) { expStore.nextId() }
             expStore.saveAll(exp.merged)
 
-            Triple(notes.added.size, cal.added.size, exp.added.size)
-        }.onSuccess { (n, c, e) ->
+            val alertStore = RateAlertStore(context)
+            val alerts = QuiverBackup.mergeRateAlerts(alertStore.getAll(), imported.rateAlerts) { alertStore.nextId() }
+            alertStore.saveAll(alerts.merged)
+            // Imported alerts need the background check running to ever fire.
+            if (alerts.added.any { !it.triggered }) RateAlertWorker.ensureScheduled(context)
+
+            listOf(notes.added.size, cal.added.size, exp.added.size, alerts.added.size)
+        }.onSuccess { (n, c, e, a) ->
             state.toast(
-                if (n + c + e == 0) "Everything was already here"
-                else "Imported $n note${if (n == 1) "" else "s"} · $c calendar · $e expense${if (e == 1) "" else "s"}",
+                if (n + c + e + a == 0) "Everything was already here"
+                else "Imported $n note${if (n == 1) "" else "s"} · $c calendar · $e expense${if (e == 1) "" else "s"}" +
+                    if (a > 0) " · $a alert${if (a == 1) "" else "s"}" else "",
             )
         }.onFailure { state.toast("That file isn't a Quiver backup", ToastKind.Error) }
     }
 
     Column(Modifier.fillMaxWidth().glass(colors).padding(6.dp)) {
-        DataRow(Icons.Outlined.FileUpload, "Export data", "Notes, calendar & expenses → one file", true) {
+        DataRow(Icons.Outlined.FileUpload, "Export data", "Notes, calendar, expenses & alerts → one file", true) {
             exporter.launch("quiver-backup-${LocalDate.now()}.json")
         }
         DataRow(Icons.Outlined.FileDownload, "Import data", "Merge a backup into this phone", false) {
@@ -638,7 +653,7 @@ private fun BentoTile(
                 contentAlignment = Alignment.Center,
             ) { Icon(m.icon, null, Modifier.size(24.dp), tint = ac.txt(colors.dark)) }
             Spacer(Modifier.weight(1f))
-            Text(m.name, fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+            Text(stringResource(app.titleRes), fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
             Text(m.tag, fontSize = 12.5.sp, color = colors.dim)
             Spacer(Modifier.height(11.dp))
             TileSummary(app, ac, monitoring, todayCount, curRate, curTo, notesCount, monthSpend)
@@ -676,6 +691,15 @@ private fun TileSummary(app: AppKey, ac: Accent, monitoring: Boolean, todayCount
         AppKey.Expenses -> Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(monthSpend, fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
             Text("this month", fontSize = 12.sp, color = colors.dim)
+        }
+        AppKey.Focus -> {
+            val context = LocalContext.current
+            val focused = LocalWindowInfo.current.isWindowFocused // refresh on return from a blocked app
+            val blocked = remember(focused) { FocusPrefs(context).blockedOn() }
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("$blocked", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
+                Text("blocked today", fontSize = 12.sp, color = colors.dim)
+            }
         }
         AppKey.Hub -> Unit
     }

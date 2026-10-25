@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.StickyNote2
@@ -47,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -70,6 +72,7 @@ import com.kamboji.quiver.ui.components.glass
 import com.kamboji.quiver.ui.theme.Accent
 import com.kamboji.quiver.ui.theme.Accents
 import com.kamboji.quiver.ui.theme.AppKey
+import com.kamboji.quiver.ui.theme.titleRes
 import com.kamboji.quiver.ui.theme.Display
 import com.kamboji.quiver.ui.theme.Quiver
 import java.time.Instant
@@ -87,6 +90,7 @@ fun Launcher(state: QuiverState) {
         AppKey.Calendar to Icons.Outlined.CalendarMonth,
         AppKey.Notes to Icons.Outlined.StickyNote2,
         AppKey.Expenses to Icons.Outlined.Payments,
+        AppKey.Focus to Icons.Outlined.SelfImprovement,
     )
     QuiverModalSheet(onDismiss = { state.launcherOpen = false }) { _ ->
         Column(
@@ -114,9 +118,7 @@ fun Launcher(state: QuiverState) {
 private fun LauncherTile(app: AppKey, icon: ImageVector, modifier: Modifier, onClick: () -> Unit) {
     val colors = Quiver.colors
     val ac = Accents.of(app)
-    val name = when (app) {
-        AppKey.Screenshots -> "Screenshots"; AppKey.Currency -> "Currency"; AppKey.Calendar -> "Calendar"; AppKey.Notes -> "Notes"; AppKey.Expenses -> "Expenses"; AppKey.Hub -> "Quiver"
-    }
+    val name = stringResource(app.titleRes)
     Column(
         modifier.clip(RoundedCornerShape(22.dp))
             .background(Brush.linearGradient(listOf(ac.a.copy(alpha = if (colors.dark) 0.2f else 0.16f), ac.b.copy(alpha = if (colors.dark) 0.08f else 0.06f))))

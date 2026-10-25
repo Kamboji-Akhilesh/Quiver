@@ -21,6 +21,8 @@ Import **merges**, it doesn't overwrite:
   installs, so matching on them would corrupt or duplicate data.
 - Newcomers get fresh ids from the receiving store.
 - Imported reminders are **rescheduled**, so a restored task still rings.
+- Currency **rate alerts** ride along (optional `rateAlerts` section, matched on
+  pair + threshold + direction); importing one restarts the background check.
 
 The pure merge logic is unit-tested.
 

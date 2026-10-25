@@ -29,8 +29,8 @@ Two ideas:
   `alert/AlertReceiver` delivers it via `alert/AlertNotifier`:
   - **notification** → a heads-up notification, with **Mark as done** and
     **Remind in 5 min** actions (`alert/AlertActionReceiver`).
-  - **call** → the full-screen `ui/calendar/CallAlert` (or `EventCallActivity`
-    when the app is closed): rings via `RingtoneManager`, keeps the task title
+  - **call** → `EventCallActivity` (shows over the lock screen) rendering
+    `ui/calendar/ReminderCallScreen`: rings via `RingtoneManager`, keeps the task title
     **hidden until you accept** (privacy on a lock screen), then speaks it and
     offers snooze +10 min / mark done / dismiss.
 - `alert/AlertDiagnostics` — surfaces the OEM battery-optimisation and
@@ -68,7 +68,7 @@ quick-add field, and a shared add/edit composer for tasks and events.
 - `CalendarViewModel.kt`, `QuickAddParser.kt`
 - `alert/` — `AlertScheduler`, `AlertReceiver`, `AlertNotifier`,
   `AlertActionReceiver`, `AlertDiagnostics`
-- `ui/calendar/CalendarScreen.kt`, `ui/calendar/CallAlert.kt`
+- `ui/calendar/CalendarScreen.kt`, `ui/calendar/ReminderCallScreen.kt`
 - `EventCallActivity.kt` — the full-screen call when the app isn't open
 
 ## Permissions

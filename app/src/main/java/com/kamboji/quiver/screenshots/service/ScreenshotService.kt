@@ -15,7 +15,8 @@ import android.provider.MediaStore
 import android.util.Log
 import com.kamboji.quiver.R
 import com.kamboji.quiver.screenshots.data.SettingsManager
-import com.kamboji.quiver.screenshots.ui.MainActivity
+import com.kamboji.quiver.ui.theme.AppKey
+import com.kamboji.quiver.widgets.openShellIntent
 
 class ScreenshotService : Service() {
 
@@ -85,7 +86,7 @@ class ScreenshotService : Service() {
         }
 
         // Intent to open the app when notification is tapped
-        val openAppIntent = Intent(this, MainActivity::class.java)
+        val openAppIntent = openShellIntent(this, AppKey.Screenshots)
         val pendingIntent = PendingIntent.getActivity(
             this,
             0,
@@ -94,7 +95,8 @@ class ScreenshotService : Service() {
         )
 
         return Notification.Builder(this, channelId)
-            .setContentTitle("Screenshot Cleaner")
+            .setGroup(channelId) // never let Android bundle Quiver's notifications — see ExpenseCapture
+            .setContentTitle("Quiver")
             .setContentText("Monitoring screenshots...")
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)

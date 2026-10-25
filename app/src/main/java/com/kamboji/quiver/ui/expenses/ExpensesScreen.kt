@@ -1,13 +1,14 @@
 package com.kamboji.quiver.ui.expenses
 
+import android.Manifest
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,12 +19,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -36,15 +33,16 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.Sms
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,15 +57,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kamboji.quiver.R
 import com.kamboji.quiver.expenses.ExpensesViewModel
 import com.kamboji.quiver.expenses.capture.PaymentCaptureService
+import com.kamboji.quiver.expenses.capture.SmsCapture
 import com.kamboji.quiver.expenses.data.Expense
 import com.kamboji.quiver.expenses.data.ExpenseCategory
 import com.kamboji.quiver.expenses.data.ExpenseMath
+import com.kamboji.quiver.ui.components.EnableAccessDialog
 import com.kamboji.quiver.ui.components.QuiverComposerSheet
 import com.kamboji.quiver.ui.components.QvDatePickerDialog
 import com.kamboji.quiver.ui.components.QvIconButton
@@ -179,10 +178,28 @@ fun ExpensesScreen(state: QuiverState) {
                 val context = LocalContext.current
                 val focused = LocalWindowInfo.current.isWindowFocused // re-check on return from Settings
                 val captureOn = remember(focused) { PaymentCaptureService.isEnabled(context) }
+                val smsOn = remember(focused) { SmsCapture.hasPermission(context) }
+                val smsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+                    if (result.values.all { it }) {
+                        SmsCapture.enqueueScan(context)
+                        state.toast("Bank SMS tracking on", ToastKind.Success)
+                    } else {
+                        state.toast("SMS permission denied — allow it in App info", ToastKind.Info)
+                    }
+                }
+                // Catch up on anything that arrived while the app was closed.
+                LaunchedEffect(smsOn) { if (smsOn) SmsCapture.enqueueScan(context) }
                 val toReview = all.filter { it.needsReview }
-                if (!captureOn) {
-                    AutoTrackCard(ac) { showEnable = true }
-                } else if (toReview.isNotEmpty()) {
+                // Bank SMS first: every debit sends one. UPI-app notifications are the extra.
+                if (!smsOn) {
+                    AutoTrackCard(ac, Icons.Outlined.Sms, "Auto-track bank SMS", "Reads only messages from bank senders (like AX-HDFCBK) — never your chats. Stays on this phone.") {
+                        smsPermission.launch(arrayOf(Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS))
+                    }
+                } else if (!captureOn) {
+                    AutoTrackCard(ac, Icons.Outlined.Notifications, "Also catch GPay & PhonePe", "Reads UPI-app payment notifications on this phone only.") { showEnable = true }
+                }
+                if (toReview.isNotEmpty()) {
+                    if (!smsOn || !captureOn) Spacer(Modifier.height(10.dp))
                     ReviewBanner(toReview.size) { sheet = ExpSheet.Edit(toReview.first()) }
                 }
 
@@ -238,58 +255,17 @@ fun ExpensesScreen(state: QuiverState) {
     }
 }
 
-/**
- * Explains the notification-access grant BEFORE bouncing to system settings.
- * There's no system popup for this (it's special app access, not a runtime
- * permission), and on Android 13+ sideloaded apps additionally need
- * "Allow restricted settings" from App info before the toggle even enables —
- * so the dialog walks through both, with a direct button for each.
- */
 @Composable
 private fun EnableCaptureDialog(onDismiss: () -> Unit) {
-    val colors = Quiver.colors
-    val ac = Accents.Expenses
     val context = LocalContext.current
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                .background(if (colors.dark) Color(0xFF14141F) else Color(0xFFFAFBFE))
-                .border(1.dp, colors.border, RoundedCornerShape(28.dp))
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text("Allow notification access", fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-            Text(
-                "Quiver reads payment notifications (GPay, PhonePe, bank SMS) to log expenses automatically. Everything is parsed on this phone — nothing is uploaded, ever.",
-                fontSize = 13.sp, color = colors.dim, lineHeight = 18.sp,
-            )
-            Text("In settings, turn ON “Quiver expense capture”.", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
-            Text(
-                "Toggle greyed out? Android locks this for sideloaded apps: open App info → tap ⋮ (top right) → “Allow restricted settings”, then come back and try again.",
-                fontSize = 12.sp, color = colors.faint, lineHeight = 16.sp,
-            )
-            Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(
-                    Modifier.weight(1f).clip(RoundedCornerShape(100.dp)).background(colors.surf)
-                        .border(1.dp, colors.border, RoundedCornerShape(100.dp))
-                        .clickable {
-                            context.startActivity(
-                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")),
-                            )
-                        }
-                        .padding(vertical = 12.dp),
-                    contentAlignment = Alignment.Center,
-                ) { Text("App info", color = colors.text, fontSize = 13.5.sp, fontWeight = FontWeight.Bold) }
-                Box(
-                    Modifier.weight(1f).clip(RoundedCornerShape(100.dp))
-                        .background(Brush.linearGradient(listOf(ac.a, ac.b)))
-                        .clickable { openListenerSettings(context); onDismiss() }
-                        .padding(vertical = 12.dp),
-                    contentAlignment = Alignment.Center,
-                ) { Text("Open settings", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.Bold) }
-            }
-        }
-    }
+    EnableAccessDialog(
+        title = "Allow notification access",
+        body = "Quiver reads payment notifications (GPay, PhonePe, bank SMS) to log expenses automatically. Everything is parsed on this phone — nothing is uploaded, ever.",
+        step = "In settings, turn ON “Quiver expense capture”.",
+        accent = Accents.Expenses,
+        onOpenSettings = { openListenerSettings(context) },
+        onDismiss = onDismiss,
+    )
 }
 
 /** Jump straight to Quiver's own listener toggle where the OS supports it. */
@@ -333,7 +309,7 @@ private fun ExpenseRow(e: Expense, onClick: () -> Unit) {
 }
 
 @Composable
-private fun AutoTrackCard(ac: com.kamboji.quiver.ui.theme.Accent, onEnable: () -> Unit) {
+private fun AutoTrackCard(ac: com.kamboji.quiver.ui.theme.Accent, icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String, onEnable: () -> Unit) {
     val colors = Quiver.colors
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
@@ -343,11 +319,11 @@ private fun AutoTrackCard(ac: com.kamboji.quiver.ui.theme.Accent, onEnable: () -
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(ac.a.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
-            Icon(Icons.Outlined.Notifications, null, Modifier.size(20.dp), tint = ac.txt(colors.dark))
+            Icon(icon, null, Modifier.size(20.dp), tint = ac.txt(colors.dark))
         }
         Column(Modifier.weight(1f)) {
-            Text("Auto-track UPI payments", fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
-            Text("Reads payment notifications on this phone only — nothing leaves the device.", fontSize = 11.5.sp, color = colors.dim, lineHeight = 15.sp)
+            Text(title, fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
+            Text(subtitle, fontSize = 11.5.sp, color = colors.dim, lineHeight = 15.sp)
         }
         Text("Enable", color = ac.txt(colors.dark), fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }

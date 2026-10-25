@@ -81,10 +81,11 @@ object ScreenshotNotification {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val text = "Will delete in ${delay.value} ${delay.unit.name.lowercase()}"
+        val text = "Will delete in ${delay.describe()}"
 
         val notification = Notification.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_notification)
+            .setGroup(channelId) // never let Android bundle Quiver's notifications — see ExpenseCapture
             .setContentTitle("Screenshot captured")
             .setContentText(text)
             .addAction(Notification.Action.Builder(null, "Cancel", cancelPendingIntent).build())

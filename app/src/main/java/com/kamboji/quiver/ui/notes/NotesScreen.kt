@@ -65,6 +65,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -296,8 +298,10 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
     var pinned by remember { mutableStateOf(existing?.pinned ?: false) }
     var savedId by remember { mutableStateOf(id) }
     var discarded by remember { mutableStateOf(false) }
-    // Existing notes open in preview; new notes open straight into editing.
+    // Existing notes open in preview; new notes open straight into editing, cursor in the title.
     var preview by remember { mutableStateOf(existing != null) }
+    val titleFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { if (existing == null) titleFocus.requestFocus() }
     val nc = NotePalette.of(colorId)
     val fg = nc.onBg(dark)
 
@@ -382,7 +386,7 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
                 } else {
                     Box(Modifier.fillMaxWidth().padding(top = 4.dp)) {
                         if (title.isEmpty()) Text("Title", color = fg.copy(alpha = 0.4f), fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        BasicTextField(title, { title = it }, textStyle = TextStyle(color = fg, fontSize = 24.sp, fontWeight = FontWeight.Bold, lineHeight = 30.sp), cursorBrush = SolidColor(nc.accent), modifier = Modifier.fillMaxWidth())
+                        BasicTextField(title, { title = it }, textStyle = TextStyle(color = fg, fontSize = 24.sp, fontWeight = FontWeight.Bold, lineHeight = 30.sp), cursorBrush = SolidColor(nc.accent), modifier = Modifier.fillMaxWidth().focusRequester(titleFocus))
                     }
                     Spacer(Modifier.height(12.dp))
                     Box(Modifier.fillMaxWidth()) {

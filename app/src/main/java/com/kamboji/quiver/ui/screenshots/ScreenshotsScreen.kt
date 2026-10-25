@@ -1,5 +1,15 @@
 package com.kamboji.quiver.ui.screenshots
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import android.content.Intent
 import android.os.Build
 import androidx.compose.foundation.background
@@ -43,6 +53,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -59,6 +71,7 @@ import com.kamboji.quiver.R
 import com.kamboji.quiver.screenshots.data.SettingsManager
 import com.kamboji.quiver.screenshots.data.db.AppDatabase
 import com.kamboji.quiver.screenshots.data.db.HistoryItem
+import com.kamboji.quiver.screenshots.data.models.DELAY_PRESETS
 import com.kamboji.quiver.screenshots.data.models.DeleteDelay
 import com.kamboji.quiver.screenshots.data.models.DelayUnit
 import com.kamboji.quiver.screenshots.search.ScreenshotMatch
@@ -83,19 +96,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val DELAYS = listOf(
-    "2 min" to DeleteDelay(2, DelayUnit.MINUTES),
-    "5 min" to DeleteDelay(5, DelayUnit.MINUTES),
-    "30 min" to DeleteDelay(30, DelayUnit.MINUTES),
-    "1 hour" to DeleteDelay(1, DelayUnit.HOURS),
-    "5 hours" to DeleteDelay(5, DelayUnit.HOURS),
-    "10 hours" to DeleteDelay(10, DelayUnit.HOURS),
-    "1 day" to DeleteDelay(1, DelayUnit.DAYS),
-    "2 days" to DeleteDelay(2, DelayUnit.DAYS),
-)
 
 private fun labelFor(d: DeleteDelay): String =
-    DELAYS.firstOrNull { it.second == d }?.first ?: "${d.value} ${d.unit.name.lowercase()}"
+    DELAY_PRESETS.firstOrNull { it.second == d }?.first ?: d.describe()
 
 /** Routes between the screenshots home and its history / search sub-screens. */
 @Composable
@@ -143,7 +146,11 @@ private fun HomeScreen(state: QuiverState) {
                     .padding(20.dp),
             ) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    // "Tap to resume" means it: the label resumes too. Active-state taps do nothing (no accidental pause).
+                    Row(
+                        Modifier.weight(1f).clickable(enabled = !enabled) { setService(true) },
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
                         Box(
                             Modifier.size(52.dp).clip(RoundedCornerShape(18.dp)).background(ac.a.copy(alpha = 0.2f))
                                 .border(1.dp, ac.a.copy(alpha = 0.45f), RoundedCornerShape(18.dp)),
@@ -185,7 +192,7 @@ private fun HomeScreen(state: QuiverState) {
             Spacer(Modifier.height(4.dp))
             Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp)) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(9.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    DELAYS.forEach { (label, d) ->
+                    DELAY_PRESETS.forEach { (label, d) ->
                         Pill(label, delay == d, ac, {
                             delay = d
                             SettingsManager.saveDelay(context, d)
@@ -275,6 +282,7 @@ private fun HistoryScreen(state: QuiverState) {
     val scope = rememberCoroutineScope()
     val dao = remember { AppDatabase.getDatabase(context).historyDao() }
     val history by remember { dao.getAllHistory() }.collectAsState(emptyList())
+    var preview by remember { mutableStateOf<HistoryItem?>(null) }
 
     Column(Modifier.fillMaxSize()) {
         QvTopBar("Deletion history", ac, onBack = { state.screenshotsScreen = "home" })
@@ -310,6 +318,7 @@ private fun HistoryScreen(state: QuiverState) {
                 items(history, key = { it.id }) { item ->
                     TrashRow(
                         item, ac,
+                        onPreview = { preview = item },
                         onRestore = {
                             scope.launch {
                                 TrashManager.restoreFromTrash(context, item)
@@ -329,12 +338,47 @@ private fun HistoryScreen(state: QuiverState) {
             }
         }
     }
+    preview?.let { TrashPreview(it) { preview = null } }
+}
+
+/** Decodes a trash file near [maxPx] on its short side — screenshots are big, rows are small. */
+private fun loadTrashBitmap(path: String?, maxPx: Int): ImageBitmap? {
+    if (path == null) return null
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeFile(path, bounds)
+    if (bounds.outWidth <= 0) return null
+    var sample = 1
+    while (minOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxPx) sample *= 2
+    return BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
+}
+
+@Composable
+private fun rememberTrashBitmap(path: String?, maxPx: Int): ImageBitmap? =
+    produceState<ImageBitmap?>(null, path) { value = withContext(Dispatchers.IO) { loadTrashBitmap(path, maxPx) } }.value
+
+/** Full-screen look at a trashed screenshot before restoring or deleting it. */
+@Composable
+private fun TrashPreview(item: HistoryItem, onDismiss: () -> Unit) {
+    val image = rememberTrashBitmap(item.trashPath, 1080)
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(
+            Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.92f)).clickable(onClick = onDismiss),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (image != null) {
+                Image(image, item.fileName, Modifier.fillMaxSize().padding(16.dp), contentScale = ContentScale.Fit)
+            } else {
+                Text("Preview unavailable", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
+            }
+        }
+    }
 }
 
 @Composable
 private fun TrashRow(
     item: HistoryItem,
     ac: com.kamboji.quiver.ui.theme.Accent,
+    onPreview: () -> Unit,
     onRestore: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -344,10 +388,15 @@ private fun TrashRow(
         Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(22.dp)).padding(13.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp),
     ) {
+        val thumb = rememberTrashBitmap(item.trashPath, 160)
         Box(
             Modifier.size(56.dp).clip(RoundedCornerShape(14.dp))
-                .background(Brush.linearGradient(listOf(Color.hsv(hue.toFloat(), 0.6f, 0.6f), Color.hsv(((hue + 40) % 360).toFloat(), 0.55f, 0.45f)))),
-        )
+                .background(Brush.linearGradient(listOf(Color.hsv(hue.toFloat(), 0.6f, 0.6f), Color.hsv(((hue + 40) % 360).toFloat(), 0.55f, 0.45f))))
+                .clickable(onClick = onPreview),
+        ) {
+            // The gradient stays as the placeholder while decoding (or if the file is gone).
+            thumb?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+        }
         Column(Modifier.weight(1f)) {
             Text(item.fileName, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text, maxLines = 1)
             Text("Deleted ${formatWhen(item.deletedAt)}", fontSize = 12.sp, color = colors.dim)
@@ -391,6 +440,8 @@ private fun SearchScreen(state: QuiverState) {
     val textDao = remember { AppDatabase.getDatabase(context).screenshotTextDao() }
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<ScreenshotMatch>>(emptyList()) }
+    val queryFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { queryFocus.requestFocus() }
 
     // Debounced query → DAO prefilter → in-memory ranking. Re-runs on each keystroke.
     LaunchedEffect(query) {
@@ -415,7 +466,7 @@ private fun SearchScreen(state: QuiverState) {
                     BasicTextField(
                         query, { query = it }, singleLine = true,
                         textStyle = TextStyle(color = colors.text, fontSize = 14.5.sp),
-                        cursorBrush = SolidColor(ac.a), modifier = Modifier.fillMaxWidth(),
+                        cursorBrush = SolidColor(ac.a), modifier = Modifier.fillMaxWidth().focusRequester(queryFocus),
                     )
                 }
             }

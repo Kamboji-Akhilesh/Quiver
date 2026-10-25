@@ -15,11 +15,14 @@ data class ShellCommand(
     val aiPrefill: String? = null,
     val aiMic: Boolean = false,
     val toast: String? = null,
+    /** Screenshots sub-screen to land on ("history", "search"); ignored for other targets. */
+    val screen: String? = null,
     /** Distinguishes two identical commands so the shell re-applies both. */
     val nonce: Long = System.currentTimeMillis(),
 ) {
     fun applyTo(state: QuiverState) {
         target?.let { state.go(it) }
+        if (target == AppKey.Screenshots && screen != null) state.screenshotsScreen = screen
         if (startNew) when (target) {
             AppKey.Notes -> state.notesStartNew = true
             AppKey.Calendar -> state.calendarStartNew = true
@@ -48,6 +51,7 @@ data class ShellCommand(
         const val EXTRA_TARGET = "quiver.target"
         const val EXTRA_START_NEW = "quiver.start_new"
         const val EXTRA_TOAST = "quiver.toast"
+        const val EXTRA_SCREEN = "quiver.screen"
         const val EXTRA_AI_PREFILL = "quiver.ai_prefill"
         const val EXTRA_AI_MIC = "quiver.ai_mic"
 
@@ -65,6 +69,7 @@ data class ShellCommand(
                     ?.let { t -> AppKey.entries.firstOrNull { it.name == t } },
                 startNew = intent.getBooleanExtra(EXTRA_START_NEW, false),
                 toast = intent.getStringExtra(EXTRA_TOAST),
+                screen = intent.getStringExtra(EXTRA_SCREEN),
             )
             else -> null
         }

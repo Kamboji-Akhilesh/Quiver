@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo
 import android.os.Build
+import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
@@ -61,11 +62,17 @@ class ModelDownloadWorker(appContext: Context, params: WorkerParameters) :
                     resp.isSuccessful -> { tmp.delete(); offset = 0L } // server ignored Range: restart
                     // The shipped model lives in a GATED HuggingFace repo: without a
                     // token the resolve request 401s (403 if the licence isn't accepted).
-                    resp.code == 401 || resp.code == 403 ->
+                    resp.code == 401 || resp.code == 403 -> {
+                        // Developer detail goes to the log; the user gets what it means for them.
+                        Log.w("ModelDownload", "Gated model HTTP ${resp.code}: accept the licence on HuggingFace and set HF_TOKEN in local.properties / CI.")
                         return@withContext fail(
-                            "This model is gated (HTTP ${resp.code}). Accept its licence on HuggingFace, " +
-                                "then add HF_TOKEN=hf_... to local.properties and rebuild.",
+                            if (BuildConfig.HF_TOKEN.isBlank()) {
+                                "This copy of Quiver can't download the AI model — it was built without download access. Everything else works normally."
+                            } else {
+                                "The AI model download was refused (HTTP ${resp.code}). Everything else works normally; try an updated build."
+                            },
                         )
+                    }
                     resp.code in 400..499 ->
                         return@withContext fail("Download failed (HTTP ${resp.code}). The model URL may have moved — update the app.")
                     else -> return@withContext Result.retry()
@@ -125,6 +132,7 @@ class ModelDownloadWorker(appContext: Context, params: WorkerParameters) :
     private fun buildNotification(pct: Int): Notification =
         Notification.Builder(applicationContext, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
+            .setGroup(CHANNEL) // never let Android bundle Quiver's notifications — see ExpenseCapture
             .setContentTitle("Installing ${AiModel.DISPLAY_NAME}")
             .setContentText("$pct% of ${AiModel.SIZE_LABEL}")
             .setProgress(100, pct, false)

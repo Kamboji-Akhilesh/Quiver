@@ -1,13 +1,14 @@
 package com.kamboji.quiver.backup
 
 import com.kamboji.quiver.calendar.data.CalendarEntry
+import com.kamboji.quiver.currency.data.RateAlert
 import com.kamboji.quiver.expenses.data.Expense
 import com.kamboji.quiver.notes.data.Note
 import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * The export/import envelope: notes + calendar + expenses in one versioned JSON
+ * The export/import envelope: notes + calendar + expenses + rate alerts in one versioned JSON
  * document, reusing each model's own toJson/fromJson. Import MERGES — existing
  * data is never overwritten; items are matched by content (not id, since id
  * sequences differ across installs) and only newcomers are added, with fresh
@@ -16,7 +17,9 @@ import org.json.JSONObject
 object QuiverBackup {
     const val VERSION = 1
 
-    fun export(notes: List<Note>, entries: List<CalendarEntry>, expenses: List<Expense>): JSONObject =
+    // rateAlerts was added later as an optional section: old backups lack it (parsed
+    // as empty) and old apps ignore it, so VERSION stays 1.
+    fun export(notes: List<Note>, entries: List<CalendarEntry>, expenses: List<Expense>, rateAlerts: List<RateAlert> = emptyList()): JSONObject =
         JSONObject().apply {
             put("app", "quiver")
             put("version", VERSION)
@@ -24,12 +27,14 @@ object QuiverBackup {
             put("notes", JSONArray().also { arr -> notes.forEach { arr.put(it.toJson()) } })
             put("calendar", JSONArray().also { arr -> entries.forEach { arr.put(it.toJson()) } })
             put("expenses", JSONArray().also { arr -> expenses.forEach { arr.put(it.toJson()) } })
+            put("rateAlerts", JSONArray().also { arr -> rateAlerts.forEach { arr.put(it.toJson()) } })
         }
 
     data class Imported(
         val notes: List<Note>,
         val entries: List<CalendarEntry>,
         val expenses: List<Expense>,
+        val rateAlerts: List<RateAlert>,
     )
 
     /** Parses an exported document. Throws on anything that isn't a Quiver backup. */
@@ -45,6 +50,7 @@ object QuiverBackup {
             notes = items("notes", Note::fromJson),
             entries = items("calendar", CalendarEntry::fromJson),
             expenses = items("expenses", Expense::fromJson),
+            rateAlerts = items("rateAlerts", RateAlert::fromJson),
         )
     }
 
@@ -59,6 +65,9 @@ object QuiverBackup {
 
     fun mergeExpenses(existing: List<Expense>, imported: List<Expense>, nextId: () -> Long): MergeResult<Expense> =
         merge(existing, imported, key = { "${it.amountPaise}|${it.atMillis}|${it.note}" }) { e -> e.copy(id = nextId()) }
+
+    fun mergeRateAlerts(existing: List<RateAlert>, imported: List<RateAlert>, nextId: () -> Long): MergeResult<RateAlert> =
+        merge(existing, imported, key = { "${it.from}|${it.to}|${it.threshold}|${it.above}" }) { a -> a.copy(id = nextId()) }
 
     private fun <T> merge(
         existing: List<T>,

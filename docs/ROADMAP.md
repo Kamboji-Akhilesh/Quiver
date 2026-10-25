@@ -50,8 +50,12 @@ Payments logged automatically from notifications — fully on-device:
   by UTR, or by amount within a 3-minute window.
 - Captures land as `auto` + `needsReview`; Expenses screen shows an enable
   card (notification access) or a review banner; editing/saving confirms.
-- NOT done (deliberate): READ_SMS fallback — the listener already sees SMS-app
-  notifications; revisit only if a bank proves silent.
+- **Bank-SMS inbox capture (2026-10-25)** — the deferred READ_SMS path turned out
+  to be required: on Android 15 the listener receives bank SMS as "Sensitive
+  notification content hidden", and WhatsApp/SMS chats with amounts were being
+  logged as payments. Now `SmsCapture` reads only bank-sender SMS from the inbox,
+  `CaptureFilter` drops personal/chat messages, and the parser understands SBI's
+  "debited by 1,180.00" (no currency marker).
 
 ## Phase 2 — Entry points: share sheet, shortcuts, quick-add, alert actions  ✅ DONE (2026-07-07)
 

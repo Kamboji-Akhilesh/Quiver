@@ -9,7 +9,8 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.media.RingtoneManager
 import com.kamboji.quiver.R
-import com.kamboji.quiver.calendar.CalendarActivity
+import com.kamboji.quiver.ui.theme.AppKey
+import com.kamboji.quiver.widgets.openShellIntent
 import com.kamboji.quiver.calendar.EventCallActivity
 import com.kamboji.quiver.calendar.data.CalendarEntry
 
@@ -29,7 +30,7 @@ object AlertNotifier {
         val open = PendingIntent.getActivity(
             context,
             entry.id.toInt(),
-            Intent(context, CalendarActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            openShellIntent(context, AppKey.Calendar),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val builder = Notification.Builder(context, ALERT_CHANNEL)
@@ -38,6 +39,7 @@ object AlertNotifier {
             .setContentText(if (entry.isEvent) "Event" else "Task")
             .setContentIntent(open)
             .setAutoCancel(true)
+            .setGroup(ALERT_CHANNEL) // never let Android bundle Quiver's notifications — see ExpenseCapture
         // Tasks can be completed straight from the notification.
         if (entry.isTask && !entry.done) {
             builder.addAction(
@@ -85,6 +87,7 @@ object AlertNotifier {
         )
         val n = Notification.Builder(context, CALL_CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
+            .setGroup(CALL_CHANNEL)
             // Privacy: the task title is hidden until the user accepts the call.
             .setContentTitle("Reminder")
             .setContentText("Incoming reminder")

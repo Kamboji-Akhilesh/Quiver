@@ -82,6 +82,7 @@ class AiAgentService : Service() {
         }
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
+            .setGroup(CHANNEL) // never let Android bundle Quiver's notifications — see ExpenseCapture
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(Notification.BigTextStyle().bigText(text))

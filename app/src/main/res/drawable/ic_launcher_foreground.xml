@@ -1,30 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The "Q" from Space Grotesk Bold (res/font/space_grotesk.ttf), as an outline so
+     it matches the in-app mark exactly. Generated; sized inside the 66dp safe zone.
+     Doubles as the monochrome layer for Android 13+ themed icons. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:pathData="M31,63.928c0,0 6.4,-11 12.1,-13.1c7.2,-2.6 26,-1.4 26,-1.4l38.1,38.1L107,108.928l-32,-1L31,63.928z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:endX="85.84757"
-                android:endY="92.4963"
-                android:startX="42.9492"
-                android:startY="49.59793"
-                android:type="linear">
-                <item
-                    android:color="#44000000"
-                    android:offset="0.0" />
-                <item
-                    android:color="#00000000"
-                    android:offset="1.0" />
-            </gradient>
-        </aapt:attr>
-    </path>
     <path
-        android:fillColor="#FFFFFF"
-        android:fillType="nonZero"
-        android:pathData="M65.3,45.828l3.8,-6.6c0.2,-0.4 0.1,-0.9 -0.3,-1.1c-0.4,-0.2 -0.9,-0.1 -1.1,0.3l-3.9,6.7c-6.3,-2.8 -13.4,-2.8 -19.7,0l-3.9,-6.7c-0.2,-0.4 -0.7,-0.5 -1.1,-0.3C38.8,38.328 38.7,38.828 38.9,39.228l3.8,6.6C36.2,49.428 31.7,56.028 31,63.928h46C76.3,56.028 71.8,49.428 65.3,45.828zM43.4,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2c-0.3,-0.7 -0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C45.3,56.528 44.5,57.328 43.4,57.328L43.4,57.328zM64.6,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2s-0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C66.5,56.528 65.6,57.328 64.6,57.328L64.6,57.328z"
-        android:strokeWidth="1"
-        android:strokeColor="#00000000" />
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54 67.83Q47.5 67.83 43.66 64.26Q39.83 60.69 39.83 54.05V45.78Q39.83 39.14 43.66 35.57Q47.5 32 54 32Q60.5 32 64.34 35.57Q68.17 39.14 68.17 45.78V54.05Q68.17 60.69 64.34 64.26Q60.5 67.83 54 67.83ZM54 62.02Q57.64 62.02 59.66 59.91Q61.68 57.79 61.68 54.25V45.58Q61.68 42.04 59.66 39.92Q57.64 37.81 54 37.81Q50.41 37.81 48.36 39.92Q46.32 42.04 46.32 45.58V54.25Q46.32 57.79 48.36 59.91Q50.41 62.02 54 62.02ZM56.26 76Q53.85 76 52.35 74.5Q50.85 73 50.85 70.49V67.14H57.15V69.5Q57.15 70.98 58.53 70.98H61.43V76Z" />
 </vector>
