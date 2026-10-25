@@ -5,6 +5,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <!-- Quiver AI voice input (speech-to-text). -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- Bank-SMS expense capture (on-device only; non-bank senders are never parsed). -->
+    <uses-permission android:name="android.permission.READ_SMS"/>
+    <uses-permission android:name="android.permission.RECEIVE_SMS"/>
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -205,6 +208,16 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+
+        <!-- Bank-SMS expense capture: SMS_RECEIVED only schedules an inbox scan (SmsCapture). -->
+        <receiver
+            android:name=".expenses.capture.SmsReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Focus: Shorts/Reels blocker. Only sees YouTube + Instagram (see focus_service.xml). -->
         <service

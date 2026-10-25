@@ -1,13 +1,14 @@
 package com.kamboji.quiver.ui.expenses
 
+import android.Manifest
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,12 +19,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -36,15 +33,16 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.Sms
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,12 +57,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kamboji.quiver.R
 import com.kamboji.quiver.expenses.ExpensesViewModel
 import com.kamboji.quiver.expenses.capture.PaymentCaptureService
+import com.kamboji.quiver.expenses.capture.SmsCapture
 import com.kamboji.quiver.expenses.data.Expense
 import com.kamboji.quiver.expenses.data.ExpenseCategory
 import com.kamboji.quiver.expenses.data.ExpenseMath
@@ -180,10 +178,28 @@ fun ExpensesScreen(state: QuiverState) {
                 val context = LocalContext.current
                 val focused = LocalWindowInfo.current.isWindowFocused // re-check on return from Settings
                 val captureOn = remember(focused) { PaymentCaptureService.isEnabled(context) }
+                val smsOn = remember(focused) { SmsCapture.hasPermission(context) }
+                val smsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+                    if (result.values.all { it }) {
+                        SmsCapture.enqueueScan(context)
+                        state.toast("Bank SMS tracking on", ToastKind.Success)
+                    } else {
+                        state.toast("SMS permission denied — allow it in App info", ToastKind.Info)
+                    }
+                }
+                // Catch up on anything that arrived while the app was closed.
+                LaunchedEffect(smsOn) { if (smsOn) SmsCapture.enqueueScan(context) }
                 val toReview = all.filter { it.needsReview }
-                if (!captureOn) {
-                    AutoTrackCard(ac) { showEnable = true }
-                } else if (toReview.isNotEmpty()) {
+                // Bank SMS first: every debit sends one. UPI-app notifications are the extra.
+                if (!smsOn) {
+                    AutoTrackCard(ac, Icons.Outlined.Sms, "Auto-track bank SMS", "Reads only messages from bank senders (like AX-HDFCBK) — never your chats. Stays on this phone.") {
+                        smsPermission.launch(arrayOf(Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS))
+                    }
+                } else if (!captureOn) {
+                    AutoTrackCard(ac, Icons.Outlined.Notifications, "Also catch GPay & PhonePe", "Reads UPI-app payment notifications on this phone only.") { showEnable = true }
+                }
+                if (toReview.isNotEmpty()) {
+                    if (!smsOn || !captureOn) Spacer(Modifier.height(10.dp))
                     ReviewBanner(toReview.size) { sheet = ExpSheet.Edit(toReview.first()) }
                 }
 
@@ -293,7 +309,7 @@ private fun ExpenseRow(e: Expense, onClick: () -> Unit) {
 }
 
 @Composable
-private fun AutoTrackCard(ac: com.kamboji.quiver.ui.theme.Accent, onEnable: () -> Unit) {
+private fun AutoTrackCard(ac: com.kamboji.quiver.ui.theme.Accent, icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String, onEnable: () -> Unit) {
     val colors = Quiver.colors
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
@@ -303,11 +319,11 @@ private fun AutoTrackCard(ac: com.kamboji.quiver.ui.theme.Accent, onEnable: () -
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(ac.a.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
-            Icon(Icons.Outlined.Notifications, null, Modifier.size(20.dp), tint = ac.txt(colors.dark))
+            Icon(icon, null, Modifier.size(20.dp), tint = ac.txt(colors.dark))
         }
         Column(Modifier.weight(1f)) {
-            Text("Auto-track UPI payments", fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
-            Text("Reads payment notifications on this phone only — nothing leaves the device.", fontSize = 11.5.sp, color = colors.dim, lineHeight = 15.sp)
+            Text(title, fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
+            Text(subtitle, fontSize = 11.5.sp, color = colors.dim, lineHeight = 15.sp)
         }
         Text("Enable", color = ac.txt(colors.dark), fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }

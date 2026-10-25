@@ -56,6 +56,18 @@ class PaymentParserTest {
     }
 
     @Test
+    fun `sbi upi sms - amount without currency marker`() {
+        // SBI's UPI debit format: no ₹/Rs/INR, and "Refno" glued together.
+        val p = PaymentParser.parse(
+            "JD-SBIUPI\nDear UPI user A/C X5678 debited by 1,180.00 on date 25Oct26 trf to ZOMATO Refno 530112233445. If not u? call 1800111109. -SBI",
+        )
+        assertNotNull(p)
+        assertEquals(118000L, p!!.amountPaise)
+        assertEquals("ZOMATO", p.payee)
+        assertEquals("530112233445", p.ref)
+    }
+
+    @Test
     fun `hdfc sms - utr and lakh grouping`() {
         val p = PaymentParser.parse("INR 1,20,000.00 debited from a/c **1234 on 06-07-26 to zomato@hdfcbank UTR 512345678901")
         assertNotNull(p)

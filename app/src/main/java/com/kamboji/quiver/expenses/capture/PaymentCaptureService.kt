@@ -1,27 +1,19 @@
 package com.kamboji.quiver.expenses.capture
 
 import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
 import android.provider.Settings
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
-import com.kamboji.quiver.R
-import com.kamboji.quiver.expenses.data.Expense
-import com.kamboji.quiver.expenses.data.ExpenseCategory
-import com.kamboji.quiver.expenses.data.ExpenseMath
-import com.kamboji.quiver.expenses.data.ExpenseStore
 
 /**
- * Auto-captures UPI/bank payments from their notifications — entirely
- * on-device (this is the private alternative to fintech apps uploading your
- * SMS). UPI and SMS apps are parsed with the full [PaymentParser]; notifications
- * from any other app must additionally contain "debited" (that covers the long
- * tail of bank apps without whitelisting hundreds of them, while keeping random
- * apps' promo notifications out).
+ * Auto-captures payments from UPI-app notifications — entirely on-device.
+ * Bank SMS are read from the inbox by [SmsCapture] (reliable, never redacted);
+ * this listener covers GPay/PhonePe/Paytm, bank apps, and — only when SMS
+ * permission isn't granted — SMS-app notifications as a fallback.
+ * [CaptureFilter] decides what may be parsed, so a friend's chat message with
+ * an amount in it never becomes an expense.
  *
  * One payment often notifies twice (UPI app + bank SMS) — [CaptureDedup]
  * collapses them by reference number, or by amount within a short window when
@@ -37,50 +29,19 @@ class PaymentCaptureService : NotificationListenerService() {
         val big = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString().orEmpty()
         val body = title + "\n" + (if (big.length >= text.length) big else text)
 
-        val trusted = sbn.packageName in UPI_APPS || sbn.packageName in SMS_APPS
-        if (!trusted && "debited" !in body.lowercase()) return
+        val source = when (sbn.packageName) {
+            in UPI_APPS -> CaptureFilter.Source.UpiApp
+            in SMS_APPS -> CaptureFilter.Source.SmsApp
+            else -> CaptureFilter.Source.Other
+        }
+        val isChat = sbn.notification.category == Notification.CATEGORY_MESSAGE
+        if (!CaptureFilter.shouldParseNotification(source, title, body, isChat, SmsCapture.hasPermission(this))) return
 
         val payment = PaymentParser.parse(body) ?: return
-        if (!CaptureDedup.firstSeen(this, payment)) return
-
-        val store = ExpenseStore(this)
-        val category = ExpenseCategory.parse(payment.payee)
-        val expense = Expense(
-            id = store.nextId(),
-            amountPaise = payment.amountPaise,
-            category = category,
-            note = payment.payee.ifBlank { "UPI payment" },
-            atMillis = System.currentTimeMillis(),
-            auto = true,
-            needsReview = true,
-        )
-        store.saveAll(store.getAll() + expense)
-        notifyCaptured(expense)
-    }
-
-    private fun notifyCaptured(e: Expense) {
-        val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(
-            NotificationChannel(CHANNEL, "Auto-tracked expenses", NotificationManager.IMPORTANCE_LOW),
-        )
-        val open = packageManager.getLaunchIntentForPackage(packageName)
-        val pi = open?.let {
-            PendingIntent.getActivity(this, 0, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        }
-        val n = Notification.Builder(this, CHANNEL)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Logged ${ExpenseMath.formatPaise(e.amountPaise)} · ${e.category.label}")
-            .setContentText("${e.note} — tap to review in Expenses")
-            .setAutoCancel(true)
-            .apply { pi?.let { setContentIntent(it) } }
-            .build()
-        nm.notify((e.id % 1000).toInt() + NOTIF_BASE, n)
+        ExpenseCapture.record(this, payment, System.currentTimeMillis())
     }
 
     companion object {
-        private const val CHANNEL = "quiver_expense_capture"
-        private const val NOTIF_BASE = 3_200_000
-
         /** UPI apps whose notifications we always try to parse. */
         val UPI_APPS = setOf(
             "com.google.android.apps.nbu.paisa.user", // Google Pay
@@ -89,7 +50,7 @@ class PaymentCaptureService : NotificationListenerService() {
             "in.org.npci.upiapp",                      // BHIM
             "com.dreamplug.androidapp",                // CRED
             "in.amazon.mShop.android.shopping",        // Amazon (Pay)
-            "com.whatsapp",                            // WhatsApp Pay
+            // Not WhatsApp: its notifications are mostly chats ("I paid ₹500 for dinner").
         )
 
         /** Stock/common SMS apps — bank debit SMS arrive as their notifications. */
@@ -98,6 +59,7 @@ class PaymentCaptureService : NotificationListenerService() {
             "com.samsung.android.messaging",
             "com.android.mms",
             "com.oneplus.mms",
+            "com.truecaller",
         )
 
         /** Whether the user has granted notification access to Quiver. */

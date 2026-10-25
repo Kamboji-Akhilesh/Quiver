@@ -28,8 +28,11 @@ object PaymentParser {
     // "₹250", "Rs.1,234.56", "INR 99", "Rs 1,20,000.00"
     private val AMOUNT = Regex("""(?i)(?:₹|rs\.?|inr)\s*([0-9][0-9,]{0,12})(?:\.([0-9]{1,2}))?""")
 
+    // SBI UPI: "A/C X5678 debited by 1,180.00" — no currency marker, but the verb pins the number down.
+    private val DEBIT_AMOUNT = Regex("""(?i)\bdebited\s+(?:by|for|with)\s+([0-9][0-9,]{0,12})(?:\.([0-9]{1,2}))?""")
+
     // "to Ramesh Tea Stall on ...", "to VPA swiggy@axisbank Ref ...", "at Chai Point"
-    private val TO_PAYEE = Regex("""(?i)\b(?:to|at)\s+(?:vpa\s+)?([^.,\n]{2,50}?)(?=\s+(?:on|via|using|ref|utr|upi|from|a/c)\b|\s*[.,\n]|$)""")
+    private val TO_PAYEE = Regex("""(?i)\b(?:to|at)\s+(?:vpa\s+)?([^.,\n]{2,50}?)(?=\s+(?:on|via|using|ref(?:no)?|utr|upi|from|a/c)\b|\s*[.,\n]|$)""")
     private val VPA = Regex("""([a-zA-Z0-9._\-]{2,}@[a-zA-Z]{2,})""")
 
     private val REF = Regex("""(?i)\b(?:utr|ref(?:erence)?(?:\s*(?:no|number|id))?)\b[:\s.#]*([a-zA-Z0-9]{6,22})""")
@@ -52,7 +55,7 @@ object PaymentParser {
         if (REJECT.any { it in lower }) return null
         if (DEBIT.none { it in lower }) return null
 
-        val m = AMOUNT.find(text) ?: return null
+        val m = AMOUNT.find(text) ?: DEBIT_AMOUNT.find(text) ?: return null
         val rupees = m.groupValues[1].replace(",", "").toLongOrNull() ?: return null
         if (rupees <= 0 || rupees > 10_000_000L) return null
         val paise = rupees * 100 + (m.groupValues[2].padEnd(2, '0').ifBlank { "00" }.toLongOrNull() ?: 0L)
