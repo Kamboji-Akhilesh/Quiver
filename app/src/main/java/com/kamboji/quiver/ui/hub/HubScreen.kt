@@ -92,6 +92,7 @@ import com.kamboji.quiver.ui.shell.ToastKind
 import com.kamboji.quiver.ui.theme.Accent
 import com.kamboji.quiver.ui.theme.Accents
 import com.kamboji.quiver.ui.theme.AppKey
+import com.kamboji.quiver.ui.theme.titleRes
 import com.kamboji.quiver.ui.theme.Body
 import com.kamboji.quiver.ui.theme.Display
 import com.kamboji.quiver.ui.theme.Mono
@@ -101,16 +102,16 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Calendar
 
-private data class AppMeta(val name: String, val tag: String, val icon: ImageVector)
+private data class AppMeta(val tag: String, val icon: ImageVector)
 
 private fun meta(app: AppKey): AppMeta = when (app) {
-    AppKey.Screenshots -> AppMeta("Screenshots", "clear the clutter", Icons.Outlined.Image)
-    AppKey.Currency -> AppMeta("Currency", "live & offline rates", Icons.Outlined.SwapHoriz)
-    AppKey.Calendar -> AppMeta("Calendar", "tasks, events & calls", Icons.Outlined.CalendarMonth)
-    AppKey.Notes -> AppMeta("Notes", "quick thoughts & lists", Icons.Outlined.StickyNote2)
-    AppKey.Expenses -> AppMeta("Expenses", "know where money goes", Icons.Outlined.Payments)
-    AppKey.Focus -> AppMeta("Focus", "block shorts & reels", Icons.Outlined.SelfImprovement)
-    AppKey.Hub -> AppMeta("Quiver", "your apps", Icons.Filled.AutoAwesome)
+    AppKey.Screenshots -> AppMeta("clear the clutter", Icons.Outlined.Image)
+    AppKey.Currency -> AppMeta("live & offline rates", Icons.Outlined.SwapHoriz)
+    AppKey.Calendar -> AppMeta("tasks, events & calls", Icons.Outlined.CalendarMonth)
+    AppKey.Notes -> AppMeta("quick thoughts & lists", Icons.Outlined.StickyNote2)
+    AppKey.Expenses -> AppMeta("know where money goes", Icons.Outlined.Payments)
+    AppKey.Focus -> AppMeta("block shorts & reels", Icons.Outlined.SelfImprovement)
+    AppKey.Hub -> AppMeta("your apps", Icons.Filled.AutoAwesome)
 }
 
 private fun greetingRes(): Int = when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
@@ -393,7 +394,7 @@ private fun AddAppSheet(available: List<AppKey>, onAdd: (AppKey) -> Unit, onDism
                             Icon(m.icon, null, Modifier.size(20.dp), tint = ac.txt(colors.dark))
                         }
                         Column(Modifier.weight(1f)) {
-                            Text(m.name, fontSize = 14.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                            Text(stringResource(app.titleRes), fontSize = 14.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
                             Text(m.tag, fontSize = 12.sp, color = colors.dim)
                         }
                         Text("Add", color = ac.txt(colors.dark), fontSize = 13.sp, fontWeight = FontWeight.Bold)
@@ -652,7 +653,7 @@ private fun BentoTile(
                 contentAlignment = Alignment.Center,
             ) { Icon(m.icon, null, Modifier.size(24.dp), tint = ac.txt(colors.dark)) }
             Spacer(Modifier.weight(1f))
-            Text(m.name, fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+            Text(stringResource(app.titleRes), fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
             Text(m.tag, fontSize = 12.5.sp, color = colors.dim)
             Spacer(Modifier.height(11.dp))
             TileSummary(app, ac, monitoring, todayCount, curRate, curTo, notesCount, monthSpend)

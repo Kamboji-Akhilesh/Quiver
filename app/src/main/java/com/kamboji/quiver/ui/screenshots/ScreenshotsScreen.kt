@@ -43,6 +43,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -143,7 +145,11 @@ private fun HomeScreen(state: QuiverState) {
                     .padding(20.dp),
             ) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    // "Tap to resume" means it: the label resumes too. Active-state taps do nothing (no accidental pause).
+                    Row(
+                        Modifier.weight(1f).clickable(enabled = !enabled) { setService(true) },
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
                         Box(
                             Modifier.size(52.dp).clip(RoundedCornerShape(18.dp)).background(ac.a.copy(alpha = 0.2f))
                                 .border(1.dp, ac.a.copy(alpha = 0.45f), RoundedCornerShape(18.dp)),
@@ -391,6 +397,8 @@ private fun SearchScreen(state: QuiverState) {
     val textDao = remember { AppDatabase.getDatabase(context).screenshotTextDao() }
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<ScreenshotMatch>>(emptyList()) }
+    val queryFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { queryFocus.requestFocus() }
 
     // Debounced query → DAO prefilter → in-memory ranking. Re-runs on each keystroke.
     LaunchedEffect(query) {
@@ -415,7 +423,7 @@ private fun SearchScreen(state: QuiverState) {
                     BasicTextField(
                         query, { query = it }, singleLine = true,
                         textStyle = TextStyle(color = colors.text, fontSize = 14.5.sp),
-                        cursorBrush = SolidColor(ac.a), modifier = Modifier.fillMaxWidth(),
+                        cursorBrush = SolidColor(ac.a), modifier = Modifier.fillMaxWidth().focusRequester(queryFocus),
                     )
                 }
             }

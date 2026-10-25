@@ -9,6 +9,7 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import com.kamboji.quiver.R
 
 /**
  * Surface/text tokens for one brightness, mirroring the design's `T` object.
@@ -93,6 +94,18 @@ object Accents {
 
 /** The primary surfaces the dock and accent system switch between. */
 enum class AppKey { Hub, Screenshots, Currency, Calendar, Notes, Expenses, Focus }
+
+/** Localised display name — the same string as the app's screen title. */
+val AppKey.titleRes: Int
+    get() = when (this) {
+        AppKey.Hub -> R.string.app_name
+        AppKey.Screenshots -> R.string.title_screenshots
+        AppKey.Currency -> R.string.title_currency
+        AppKey.Calendar -> R.string.title_calendar
+        AppKey.Notes -> R.string.title_notes
+        AppKey.Expenses -> R.string.title_expenses
+        AppKey.Focus -> R.string.title_focus
+    }
 
 val LocalQuiverColors = staticCompositionLocalOf { DarkColors }
 val LocalAccent = staticCompositionLocalOf { Accents.Hub }
