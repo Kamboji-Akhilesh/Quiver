@@ -62,6 +62,7 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -109,7 +110,7 @@ private fun meta(app: AppKey): AppMeta = when (app) {
     AppKey.Currency -> AppMeta("live & offline rates", Icons.Outlined.SwapHoriz)
     AppKey.Calendar -> AppMeta("tasks, events & calls", Icons.Outlined.CalendarMonth)
     AppKey.Notes -> AppMeta("quick thoughts & lists", Icons.Outlined.StickyNote2)
-    AppKey.Expenses -> AppMeta("know where money goes", Icons.Outlined.Payments)
+    AppKey.Expenses -> AppMeta("where money goes", Icons.Outlined.Payments)
     AppKey.Focus -> AppMeta("block shorts & reels", Icons.Outlined.SelfImprovement)
     AppKey.Hub -> AppMeta("your apps", Icons.Filled.AutoAwesome)
 }
@@ -654,7 +655,8 @@ private fun BentoTile(
             ) { Icon(m.icon, null, Modifier.size(24.dp), tint = ac.txt(colors.dark)) }
             Spacer(Modifier.weight(1f))
             Text(stringResource(app.titleRes), fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-            Text(m.tag, fontSize = 12.5.sp, color = colors.dim)
+            // One line, always: a wrapped tagline pushes the summary row down and breaks the tile grid.
+            Text(m.tag, fontSize = 12.5.sp, color = colors.dim, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(11.dp))
             TileSummary(app, ac, monitoring, todayCount, curRate, curTo, notesCount, monthSpend)
         }
