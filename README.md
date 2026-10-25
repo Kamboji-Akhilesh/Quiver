@@ -96,6 +96,15 @@ stored in paise as integers, so the math is never wrong. Month totals, per-categ
 bars, day-grouped list.
 → [`expenses/`](app/src/main/java/com/kamboji/quiver/expenses/README.md)
 
+### 🧘 Focus — *no more accidental Shorts*
+**Problem:** you open YouTube or Instagram for one thing and lose an hour to
+Shorts/Reels; blocker apps that fix this want to watch everything you do.
+**Solution:** the moment the Shorts or Reels player opens, Quiver presses Back
+(or closes the app). Its accessibility access is limited by Android to **only
+YouTube and Instagram**; it checks which screen is showing, never reads text,
+and keeps nothing but a "blocked today" count.
+→ [`focus/`](app/src/main/java/com/kamboji/quiver/focus/FocusPolicy.kt)
+
 ---
 
 ## Ways in — Quiver, without opening Quiver
@@ -171,7 +180,7 @@ app/src/main/java/com/kamboji/quiver/
 │   ├── ai/           # the Quiver AI chat panel
 │   ├── onboarding/   # first-run flow
 │   ├── locale/       # per-app language switching
-│   └── {calendar,notes,expenses,screenshots,currency}/   # the screens
+│   └── {calendar,notes,expenses,screenshots,currency,focus}/   # the screens
 │
 ├── ai/               # on-device agent: engine, tools, planner, TTS, model mgmt
 ├── screenshots/      # auto-cleaner + OCR index & search
@@ -179,6 +188,7 @@ app/src/main/java/com/kamboji/quiver/
 ├── calendar/         # tasks/events, alarms, full-screen call alerts
 ├── notes/            # note model + store
 ├── expenses/         # expense model + store + UPI notification capture
+├── focus/            # Shorts/Reels blocker (accessibility service + policy)
 │
 ├── widgets/          # Glance home-screen widgets
 ├── share/            # share-sheet router + shortcut/intent bridge

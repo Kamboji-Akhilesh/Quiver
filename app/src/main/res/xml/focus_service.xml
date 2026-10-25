@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+   Focus (Shorts/Reels blocker). packageNames is the privacy boundary: the OS
+   delivers events ONLY from these two apps — keep it in sync with FocusTarget.
+   flagReportViewIds exposes view ids (how the player is recognised);
+   canRetrieveWindowContent lets the service look them up.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagReportViewIds"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/focus_service_description"
+    android:isAccessibilityTool="false"
+    android:notificationTimeout="100"
+    android:packageNames="com.google.android.youtube,com.instagram.android" />

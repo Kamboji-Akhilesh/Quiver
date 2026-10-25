@@ -206,6 +206,20 @@
             </intent-filter>
         </service>
 
+        <!-- Focus: Shorts/Reels blocker. Only sees YouTube + Instagram (see focus_service.xml). -->
+        <service
+            android:name=".focus.FocusService"
+            android:exported="false"
+            android:label="Quiver Focus (Shorts &amp; Reels blocker)"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/focus_service" />
+        </service>
+
     </application>
 
 </manifest>

@@ -64,6 +64,7 @@ class QuiverState {
         AppKey.Calendar to false,
         AppKey.Notes to false,
         AppKey.Expenses to false,
+        AppKey.Focus to false,
     )
 
     fun toggleTheme() {

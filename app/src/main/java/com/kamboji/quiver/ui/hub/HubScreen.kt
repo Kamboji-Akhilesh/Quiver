@@ -35,6 +35,7 @@ import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.StickyNote2
@@ -57,6 +58,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -73,6 +75,7 @@ import com.kamboji.quiver.currency.Ui
 import com.kamboji.quiver.expenses.ExpensesViewModel
 import com.kamboji.quiver.expenses.data.ExpenseMath
 import com.kamboji.quiver.expenses.data.ExpenseStore
+import com.kamboji.quiver.focus.FocusPrefs
 import com.kamboji.quiver.notes.NotesViewModel
 import com.kamboji.quiver.notes.data.NotesStore
 import com.kamboji.quiver.screenshots.data.SettingsManager
@@ -104,6 +107,7 @@ private fun meta(app: AppKey): AppMeta = when (app) {
     AppKey.Calendar -> AppMeta("Calendar", "tasks, events & calls", Icons.Outlined.CalendarMonth)
     AppKey.Notes -> AppMeta("Notes", "quick thoughts & lists", Icons.Outlined.StickyNote2)
     AppKey.Expenses -> AppMeta("Expenses", "know where money goes", Icons.Outlined.Payments)
+    AppKey.Focus -> AppMeta("Focus", "block shorts & reels", Icons.Outlined.SelfImprovement)
     AppKey.Hub -> AppMeta("Quiver", "your apps", Icons.Filled.AutoAwesome)
 }
 
@@ -156,7 +160,7 @@ fun HubScreen(state: QuiverState) {
     val dashApps = remember { mutableStateListOf<AppKey>().also { it.addAll(hubPrefs.dashboardApps()) } }
     var showAddPicker by remember { mutableStateOf(false) }
     var showLangSheet by remember { mutableStateOf(false) }
-    val allApps = listOf(AppKey.Screenshots, AppKey.Currency, AppKey.Calendar, AppKey.Notes, AppKey.Expenses)
+    val allApps = listOf(AppKey.Screenshots, AppKey.Currency, AppKey.Calendar, AppKey.Notes, AppKey.Expenses, AppKey.Focus)
 
     // Only hit the currency API if its tile is actually on the dashboard.
     val currencyOnDash = AppKey.Currency in dashApps
@@ -676,6 +680,15 @@ private fun TileSummary(app: AppKey, ac: Accent, monitoring: Boolean, todayCount
         AppKey.Expenses -> Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(monthSpend, fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
             Text("this month", fontSize = 12.sp, color = colors.dim)
+        }
+        AppKey.Focus -> {
+            val context = LocalContext.current
+            val focused = LocalWindowInfo.current.isWindowFocused // refresh on return from a blocked app
+            val blocked = remember(focused) { FocusPrefs(context).blockedOn() }
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("$blocked", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
+                Text("blocked today", fontSize = 12.sp, color = colors.dim)
+            }
         }
         AppKey.Hub -> Unit
     }

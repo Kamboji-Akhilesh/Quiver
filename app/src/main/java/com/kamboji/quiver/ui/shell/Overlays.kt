@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.StickyNote2
@@ -87,6 +88,7 @@ fun Launcher(state: QuiverState) {
         AppKey.Calendar to Icons.Outlined.CalendarMonth,
         AppKey.Notes to Icons.Outlined.StickyNote2,
         AppKey.Expenses to Icons.Outlined.Payments,
+        AppKey.Focus to Icons.Outlined.SelfImprovement,
     )
     QuiverModalSheet(onDismiss = { state.launcherOpen = false }) { _ ->
         Column(
@@ -115,7 +117,7 @@ private fun LauncherTile(app: AppKey, icon: ImageVector, modifier: Modifier, onC
     val colors = Quiver.colors
     val ac = Accents.of(app)
     val name = when (app) {
-        AppKey.Screenshots -> "Screenshots"; AppKey.Currency -> "Currency"; AppKey.Calendar -> "Calendar"; AppKey.Notes -> "Notes"; AppKey.Expenses -> "Expenses"; AppKey.Hub -> "Quiver"
+        AppKey.Screenshots -> "Screenshots"; AppKey.Currency -> "Currency"; AppKey.Calendar -> "Calendar"; AppKey.Notes -> "Notes"; AppKey.Expenses -> "Expenses"; AppKey.Focus -> "Focus"; AppKey.Hub -> "Quiver"
     }
     Column(
         modifier.clip(RoundedCornerShape(22.dp))

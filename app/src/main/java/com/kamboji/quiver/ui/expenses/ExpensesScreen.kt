@@ -68,6 +68,7 @@ import com.kamboji.quiver.expenses.capture.PaymentCaptureService
 import com.kamboji.quiver.expenses.data.Expense
 import com.kamboji.quiver.expenses.data.ExpenseCategory
 import com.kamboji.quiver.expenses.data.ExpenseMath
+import com.kamboji.quiver.ui.components.EnableAccessDialog
 import com.kamboji.quiver.ui.components.QuiverComposerSheet
 import com.kamboji.quiver.ui.components.QvDatePickerDialog
 import com.kamboji.quiver.ui.components.QvIconButton
@@ -238,58 +239,17 @@ fun ExpensesScreen(state: QuiverState) {
     }
 }
 
-/**
- * Explains the notification-access grant BEFORE bouncing to system settings.
- * There's no system popup for this (it's special app access, not a runtime
- * permission), and on Android 13+ sideloaded apps additionally need
- * "Allow restricted settings" from App info before the toggle even enables —
- * so the dialog walks through both, with a direct button for each.
- */
 @Composable
 private fun EnableCaptureDialog(onDismiss: () -> Unit) {
-    val colors = Quiver.colors
-    val ac = Accents.Expenses
     val context = LocalContext.current
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                .background(if (colors.dark) Color(0xFF14141F) else Color(0xFFFAFBFE))
-                .border(1.dp, colors.border, RoundedCornerShape(28.dp))
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text("Allow notification access", fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-            Text(
-                "Quiver reads payment notifications (GPay, PhonePe, bank SMS) to log expenses automatically. Everything is parsed on this phone — nothing is uploaded, ever.",
-                fontSize = 13.sp, color = colors.dim, lineHeight = 18.sp,
-            )
-            Text("In settings, turn ON “Quiver expense capture”.", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
-            Text(
-                "Toggle greyed out? Android locks this for sideloaded apps: open App info → tap ⋮ (top right) → “Allow restricted settings”, then come back and try again.",
-                fontSize = 12.sp, color = colors.faint, lineHeight = 16.sp,
-            )
-            Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(
-                    Modifier.weight(1f).clip(RoundedCornerShape(100.dp)).background(colors.surf)
-                        .border(1.dp, colors.border, RoundedCornerShape(100.dp))
-                        .clickable {
-                            context.startActivity(
-                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")),
-                            )
-                        }
-                        .padding(vertical = 12.dp),
-                    contentAlignment = Alignment.Center,
-                ) { Text("App info", color = colors.text, fontSize = 13.5.sp, fontWeight = FontWeight.Bold) }
-                Box(
-                    Modifier.weight(1f).clip(RoundedCornerShape(100.dp))
-                        .background(Brush.linearGradient(listOf(ac.a, ac.b)))
-                        .clickable { openListenerSettings(context); onDismiss() }
-                        .padding(vertical = 12.dp),
-                    contentAlignment = Alignment.Center,
-                ) { Text("Open settings", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.Bold) }
-            }
-        }
-    }
+    EnableAccessDialog(
+        title = "Allow notification access",
+        body = "Quiver reads payment notifications (GPay, PhonePe, bank SMS) to log expenses automatically. Everything is parsed on this phone — nothing is uploaded, ever.",
+        step = "In settings, turn ON “Quiver expense capture”.",
+        accent = Accents.Expenses,
+        onOpenSettings = { openListenerSettings(context) },
+        onDismiss = onDismiss,
+    )
 }
 
 /** Jump straight to Quiver's own listener toggle where the OS supports it. */
