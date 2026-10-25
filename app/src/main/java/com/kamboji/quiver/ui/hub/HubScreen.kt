@@ -73,6 +73,8 @@ import com.kamboji.quiver.calendar.data.CalendarStore
 import com.kamboji.quiver.currency.CurrencyViewModel
 import com.kamboji.quiver.currency.Ui
 import com.kamboji.quiver.expenses.ExpensesViewModel
+import com.kamboji.quiver.currency.worker.RateAlertWorker
+import com.kamboji.quiver.currency.data.RateAlertStore
 import com.kamboji.quiver.expenses.data.ExpenseMath
 import com.kamboji.quiver.expenses.data.ExpenseStore
 import com.kamboji.quiver.focus.FocusPrefs
@@ -444,6 +446,7 @@ private fun DataSection(state: QuiverState) {
                 NotesStore(context).getAll(),
                 CalendarStore(context).getAll(),
                 ExpenseStore(context).getAll(),
+                RateAlertStore(context).getAll(),
             )
             context.contentResolver.openOutputStream(uri)!!.use { it.write(doc.toString(2).toByteArray()) }
         }.onSuccess { state.toast("Backup saved") }
@@ -470,17 +473,24 @@ private fun DataSection(state: QuiverState) {
             val exp = QuiverBackup.mergeExpenses(expStore.getAll(), imported.expenses) { expStore.nextId() }
             expStore.saveAll(exp.merged)
 
-            Triple(notes.added.size, cal.added.size, exp.added.size)
-        }.onSuccess { (n, c, e) ->
+            val alertStore = RateAlertStore(context)
+            val alerts = QuiverBackup.mergeRateAlerts(alertStore.getAll(), imported.rateAlerts) { alertStore.nextId() }
+            alertStore.saveAll(alerts.merged)
+            // Imported alerts need the background check running to ever fire.
+            if (alerts.added.any { !it.triggered }) RateAlertWorker.ensureScheduled(context)
+
+            listOf(notes.added.size, cal.added.size, exp.added.size, alerts.added.size)
+        }.onSuccess { (n, c, e, a) ->
             state.toast(
-                if (n + c + e == 0) "Everything was already here"
-                else "Imported $n note${if (n == 1) "" else "s"} · $c calendar · $e expense${if (e == 1) "" else "s"}",
+                if (n + c + e + a == 0) "Everything was already here"
+                else "Imported $n note${if (n == 1) "" else "s"} · $c calendar · $e expense${if (e == 1) "" else "s"}" +
+                    if (a > 0) " · $a alert${if (a == 1) "" else "s"}" else "",
             )
         }.onFailure { state.toast("That file isn't a Quiver backup", ToastKind.Error) }
     }
 
     Column(Modifier.fillMaxWidth().glass(colors).padding(6.dp)) {
-        DataRow(Icons.Outlined.FileUpload, "Export data", "Notes, calendar & expenses → one file", true) {
+        DataRow(Icons.Outlined.FileUpload, "Export data", "Notes, calendar, expenses & alerts → one file", true) {
             exporter.launch("quiver-backup-${LocalDate.now()}.json")
         }
         DataRow(Icons.Outlined.FileDownload, "Import data", "Merge a backup into this phone", false) {

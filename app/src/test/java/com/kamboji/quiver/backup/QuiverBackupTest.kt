@@ -4,6 +4,7 @@ import com.kamboji.quiver.calendar.data.AlertLead
 import com.kamboji.quiver.calendar.data.AlertStyle
 import com.kamboji.quiver.calendar.data.CalendarEntry
 import com.kamboji.quiver.calendar.data.EntryType
+import com.kamboji.quiver.currency.data.RateAlert
 import com.kamboji.quiver.expenses.data.Expense
 import com.kamboji.quiver.expenses.data.ExpenseCategory
 import com.kamboji.quiver.notes.data.Note
@@ -36,6 +37,20 @@ class QuiverBackupTest {
         assertEquals("n1", back.notes.single().title)
         assertEquals("e1", back.entries.single().title)
         assertEquals(4200L, back.expenses.single().amountPaise)
+    }
+
+    private fun alert(id: Long, threshold: Double) = RateAlert(id, "USD", "INR", threshold, true, 1000L, 94.9)
+
+    @Test
+    fun `rate alerts round-trip and merge on pair, threshold and direction`() {
+        val back = QuiverBackup.parse(QuiverBackup.export(emptyList(), emptyList(), emptyList(), listOf(alert(1, 96.0))).toString())
+        assertEquals(96.0, back.rateAlerts.single().threshold, 0.0)
+
+        var seq = 10L
+        val r = QuiverBackup.mergeRateAlerts(listOf(alert(1, 96.0)), listOf(alert(7, 96.0), alert(8, 97.0))) { ++seq }
+        assertEquals(1, r.added.size)
+        assertEquals(97.0, r.added.single().threshold, 0.0)
+        assertEquals(11L, r.added.single().id)
     }
 
     @Test
