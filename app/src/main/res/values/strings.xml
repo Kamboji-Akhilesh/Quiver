@@ -1,3 +1,86 @@
 <resources>
     <string name="app_name">Quiver</string>
+
+    <!-- Launcher shortcuts -->
+    <string name="shortcut_new_note">New note</string>
+    <string name="shortcut_new_note_long">Write a new note</string>
+    <string name="shortcut_new_task">New task</string>
+    <string name="shortcut_new_task_long">Add a task or event</string>
+    <string name="shortcut_add_expense">Add expense</string>
+    <string name="shortcut_add_expense_long">Record an expense</string>
+    <string name="shortcut_ask_ai">Ask AI</string>
+    <string name="shortcut_ask_ai_long">Ask Quiver AI</string>
+
+    <!-- Home-screen widgets -->
+    <string name="widget_agenda_label">Today\'s agenda</string>
+    <string name="widget_agenda_desc">Today\'s tasks and events — check tasks off right here</string>
+    <string name="widget_quick_actions_label">Quick actions</string>
+    <string name="widget_quick_actions_desc">New note, task, expense, or speak to Quiver AI</string>
+    <string name="widget_spend_label">Month spend</string>
+    <string name="widget_spend_desc">This month\'s spending and top categories</string>
+
+    <!-- Settings / language -->
+    <string name="settings_language">Language</string>
+    <string name="settings_language_system">System default</string>
+
+    <!-- Hub -->
+    <string name="hub_caught_up">You\'re all caught up</string>
+    <string name="greeting_morning">Good morning</string>
+    <string name="greeting_afternoon">Good afternoon</string>
+    <string name="greeting_evening">Good evening</string>
+    <string name="qa_clean">Clean now</string>
+    <string name="qa_convert">Convert</string>
+    <string name="qa_new_event">New event</string>
+    <string name="qa_new_note">New note</string>
+    <string name="qa_add_expense">Add expense</string>
+    <string name="qa_ask_ai">Ask AI</string>
+    <string name="section_mini_apps">Mini apps</string>
+    <string name="section_recent">Recent activity</string>
+    <string name="section_your_data">Your data</string>
+
+    <!-- Mini-app screen titles -->
+    <string name="title_calendar">Calendar</string>
+    <string name="title_notes">Notes</string>
+    <string name="title_expenses">Expenses</string>
+    <string name="title_screenshots">Screenshots</string>
+    <string name="title_currency">Currency</string>
+
+    <!-- Dock -->
+    <string name="dock_home">Home</string>
+    <string name="dock_search">Search</string>
+    <string name="dock_apps">Apps</string>
+    <string name="dock_calendar">Calendar</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_p1_title">Everything on your phone</string>
+    <string name="onboarding_p1_body">Screenshots, currency, calendar, notes and expenses — small tools glued together by one assistant. No accounts, no cloud: your data never leaves this device.</string>
+    <string name="onboarding_p2_title">Alerts that actually help</string>
+    <string name="onboarding_p2_body">Quiver rings you for reminders, offers to clean fresh screenshots, and logs UPI spends from payment notifications. Android needs your OK before any of that can show up.</string>
+    <string name="onboarding_p3_title">Your on-device AI</string>
+    <string name="onboarding_p3_body">%1$s (%2$s) handles reminders like \"tomorrow evening\" in English, हिन्दी, বাংলা, தமிழ், తెలుగు and मराठी — entirely offline. Install it now or later from the AI button.</string>
+    <string name="onboarding_continue">Continue</string>
+    <string name="onboarding_allow_notifications">Allow notifications</string>
+    <string name="onboarding_not_now">Not now</string>
+    <string name="onboarding_install_ai">Install AI model</string>
+    <string name="onboarding_maybe_later">Maybe later</string>
+
+    <!-- Calendar quick-add -->
+    <string name="quick_add_placeholder">Quick add — “dentist tomorrow 6pm”</string>
+    <string name="quick_add_hint">Try “dentist tomorrow 6pm”</string>
+    <!-- %1$s is the date and time, e.g. "Jul 8, 6:00 pm" -->
+    <string name="quick_add_added_task">Added task · %1$s</string>
+    <string name="quick_add_added_event">Added event · %1$s</string>
+
+    <!-- Home-screen widgets -->
+    <string name="widget_note">Note</string>
+    <string name="widget_task">Task</string>
+    <string name="widget_expense">Expense</string>
+    <string name="widget_speak">Speak</string>
+    <!-- %1$s is the abbreviated month name, e.g. "Jul" -->
+    <string name="widget_spend_title">%1$s spend</string>
+    <string name="widget_no_expenses">No expenses yet this month.</string>
+    <string name="widget_today">Today</string>
+    <string name="widget_nothing_scheduled">Nothing scheduled — enjoy it.</string>
+    <string name="widget_more">+%1$d more</string>
 </resources>

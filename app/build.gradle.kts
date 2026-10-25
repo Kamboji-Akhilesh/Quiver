@@ -16,11 +16,21 @@ val cartesiaApiKey: String = run {
     props.getProperty("CARTESIA_API_KEY") ?: System.getenv("CARTESIA_API_KEY") ?: ""
 }
 
+// HuggingFace read token. REQUIRED to download the shipped model: AiModel
+// .DOWNLOAD_URL points at litert-community/Gemma3-1B-IT, a GATED repo that 401s
+// (or 403s, if you haven't accepted the Gemma license) for anonymous requests —
+// ModelDownloadWorker sends this as a Bearer header and surfaces those codes.
+// Put `HF_TOKEN=hf_...` in local.properties (gitignored) or set it as a CI env
+// var. Empty by default, in which case the in-app model download fails.
+val hfToken: String = run {
+    val props = Properties()
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { props.load(it) }
+    props.getProperty("HF_TOKEN") ?: System.getenv("HF_TOKEN") ?: ""
+}
+
 android {
     namespace = "com.kamboji.quiver"
     compileSdk = 36
-    // Pinned to the NDK that builds the llama.cpp (GGUF) native engine.
-    ndkVersion = "27.0.12077973"
 
     defaultConfig {
         applicationId = "com.kamboji.quiver"
@@ -33,10 +43,12 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Real phones are arm64; building llama.cpp for one ABI keeps the APK slim.
+        // Real phones are arm64; shipping one ABI of MediaPipe's/ML Kit's native
+        // libraries keeps the APK slim.
         ndk { abiFilters += "arm64-v8a" }
 
         buildConfigField("String", "CARTESIA_API_KEY", "\"$cartesiaApiKey\"")
+        buildConfigField("String", "HF_TOKEN", "\"$hfToken\"")
     }
 
     buildFeatures {
@@ -72,18 +84,12 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+}
 
-    // GGUF / llama.cpp native engine. Wired only once the llama.cpp submodule is
-    // present (see app/src/main/cpp/README.md), so the build is unaffected until
-    // you add it. When present, it builds libllama-android.so for arm64-v8a.
-    if (file("src/main/cpp/llama.cpp/CMakeLists.txt").exists()) {
-        externalNativeBuild {
-            cmake {
-                path = file("src/main/cpp/CMakeLists.txt")
-                version = "3.22.1"
-            }
-        }
-    }
+// AppFunctions KSP: aggregate this module's @AppFunction declarations into the
+// metadata the OS assistant (Gemini) reads.
+ksp {
+    arg("appfunctions:aggregateAppFunctions", "true")
 }
 
 dependencies {
@@ -113,6 +119,22 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     debugImplementation(libs.compose.ui.tooling)
+
+    // Home-screen widgets (agenda / quick actions / month spend)
+    implementation(libs.androidx.glance.appwidget)
+
+    // On-device LLM runtime: runs the Gemma 3 1B .task (MediaPipe LLM Inference).
+    implementation(libs.mediapipe.tasks.genai)
+
+    // On-device OCR for screenshot search (bundled Latin + Devanagari models)
+    implementation(libs.mlkit.text.recognition)
+    implementation(libs.mlkit.text.recognition.devanagari)
+
+    // AppFunctions — expose Quiver actions to the OS assistant (Gemini, SDK 36+).
+    // Alpha API, pinned; all usage isolated in the appfunctions/ package.
+    implementation(libs.androidx.appfunctions)
+    implementation(libs.androidx.appfunctions.service)
+    ksp(libs.androidx.appfunctions.compiler)
 
     // Currency networking
     implementation(libs.kotlinx.coroutines.android)

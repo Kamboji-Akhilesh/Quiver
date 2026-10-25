@@ -36,6 +36,12 @@ class QuiverState {
 
     var searchOpen by mutableStateOf(false)
     var aiOpen by mutableStateOf(false)
+
+    /** One-shot: pre-filled AI input (from the share sheet); cleared on close. */
+    var aiPrefill by mutableStateOf<String?>(null)
+
+    /** One-shot: open the AI panel already listening (widget mic); cleared on close. */
+    var aiStartMic by mutableStateOf(false)
     var launcherOpen by mutableStateOf(false)
     var call by mutableStateOf<CallPhase?>(null)
     var callTitle by mutableStateOf("Reminder")

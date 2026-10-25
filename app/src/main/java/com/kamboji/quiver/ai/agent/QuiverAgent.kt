@@ -35,14 +35,12 @@ class QuiverAgent(
      */
     suspend fun run(userText: String, progress: (String) -> Unit, log: (String) -> Unit = {}): Result {
         progress("Loading model…")
-        // The GBNF grammar makes llama.cpp's sampler physically unable to emit
-        // anything but valid tool-call JSON in the agreed shape.
-        val grammar = runCatching {
-            app.assets.open("quiver_tools.gbnf").bufferedReader().use { it.readText() }
-        }.getOrNull()
+        // No grammar any more: the MediaPipe runtime can't constrain decoding, so a
+        // valid plan is coaxed out by low temperature + PlanJson.repair + the
+        // corrective round below rather than guaranteed by the sampler.
         // The engine stays resident between requests (EngineHolder) so only the
         // first message after a quiet period pays the model-load cost.
-        return EngineHolder.use(app, modelPath, grammar) { engine ->
+        return EngineHolder.use(app, modelPath) { engine ->
             val done = mutableListOf<String>()
             var findings: String? = null
             var reply: String? = null
@@ -157,13 +155,15 @@ class QuiverAgent(
         "read_note" -> "Reading your notes…"
         "add_expense" -> "Recording the expense…"
         "list_expenses" -> "Checking your spending…"
+        "search_screenshots" -> "Searching your screenshots…"
+        "add_rate_alert" -> "Setting a rate alert…"
         else -> "Working: $tool…"
     }
 
     private fun prompt(userText: String, findings: String? = null, badAttempt: String? = null): String {
         val findingsBlock = if (findings == null) "" else
             "\nYou already ran the information tools. Results:\n${findings.trim()}\n\n" +
-                "Now finish the user's request using these results (answer, or write the notes / tasks / events). Do not call web_search, list_agenda, read_note or list_expenses again.\n"
+                "Now finish the user's request using these results (answer, or write the notes / tasks / events). Do not call web_search, list_agenda, read_note, list_expenses or search_screenshots again.\n"
         val correctionBlock = if (badAttempt == null) "" else
             "\nYour previous answer was rejected because it was prose instead of the required JSON. It said:\n" +
                 badAttempt.trim().take(400) +
@@ -175,9 +175,8 @@ class QuiverAgent(
         val time = now.format(DateTimeFormatter.ofPattern("HH:mm"))
         val zone = ZoneId.systemDefault().id
         // "steps" precedes "reply" in the shape: the model commits to tool calls
-        // before writing prose. The GBNF grammar and the fine-tuning dataset
-        // (training/generate_dataset.py mirrors this text byte-for-byte) encode
-        // exactly this shape — keep all three in sync.
+        // before writing prose. The fine-tuning dataset mirrors this text
+        // byte-for-byte (training/generate_dataset.py) — keep the two in sync.
         //
         // Placeholders are substituted AFTER trimIndent on purpose: interpolating
         // multi-line text (tool specs, findings) directly into the raw string
@@ -197,7 +196,7 @@ class QuiverAgent(
             Rules:
             - Resolve relative dates yourself from today's date. Use "date":"YYYY-MM-DD" and 24h "time":"HH:mm". Dayparts: morning=09:00, afternoon=14:00, evening=18:00, night=20:00.
             - When the task needs information from the internet or facts you are unsure about (recipes, how-tos, prices, current facts), call web_search first — its results come back to you and you can then finish the task. Content you know well you may write yourself. Checklist items are lines like "- [ ] item".
-            - To answer questions about the user's own calendar, notes or spending, call list_agenda, read_note or list_expenses first — their content comes back to you the same way.
+            - To answer questions about the user's own calendar, notes, spending or screenshots, call list_agenda, read_note, list_expenses or search_screenshots first — their content comes back to you the same way.
             - You may use several steps in order. To add content under an existing note, use append_note.
             - If no action is needed (just chatting), return "steps":[] and put your answer in "reply".
             - Output JSON only.
@@ -220,9 +219,11 @@ class QuiverAgent(
     }
 
     private companion object {
-        // Watchdog so a wedged/too-large model surfaces an error instead of a
-        // permanent "Thinking…". Generous, since big models are legitimately slow.
-        const val GEN_TIMEOUT_MS = 600_000L
+        // Per-round watchdog so a wedged model surfaces an error instead of a
+        // permanent "Thinking…". MediaPipe honours cancellation mid-generation, so
+        // this timeout is actually enforced — the old llama.cpp prefill ignored it.
+        // 4 min is ample for one turn of a ~1B model even on a slow first run.
+        const val GEN_TIMEOUT_MS = 240_000L
 
         // Plan → (info tools) → finish. One follow-up round is enough for a small
         // model; more just multiplies latency and drift.
@@ -230,7 +231,7 @@ class QuiverAgent(
 
         // Tools whose OUTPUT the model needs before it can finish the request.
         // They run alone in round 1; their results come back as findings.
-        val INFO_TOOLS = setOf("web_search", "list_agenda", "read_note", "list_expenses")
+        val INFO_TOOLS = setOf("web_search", "list_agenda", "read_note", "list_expenses", "search_screenshots")
     }
 }
 

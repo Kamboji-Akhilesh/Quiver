@@ -34,14 +34,40 @@
         <!-- adjustResize is REQUIRED for imePadding() to work: without it the
              window PANS when the keyboard opens, and bottom-sheet buttons end
              up hidden under the IME (the recurring "vanishing button" bug). -->
+        <!-- singleTask so shortcut/share deep links reuse the running shell via
+             onNewIntent instead of stacking a second copy of the whole app. -->
         <activity
             android:name=".ui.shell.QuiverActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.ScreenshotCleaner">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity>
+        <!-- Receives ACTION_SEND so shared text/images flow into Quiver: text
+             becomes a note / task / expense / AI question, images get a
+             scheduled screenshot cleanup. -->
+        <activity
+            android:name=".share.ShareActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.ScreenshotCleaner.Share">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
             </intent-filter>
         </activity>
         <!-- Legacy bento hub, retained while screens migrate into the shell. -->
@@ -98,6 +124,41 @@
             android:theme="@style/Theme.ScreenshotCleaner"
             android:exported="false"
             android:parentActivityName=".screenshots.ui.HistoryActivity"/>
+
+        <!-- Home-screen widgets (Glance) -->
+        <receiver
+            android:name=".widgets.AgendaWidgetReceiver"
+            android:label="@string/widget_agenda_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_agenda" />
+        </receiver>
+        <receiver
+            android:name=".widgets.QuickActionsWidgetReceiver"
+            android:label="@string/widget_quick_actions_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_quick_actions" />
+        </receiver>
+        <receiver
+            android:name=".widgets.SpendWidgetReceiver"
+            android:label="@string/widget_spend_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_spend" />
+        </receiver>
 
         <!-- Broadcast Receivers -->
         <receiver android:name=".screenshots.receiver.CancelReceiver"/>

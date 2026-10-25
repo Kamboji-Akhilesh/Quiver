@@ -136,8 +136,19 @@ EN = {
     "r_rate": ["Checking the {A} to {B} rate.", "Fetching {A}→{B}."],
     "t_convert": ["convert {n} {a} to {b}", "what's {n} {a} in {b}?", "how much is {n} {a} in {b}"],
     "r_convert": ["Converting {n} {A} to {B}.", "Let me convert that for you."],
+    "t_rate_alert": ["alert me when 1 {a_s} crosses {n} {b}", "tell me when 1 {a_s} hits {n} {b}",
+                     "notify me if the {a} to {b} rate passes {n}", "let me know when 1 {a_s} goes past {n} {b}"],
+    "r_rate_alert": ["Alert set — I'll tell you when it crosses {n} {B}.", "Done, watching {A}→{B} for {n}."],
     "t_trash": ["how many screenshots are in my trash?", "check my screenshot trash", "what's sitting in the screenshot trash?"],
     "r_trash": ["Let me check your screenshot trash.", "Checking the trash now."],
+    "ss_finds": [("the wifi password", "wifi password", "wifi password", "cafe-guest-8842"),
+                 ("the OTP", "OTP", "OTP", "418302"),
+                 ("that address", "address", "address", "42 Park Street, Kolkata 700016"),
+                 ("the locker code", "locker code", "locker code", "77-15-38")],
+    "t_search_ss": ["what was {thing} I screenshotted?", "find {thing} in my screenshots",
+                    "search my screenshots for {thing}", "dig up {thing} from my screenshots"],
+    "r_search_ss_r1": ["Let me search your screenshots.", "Checking your screenshots."],
+    "r_search_ss": ["Your {label} is {value}.", "From your screenshot — {label}: {value}."],
     "days": [("tomorrow", "{tomorrow}"), ("on Friday", "{friday}"), ("on Monday", "{monday}"),
              ("on Saturday", "{saturday}"), ("today", "{today}")],
     "t_agenda": ["what's on my calendar {day}?", "what do I have {day}?", "any plans {day}?",
@@ -239,8 +250,19 @@ HI = {
     "r_rate": ["{A} से {B} का रेट देख रहा हूँ।"],
     "t_convert": ["{n} {a} कितने {b} होंगे?", "{n} {a} को {b} में बदलो"],
     "r_convert": ["{n} {A} को {B} में बदल रहा हूँ।"],
+    "t_rate_alert": ["जब 1 {a_s} {n} {b} पार कर जाए तो बताना", "{a} का {b} रेट {n} पहुँचे तो अलर्ट करना",
+                     "मुझे बताना जब 1 {a_s} {n} {b} से ऊपर जाए"],
+    "r_rate_alert": ["अलर्ट सेट कर दिया — {n} {B} पार होते ही बता दूँगा।", "ठीक है, {A}→{B} पर नज़र रखूँगा।"],
     "t_trash": ["मेरे ट्रैश में कितने स्क्रीनशॉट हैं?", "स्क्रीनशॉट ट्रैश चेक करो"],
     "r_trash": ["स्क्रीनशॉट ट्रैश चेक कर रहा हूँ।"],
+    "ss_finds": [("वाईफाई पासवर्ड", "wifi password", "वाईफाई पासवर्ड", "cafe-guest-8842"),
+                 ("ओटीपी", "OTP", "ओटीपी", "418302"),
+                 ("वो पता", "address", "पता", "42 पार्क स्ट्रीट, कोलकाता 700016"),
+                 ("लॉकर कोड", "locker code", "लॉकर कोड", "77-15-38")],
+    "t_search_ss": ["मैंने जो {thing} स्क्रीनशॉट किया था वो क्या था?", "मेरे स्क्रीनशॉट में {thing} ढूँढो",
+                    "स्क्रीनशॉट्स में {thing} सर्च करो"],
+    "r_search_ss_r1": ["स्क्रीनशॉट खोज रहा हूँ।", "स्क्रीनशॉट देख रहा हूँ।"],
+    "r_search_ss": ["आपका {label} है: {value}।", "स्क्रीनशॉट से — {label}: {value}।"],
     "days": [("कल", "{tomorrow}"), ("शुक्रवार को", "{friday}"), ("सोमवार को", "{monday}"), ("आज", "{today}")],
     "t_agenda": ["{day} मेरे कैलेंडर में क्या है?", "{day} क्या-क्या करना है?", "{day} के टास्क और इवेंट बताओ"],
     "r_agenda_r1": ["कैलेंडर देख रहा हूँ।"],
@@ -324,8 +346,18 @@ BN = {
     "r_rate": ["{A} থেকে {B}-র রেট দেখছি।"],
     "t_convert": ["{n} {a} কত {b} হবে?", "{n} {a}-কে {b}-তে বদলাও"],
     "r_convert": ["{n} {A}-কে {B}-তে রূপান্তর করছি।"],
+    "t_rate_alert": ["1 {a_s} যখন {n} {b} পার করবে তখন জানিও", "{a} থেকে {b} রেট {n} ছুঁলে অ্যালার্ট দিও",
+                     "1 {a_s} {n} {b}-এর উপরে গেলে জানিও"],
+    "r_rate_alert": ["অ্যালার্ট সেট — {n} {B} পার হলেই জানাব।", "ঠিক আছে, {A}→{B} নজরে রাখছি।"],
     "t_trash": ["আমার ট্র্যাশে কটা স্ক্রিনশট আছে?", "স্ক্রিনশট ট্র্যাশ চেক করো"],
     "r_trash": ["স্ক্রিনশট ট্র্যাশ চেক করছি।"],
+    "ss_finds": [("ওয়াইফাই পাসওয়ার্ড", "wifi password", "ওয়াইফাই পাসওয়ার্ড", "cafe-guest-8842"),
+                 ("ওটিপি", "OTP", "ওটিপি", "418302"),
+                 ("সেই ঠিকানা", "address", "ঠিকানা", "42 Park Street, Kolkata 700016")],
+    "t_search_ss": ["আমি যে {thing} স্ক্রিনশট নিয়েছিলাম সেটা কী ছিল?", "আমার স্ক্রিনশটে {thing} খোঁজো",
+                    "স্ক্রিনশটে {thing} সার্চ করো"],
+    "r_search_ss_r1": ["স্ক্রিনশট খুঁজছি।", "স্ক্রিনশট দেখছি।"],
+    "r_search_ss": ["আপনার {label}: {value}।", "স্ক্রিনশট থেকে — {label}: {value}।"],
     "days": [("আগামীকাল", "{tomorrow}"), ("শুক্রবার", "{friday}"), ("সোমবার", "{monday}"), ("আজ", "{today}")],
     "t_agenda": ["{day} আমার ক্যালেন্ডারে কী আছে?", "{day} কী কী করতে হবে?"],
     "r_agenda_r1": ["ক্যালেন্ডার দেখছি।"],
@@ -406,8 +438,18 @@ TA = {
     "r_rate": ["{A} - {B} ரேட்டை பார்க்கிறேன்."],
     "t_convert": ["{n} {a} எத்தனை {b}?", "{n} {a}-ஐ {b}-ஆக மாற்று"],
     "r_convert": ["{n} {A}-ஐ {B}-ஆக மாற்றுகிறேன்."],
+    "t_rate_alert": ["1 {a_s} {n} {b} தாண்டினா சொல்லு", "{a} to {b} ரேட் {n} தொட்டா அலர்ட் பண்ணு",
+                     "1 {a_s} {n} {b}-ஐ தாண்டினா தெரியப்படுத்து"],
+    "r_rate_alert": ["அலர்ட் செட் — {n} {B} தாண்டினா சொல்றேன்.", "சரி, {A}→{B} கவனிக்கிறேன்."],
     "t_trash": ["என் ட்ராஷில் எத்தனை ஸ்கிரீன்ஷாட் இருக்கு?", "ஸ்கிரீன்ஷாட் ட்ராஷை செக் பண்ணு"],
     "r_trash": ["ஸ்கிரீன்ஷாட் ட்ராஷை பார்க்கிறேன்."],
+    "ss_finds": [("வைஃபை பாஸ்வேர்டு", "wifi password", "வைஃபை பாஸ்வேர்டு", "cafe-guest-8842"),
+                 ("ஓடிபி", "OTP", "ஓடிபி", "418302"),
+                 ("அந்த முகவரி", "address", "முகவரி", "42 Park Street, Chennai 600001")],
+    "t_search_ss": ["நான் ஸ்கிரீன்ஷாட் எடுத்த {thing} என்ன?", "என் ஸ்கிரீன்ஷாட்டில் {thing} தேடு",
+                    "ஸ்கிரீன்ஷாட்டில் {thing} சர்ச் பண்ணு"],
+    "r_search_ss_r1": ["ஸ்கிரீன்ஷாட்டை தேடுகிறேன்.", "ஸ்கிரீன்ஷாட்டை பார்க்கிறேன்."],
+    "r_search_ss": ["உங்கள் {label}: {value}.", "ஸ்கிரீன்ஷாட்டில் இருந்து — {label}: {value}."],
     "days": [("நாளை", "{tomorrow}"), ("வெள்ளிக்கிழமை", "{friday}"), ("திங்கள்", "{monday}"), ("இன்று", "{today}")],
     "t_agenda": ["{day} என் காலெண்டரில் என்ன இருக்கு?", "{day} என்ன என்ன செய்யணும்?"],
     "r_agenda_r1": ["காலெண்டரை பார்க்கிறேன்."],
@@ -488,8 +530,18 @@ TE = {
     "r_rate": ["{A} నుంచి {B} రేటు చూస్తున్నాను."],
     "t_convert": ["{n} {a} ఎన్ని {b} అవుతాయి?", "{n} {a}ని {b}లోకి మార్చు"],
     "r_convert": ["{n} {A}ని {B}లోకి మారుస్తున్నాను."],
+    "t_rate_alert": ["1 {a_s} {n} {b} దాటితే చెప్పు", "{a} to {b} రేటు {n} తాకితే అలర్ట్ చేయి",
+                     "1 {a_s} {n} {b} పైకి వెళ్తే తెలియజేయి"],
+    "r_rate_alert": ["అలర్ట్ సెట్ — {n} {B} దాటగానే చెప్తాను.", "సరే, {A}→{B} గమనిస్తాను."],
     "t_trash": ["నా ట్రాష్‌లో ఎన్ని స్క్రీన్‌షాట్లు ఉన్నాయి?", "స్క్రీన్‌షాట్ ట్రాష్ చెక్ చేయి"],
     "r_trash": ["స్క్రీన్‌షాట్ ట్రాష్ చూస్తున్నాను."],
+    "ss_finds": [("వైఫై పాస్‌వర్డ్", "wifi password", "వైఫై పాస్‌వర్డ్", "cafe-guest-8842"),
+                 ("ఓటీపీ", "OTP", "ఓటీపీ", "418302"),
+                 ("ఆ అడ్రస్", "address", "అడ్రస్", "42 Park Street, Hyderabad 500001")],
+    "t_search_ss": ["నేను స్క్రీన్‌షాట్ తీసిన {thing} ఏంటి?", "నా స్క్రీన్‌షాట్లలో {thing} వెతుకు",
+                    "స్క్రీన్‌షాట్లలో {thing} సర్చ్ చేయి"],
+    "r_search_ss_r1": ["స్క్రీన్‌షాట్లు వెతుకుతున్నాను.", "స్క్రీన్‌షాట్లు చూస్తున్నాను."],
+    "r_search_ss": ["మీ {label}: {value}.", "స్క్రీన్‌షాట్ నుంచి — {label}: {value}."],
     "days": [("రేపు", "{tomorrow}"), ("శుక్రవారం", "{friday}"), ("సోమవారం", "{monday}"), ("ఈరోజు", "{today}")],
     "t_agenda": ["{day} నా క్యాలెండర్‌లో ఏం ఉంది?", "{day} ఏం చేయాలి?"],
     "r_agenda_r1": ["క్యాలెండర్ చూస్తున్నాను."],
@@ -570,8 +622,18 @@ MR = {
     "r_rate": ["{A} ते {B} रेट बघतोय."],
     "t_convert": ["{n} {a} किती {b} होतील?", "{n} {a}चे {b}त रूपांतर कर"],
     "r_convert": ["{n} {A}चे {B}त रूपांतर करतोय."],
+    "t_rate_alert": ["1 {a_s} {n} {b} ओलांडला की सांग", "{a} ते {b} रेट {n} झाला की अलर्ट कर",
+                     "1 {a_s} {n} {b} च्या वर गेला की कळव"],
+    "r_rate_alert": ["अलर्ट सेट — {n} {B} ओलांडताच सांगेन.", "ठीक आहे, {A}→{B} वर लक्ष ठेवतो."],
     "t_trash": ["माझ्या ट्रॅशमध्ये किती स्क्रीनशॉट आहेत?", "स्क्रीनशॉट ट्रॅश चेक कर"],
     "r_trash": ["स्क्रीनशॉट ट्रॅश बघतोय."],
+    "ss_finds": [("वायफाय पासवर्ड", "wifi password", "वायफाय पासवर्ड", "cafe-guest-8842"),
+                 ("ओटीपी", "OTP", "ओटीपी", "418302"),
+                 ("तो पत्ता", "address", "पत्ता", "42 Park Street, Mumbai 400001")],
+    "t_search_ss": ["मी स्क्रीनशॉट घेतलेला {thing} काय होता?", "माझ्या स्क्रीनशॉटमध्ये {thing} शोध",
+                    "स्क्रीनशॉटमध्ये {thing} सर्च कर"],
+    "r_search_ss_r1": ["स्क्रीनशॉट शोधतोय.", "स्क्रीनशॉट बघतोय."],
+    "r_search_ss": ["तुमचा {label}: {value}.", "स्क्रीनशॉटमधून — {label}: {value}."],
     "days": [("उद्या", "{tomorrow}"), ("शुक्रवारी", "{friday}"), ("सोमवारी", "{monday}"), ("आज", "{today}")],
     "t_agenda": ["{day} माझ्या कॅलेंडरमध्ये काय आहे?", "{day} काय काय करायचे आहे?"],
     "r_agenda_r1": ["कॅलेंडर बघतोय."],
@@ -600,12 +662,12 @@ MR = {
 
 PACKS = {"en": EN, "hi": HI, "bn": BN, "ta": TA, "te": TE, "mr": MR}
 
-# Scenario weights (recipe/agenda/readnote/spend count double: r1+r2 pairs).
+# Scenario weights (recipe/agenda/readnote/spend/search_ss count double: r1+r2 pairs).
 WEIGHTS = [
     ("note_checklist", 12), ("note_text", 4), ("task", 13), ("event", 9),
     ("note_task", 8), ("recipe", 7), ("append", 5), ("rate", 5),
     ("convert", 5), ("trash", 3), ("chat", 7), ("agenda", 5), ("readnote", 5),
-    ("expense", 8), ("spend", 4),
+    ("expense", 8), ("spend", 4), ("search_ss", 4), ("rate_alert", 4),
 ]
 
 AMOUNTS = [20, 45, 60, 80, 99, 120, 150, 199, 250, 300, 349, 450, 500, 650, 799, 1200, 2500]
@@ -624,6 +686,7 @@ def _group_indian(n: int) -> str:
     return ",".join(parts) + "," + tail
 
 CONVERT_AMOUNTS = [20, 50, 75, 99, 100, 150, 250, 500, 1000, 2500]
+RATE_THRESHOLDS = [75, 80, 85, 88, 90, 92, 95, 100, 110, 120, 1.1, 0.85]
 NOTE_VALUES = ["quiver-guest-2027", "4517", "8829", "Kx7-2214", "meter 004312", "72-15-38", "flat-303-b"]
 
 
@@ -733,9 +796,29 @@ def _build(rng, pack, kind):
         return [{"user": user, "output": {"steps": [
             {"tool": "convert", "args": {"amount": n, "from": a_code, "to": b_code}}], "reply": reply}}]
 
+    if kind == "rate_alert":
+        (a_name, a_code), (b_name, b_code) = rng.sample(pack["currencies"], 2)
+        n = rng.choice(RATE_THRESHOLDS)
+        user = _fill(rng, rng.choice(pack["t_rate_alert"]), a=a_name, b=b_name, a_s=a_name.rstrip("s"), n=str(n))
+        reply = _fill(rng, rng.choice(pack["r_rate_alert"]), n=str(n), A=a_code, B=b_code)
+        return [{"user": user, "output": {"steps": [
+            {"tool": "add_rate_alert", "args": {"from": a_code, "to": b_code, "threshold": n}}], "reply": reply}}]
+
     if kind == "trash":
         return [{"user": rng.choice(pack["t_trash"]), "output": {"steps": [
             {"tool": "check_trash", "args": {}}], "reply": rng.choice(pack["r_trash"])}}]
+
+    if kind == "search_ss":
+        thing, query, label, value = rng.choice(pack["ss_finds"])
+        user = _fill(rng, rng.choice(pack["t_search_ss"]), thing=thing)
+        # Round 1: ONLY the search — the answer waits for the matched text.
+        r1 = {"user": user, "output": {"steps": [
+            {"tool": "search_screenshots", "args": {"query": query}}], "reply": rng.choice(pack["r_search_ss_r1"])}}
+        # Round 2: findings embedded (same shape the tool returns), answer only.
+        findings = f'Screenshot text matching "{query}":\n- Screenshot_2027-05-09.png: …{value}…'
+        reply = _fill(rng, rng.choice(pack["r_search_ss"]), label=label, value=value)
+        r2 = {"user": user, "findings": findings, "output": {"steps": [], "reply": reply}}
+        return [r1, r2]
 
     if kind == "expense":
         amt = rng.choice(AMOUNTS)

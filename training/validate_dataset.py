@@ -24,13 +24,13 @@ CODE_RE = re.compile(r"^[A-Z]{3}$")
 PLACEHOLDER_RE = re.compile(r"\{(today|tomorrow|day_after|friday|monday|saturday|this_month|last_month)\}")
 
 TOOLS = {"web_search", "add_note", "append_note", "add_task", "add_event", "check_trash", "get_rate", "convert",
-         "list_agenda", "read_note", "add_expense", "list_expenses"}
+         "list_agenda", "read_note", "add_expense", "list_expenses", "search_screenshots", "add_rate_alert"}
 
 CATEGORIES = {"food", "groceries", "transport", "shopping", "bills", "health", "entertainment", "other"}
 PERIOD_RE = re.compile(r"^\d{4}-\d{2}$")
 
 # Tools that must only appear in round 1 (their output feeds the next round).
-INFO_TOOLS = {"web_search", "list_agenda", "read_note", "list_expenses"}
+INFO_TOOLS = {"web_search", "list_agenda", "read_note", "list_expenses", "search_screenshots"}
 
 
 def check_step(step: dict) -> str | None:
@@ -84,6 +84,12 @@ def check_step(step: dict) -> str | None:
             return f"add_expense date must be YYYY-MM-DD, got {args.get('date')!r}"
     if tool == "list_expenses" and "period" in args and not PERIOD_RE.match(str(args["period"])):
         return f"list_expenses period must be YYYY-MM, got {args.get('period')!r}"
+    if tool == "add_rate_alert":
+        if not (CODE_RE.match(str(args.get("from", ""))) and CODE_RE.match(str(args.get("to", "")))):
+            return "add_rate_alert needs 3-letter uppercase from/to codes"
+        thr = args.get("threshold")
+        if not isinstance(thr, (int, float)) or thr <= 0:
+            return f"add_rate_alert threshold must be a positive number, got {thr!r}"
     return None
 
 

@@ -1,5 +1,7 @@
 package com.kamboji.quiver.ui.hub
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,6 +29,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Payments
@@ -52,22 +57,31 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kamboji.quiver.R
+import com.kamboji.quiver.backup.QuiverBackup
 import com.kamboji.quiver.calendar.CalendarViewModel
+import com.kamboji.quiver.calendar.alert.AlertScheduler
+import com.kamboji.quiver.calendar.data.CalendarStore
 import com.kamboji.quiver.currency.CurrencyViewModel
 import com.kamboji.quiver.currency.Ui
 import com.kamboji.quiver.expenses.ExpensesViewModel
 import com.kamboji.quiver.expenses.data.ExpenseMath
+import com.kamboji.quiver.expenses.data.ExpenseStore
 import com.kamboji.quiver.notes.NotesViewModel
+import com.kamboji.quiver.notes.data.NotesStore
 import com.kamboji.quiver.screenshots.data.SettingsManager
 import com.kamboji.quiver.screenshots.data.db.AppDatabase
 import com.kamboji.quiver.ui.components.QuiverModalSheet
 import com.kamboji.quiver.ui.components.SectionLabel
 import com.kamboji.quiver.ui.components.glass
+import com.kamboji.quiver.ui.locale.AppLang
+import com.kamboji.quiver.ui.locale.AppLocale
 import com.kamboji.quiver.ui.shell.QuiverState
 import com.kamboji.quiver.ui.shell.ToastKind
 import com.kamboji.quiver.ui.theme.Accent
@@ -93,10 +107,10 @@ private fun meta(app: AppKey): AppMeta = when (app) {
     AppKey.Hub -> AppMeta("Quiver", "your apps", Icons.Filled.AutoAwesome)
 }
 
-private fun greeting(): String = when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
-    in 0..11 -> "Good morning"
-    in 12..16 -> "Good afternoon"
-    else -> "Good evening"
+private fun greetingRes(): Int = when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
+    in 0..11 -> R.string.greeting_morning
+    in 12..16 -> R.string.greeting_afternoon
+    else -> R.string.greeting_evening
 }
 
 private fun timeAgo(ts: Long): String {
@@ -141,6 +155,7 @@ fun HubScreen(state: QuiverState) {
     }
     val dashApps = remember { mutableStateListOf<AppKey>().also { it.addAll(hubPrefs.dashboardApps()) } }
     var showAddPicker by remember { mutableStateOf(false) }
+    var showLangSheet by remember { mutableStateOf(false) }
     val allApps = listOf(AppKey.Screenshots, AppKey.Currency, AppKey.Calendar, AppKey.Notes, AppKey.Expenses)
 
     // Only hit the currency API if its tile is actually on the dashboard.
@@ -167,7 +182,7 @@ fun HubScreen(state: QuiverState) {
             verticalAlignment = Alignment.Top,
         ) {
             Column {
-                Text(greeting(), color = colors.dim, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text(stringResource(greetingRes()), color = colors.dim, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                 Row {
                     Text("Your ", fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
                     Text(
@@ -181,7 +196,9 @@ fun HubScreen(state: QuiverState) {
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 HeaderIcon(if (colors.dark) Icons.Filled.LightMode else Icons.Filled.DarkMode) { state.toggleTheme() }
-                HeaderIcon(Icons.Outlined.Notifications) { state.toast("You're all caught up", ToastKind.Info) }
+                HeaderIcon(Icons.Outlined.Language) { showLangSheet = true }
+                val caughtUp = stringResource(R.string.hub_caught_up)
+                HeaderIcon(Icons.Outlined.Notifications) { state.toast(caughtUp, ToastKind.Info) }
                 Box(
                     Modifier.size(44.dp).clip(CircleShape)
                         .background(Brush.linearGradient(listOf(Color(0xFFA78BFA), Color(0xFF22D3EE)))),
@@ -237,17 +254,17 @@ fun HubScreen(state: QuiverState) {
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(9.dp),
         ) {
-            QuickAction("Clean now", Icons.Outlined.Image, Accents.Screenshots) { state.go(AppKey.Screenshots) }
-            QuickAction("Convert", Icons.Outlined.SwapHoriz, Accents.Currency) { state.go(AppKey.Currency) }
-            QuickAction("New event", Icons.Filled.Add, Accents.Calendar) { state.go(AppKey.Calendar); state.calendarStartNew = true }
-            QuickAction("New note", Icons.Outlined.StickyNote2, Accents.Notes) { state.go(AppKey.Notes); state.notesStartNew = true }
-            QuickAction("Add expense", Icons.Outlined.Payments, Accents.Expenses) { state.go(AppKey.Expenses); state.expensesStartNew = true }
-            QuickAction("Ask AI", Icons.Filled.AutoAwesome, Accents.Hub) { state.closeOverlays(); state.aiOpen = true }
+            QuickAction(stringResource(R.string.qa_clean), Icons.Outlined.Image, Accents.Screenshots) { state.go(AppKey.Screenshots) }
+            QuickAction(stringResource(R.string.qa_convert), Icons.Outlined.SwapHoriz, Accents.Currency) { state.go(AppKey.Currency) }
+            QuickAction(stringResource(R.string.qa_new_event), Icons.Filled.Add, Accents.Calendar) { state.go(AppKey.Calendar); state.calendarStartNew = true }
+            QuickAction(stringResource(R.string.qa_new_note), Icons.Outlined.StickyNote2, Accents.Notes) { state.go(AppKey.Notes); state.notesStartNew = true }
+            QuickAction(stringResource(R.string.qa_add_expense), Icons.Outlined.Payments, Accents.Expenses) { state.go(AppKey.Expenses); state.expensesStartNew = true }
+            QuickAction(stringResource(R.string.qa_ask_ai), Icons.Filled.AutoAwesome, Accents.Hub) { state.closeOverlays(); state.aiOpen = true }
         }
 
         // ---- mini apps ----
         Spacer(Modifier.height(22.dp))
-        SectionLabel("Mini apps") {
+        SectionLabel(stringResource(R.string.section_mini_apps)) {
             Row(
                 Modifier.clip(RoundedCornerShape(100.dp))
                     .background(if (state.editMode) Accents.Hub.glow.copy(alpha = 0.15f) else colors.surf)
@@ -281,7 +298,7 @@ fun HubScreen(state: QuiverState) {
 
         // ---- recent activity (real) ----
         Spacer(Modifier.height(22.dp))
-        SectionLabel("Recent activity")
+        SectionLabel(stringResource(R.string.section_recent))
         Spacer(Modifier.height(4.dp))
         val activity = buildHubActivity(trash, entries, noteList)
         Column(Modifier.fillMaxWidth().glass(colors).padding(6.dp)) {
@@ -296,6 +313,12 @@ fun HubScreen(state: QuiverState) {
                 }
             }
         }
+
+        // ---- your data (export / import) ----
+        Spacer(Modifier.height(22.dp))
+        SectionLabel(stringResource(R.string.section_your_data))
+        Spacer(Modifier.height(4.dp))
+        DataSection(state)
     }
 
     if (showAddPicker) {
@@ -306,6 +329,39 @@ fun HubScreen(state: QuiverState) {
             },
             onDismiss = { showAddPicker = false },
         )
+    }
+    if (showLangSheet) LanguageSheet(onDismiss = { showLangSheet = false })
+}
+
+@Composable
+private fun LanguageSheet(onDismiss: () -> Unit) {
+    val colors = Quiver.colors
+    val context = LocalContext.current
+    val current = remember { AppLocale.current(context) }
+    QuiverModalSheet(onDismiss) { hide ->
+        Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(stringResource(R.string.settings_language), fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text, modifier = Modifier.padding(bottom = 10.dp))
+            AppLang.entries.forEach { lang ->
+                val sel = lang == current
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                        .background(if (sel) Accents.Hub.a.copy(alpha = 0.14f) else Color.Transparent)
+                        .clickable {
+                            AppLocale.set(context, lang)
+                            hide()
+                            // Re-attach the base context so the new locale takes effect app-wide.
+                            (context as? android.app.Activity)?.recreate()
+                        }.padding(horizontal = 14.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        if (lang == AppLang.SYSTEM) stringResource(R.string.settings_language_system) else lang.label,
+                        fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = colors.text, modifier = Modifier.weight(1f),
+                    )
+                    if (sel) Icon(Icons.Filled.Check, null, Modifier.size(20.dp), tint = Accents.Hub.txt(colors.dark))
+                }
+            }
+        }
     }
 }
 
@@ -367,6 +423,89 @@ private fun buildHubActivity(
         add(HubActivity(Icons.Outlined.StickyNote2, "Edited “$name”", AppKey.Notes, it.updatedAtMillis))
     }
 }.sortedByDescending { it.ts }.take(3)
+
+/**
+ * Export/import of the three JSON stores. SAF pickers keep this permissionless:
+ * the user chooses where the backup goes / comes from.
+ */
+@Composable
+private fun DataSection(state: QuiverState) {
+    val colors = Quiver.colors
+    val context = LocalContext.current
+
+    val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching {
+            val doc = QuiverBackup.export(
+                NotesStore(context).getAll(),
+                CalendarStore(context).getAll(),
+                ExpenseStore(context).getAll(),
+            )
+            context.contentResolver.openOutputStream(uri)!!.use { it.write(doc.toString(2).toByteArray()) }
+        }.onSuccess { state.toast("Backup saved") }
+            .onFailure { state.toast("Export failed", ToastKind.Error) }
+    }
+
+    val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching {
+            val text = context.contentResolver.openInputStream(uri)!!.bufferedReader().use { it.readText() }
+            val imported = QuiverBackup.parse(text)
+
+            val notesStore = NotesStore(context)
+            val notes = QuiverBackup.mergeNotes(notesStore.getAll(), imported.notes) { notesStore.nextId() }
+            notesStore.saveAll(notes.merged)
+
+            val calStore = CalendarStore(context)
+            val cal = QuiverBackup.mergeEntries(calStore.getAll(), imported.entries) { calStore.nextId() }
+            calStore.saveAll(cal.merged)
+            // Imported reminders should fire like locally-created ones.
+            cal.added.forEach { AlertScheduler.reschedule(context, it) }
+
+            val expStore = ExpenseStore(context)
+            val exp = QuiverBackup.mergeExpenses(expStore.getAll(), imported.expenses) { expStore.nextId() }
+            expStore.saveAll(exp.merged)
+
+            Triple(notes.added.size, cal.added.size, exp.added.size)
+        }.onSuccess { (n, c, e) ->
+            state.toast(
+                if (n + c + e == 0) "Everything was already here"
+                else "Imported $n note${if (n == 1) "" else "s"} · $c calendar · $e expense${if (e == 1) "" else "s"}",
+            )
+        }.onFailure { state.toast("That file isn't a Quiver backup", ToastKind.Error) }
+    }
+
+    Column(Modifier.fillMaxWidth().glass(colors).padding(6.dp)) {
+        DataRow(Icons.Outlined.FileUpload, "Export data", "Notes, calendar & expenses → one file", true) {
+            exporter.launch("quiver-backup-${LocalDate.now()}.json")
+        }
+        DataRow(Icons.Outlined.FileDownload, "Import data", "Merge a backup into this phone", false) {
+            importer.launch(arrayOf("application/json"))
+        }
+    }
+}
+
+@Composable
+private fun DataRow(icon: ImageVector, title: String, detail: String, divider: Boolean, onClick: () -> Unit) {
+    val colors = Quiver.colors
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(13.dp),
+    ) {
+        Box(
+            Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(Accents.Hub.a.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center,
+        ) { Icon(icon, null, Modifier.size(19.dp), tint = Accents.Hub.txt(colors.dark)) }
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
+            Text(detail, fontSize = 12.sp, color = colors.dim)
+        }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(18.dp), tint = colors.dim)
+    }
+    if (divider) Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp).height(1.dp).background(colors.border))
+}
 
 @Composable
 private fun HeaderIcon(icon: ImageVector, onClick: () -> Unit) {

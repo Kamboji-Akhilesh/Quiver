@@ -35,3 +35,9 @@
 {"lang": "hi", "user": "मेट्रो कार्ड रिचार्ज पर 500 गए, खर्च में लिखो", "expect": [{"tool": "add_expense", "args_contains": {"amount": 500}}]}
 {"lang": "ta", "user": "பெட்ரோலுக்கு 300 ரூபாய் செலவு ஆச்சு, குறிச்சுக்கோ", "expect": [{"tool": "add_expense", "args_contains": {"amount": 300, "category": "transport"}}]}
 {"lang": "mr", "user": "गेल्या महिन्यात माझा एकूण खर्च किती होता?", "expect": [{"tool": "list_expenses", "args_contains": {"period": "{last_month}"}}]}
+{"lang": "en", "user": "what was the wifi password I screenshotted?", "expect": [{"tool": "search_screenshots", "args_contains": {"query": "*wifi*"}}]}
+{"lang": "en", "user": "find the OTP in my screenshots", "expect": [{"tool": "search_screenshots", "args_contains": {"query": "*otp*"}}]}
+{"lang": "hi", "user": "मेरे स्क्रीनशॉट में वाईफाई पासवर्ड ढूँढो", "expect": [{"tool": "search_screenshots", "args_contains": {"query": "*wifi*"}}]}
+{"lang": "en", "user": "alert me when 1 USD crosses 90 rupees", "expect": [{"tool": "add_rate_alert", "args_contains": {"from": "USD", "to": "INR", "threshold": 90}}]}
+{"lang": "en", "user": "tell me when the euro to rupee rate passes 95", "expect": [{"tool": "add_rate_alert", "args_contains": {"from": "EUR", "to": "INR", "threshold": 95}}]}
+{"lang": "hi", "user": "जब 1 डॉलर 88 रुपये पार कर जाए तो बताना", "expect": [{"tool": "add_rate_alert", "args_contains": {"from": "USD", "to": "INR", "threshold": 88}}]}

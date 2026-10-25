@@ -74,6 +74,12 @@ class CurrencyRepository(
         return Cached(list, rates.fetchedAtMillis, rates.isStale || names.isStale)
     }
 
+    /** Rate of 1 [from] in [to] (offline-first via the cache), or null if unavailable. */
+    suspend fun rateBetween(from: String, to: String): Double? {
+        if (from == to) return 1.0
+        return runCatching { latestRates(from).data.rateFor(to) }.getOrNull()
+    }
+
     /** Historical [from] -> [to] rates for the last [days] days. */
     suspend fun timeSeries(from: String, to: String, days: Int): Cached<List<RatePoint>> {
         val today = LocalDate.now()

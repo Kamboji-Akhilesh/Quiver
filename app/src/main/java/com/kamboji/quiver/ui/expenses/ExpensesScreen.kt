@@ -60,7 +60,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kamboji.quiver.R
 import com.kamboji.quiver.expenses.ExpensesViewModel
 import com.kamboji.quiver.expenses.capture.PaymentCaptureService
 import com.kamboji.quiver.expenses.data.Expense
@@ -124,7 +126,7 @@ fun ExpensesScreen(state: QuiverState) {
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             QvTopBar(
-                "Expenses", ac, onBack = { state.go(AppKey.Hub) },
+                stringResource(R.string.title_expenses), ac, onBack = { state.go(AppKey.Hub) },
                 trailing = {
                     QvIconButton(
                         Icons.Filled.Add, { sheet = ExpSheet.New }, size = 42.dp,

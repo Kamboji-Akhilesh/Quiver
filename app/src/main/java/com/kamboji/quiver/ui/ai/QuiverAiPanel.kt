@@ -46,6 +46,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -79,7 +80,7 @@ private val AiA = Color(0xFFA78BFA)
 private val AiB = Color(0xFF22D3EE)
 
 @Composable
-fun QuiverAiPanel(onClose: () -> Unit) {
+fun QuiverAiPanel(onClose: () -> Unit, initialInput: String? = null, startMic: Boolean = false) {
     val vm: AiViewModel = viewModel()
     val state by vm.modelState.collectAsState()
     val colors = Quiver.colors
@@ -123,7 +124,7 @@ fun QuiverAiPanel(onClose: () -> Unit) {
             when (val s = state) {
                 is ModelState.Ready ->
                     if (showManage) SetupBody(vm, null, current = s.label, onBack = { showManage = false })
-                    else ChatBody(vm)
+                    else ChatBody(vm, initialInput, startMic)
                 is ModelState.Downloading -> Progress("Installing ${AiModel.DISPLAY_NAME}", s.progress, AiModel.SIZE_LABEL)
                 is ModelState.Error -> SetupBody(vm, s.message)
                 ModelState.None -> SetupBody(vm, null)
@@ -221,12 +222,22 @@ private fun SetupBody(vm: AiViewModel, error: String?, current: String? = null, 
 }
 
 @Composable
-private fun ChatBody(vm: AiViewModel) {
+private fun ChatBody(vm: AiViewModel, initialInput: String? = null, startMic: Boolean = false) {
     val colors = Quiver.colors
     val context = LocalContext.current
-    var input by remember { mutableStateOf("") }
+    // Shared-in text lands here pre-typed so the user can review before sending.
+    var input by remember { mutableStateOf(initialInput.orEmpty()) }
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) vm.startListening()
+    }
+    // Widget mic button: arrive already listening. No permission prompt from
+    // here — without the grant the user just taps the mic like normal.
+    LaunchedEffect(Unit) {
+        if (startMic && !vm.listening &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            vm.startListening()
+        }
     }
 
     Column(Modifier.fillMaxHeight()) {

@@ -1,0 +1,62 @@
+<resources>
+    <!-- Settings / language -->
+    <string name="settings_language">भाषा</string>
+    <string name="settings_language_system">सिस्टम डीफॉल्ट</string>
+
+    <!-- Hub -->
+    <string name="hub_caught_up">सर्व काही अद्ययावत आहे</string>
+    <string name="greeting_morning">सुप्रभात</string>
+    <string name="greeting_afternoon">शुभ दुपार</string>
+    <string name="greeting_evening">शुभ संध्याकाळ</string>
+    <string name="qa_clean">आता साफ करा</string>
+    <string name="qa_convert">रूपांतर</string>
+    <string name="qa_new_event">नवीन इव्हेंट</string>
+    <string name="qa_new_note">नवीन नोट</string>
+    <string name="qa_add_expense">खर्च जोडा</string>
+    <string name="qa_ask_ai">AI ला विचारा</string>
+    <string name="section_mini_apps">मिनी ॲप्स</string>
+    <string name="section_recent">अलीकडील क्रियाकलाप</string>
+    <string name="section_your_data">तुमचा डेटा</string>
+    <string name="title_calendar">कॅलेंडर</string>
+    <string name="title_notes">नोट्स</string>
+    <string name="title_expenses">खर्च</string>
+    <string name="title_screenshots">स्क्रीनशॉट</string>
+    <string name="title_currency">चलन</string>
+
+    <!-- Dock -->
+    <string name="dock_home">होम</string>
+    <string name="dock_search">शोध</string>
+    <string name="dock_apps">ॲप्स</string>
+    <string name="dock_calendar">कॅलेंडर</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_skip">वगळा</string>
+    <string name="onboarding_p1_title">सर्व काही तुमच्या फोनवर</string>
+    <string name="onboarding_p1_body">स्क्रीनशॉट, चलन, कॅलेंडर, नोट्स आणि खर्च — एका असिस्टंटने जोडलेली छोटी साधने. खाते नाही, क्लाउड नाही: तुमचा डेटा या डिव्हाइसच्या बाहेर जात नाही.</string>
+    <string name="onboarding_p2_title">खरोखर उपयोगी अलर्ट</string>
+    <string name="onboarding_p2_body">Quiver रिमाइंडरसाठी तुम्हाला कॉल करते, नवीन स्क्रीनशॉट साफ करण्याचा सल्ला देते, आणि पेमेंट नोटिफिकेशनमधून UPI खर्च नोंदवते. यासाठी आधी Android ला तुमची परवानगी हवी.</string>
+    <string name="onboarding_p3_title">तुमचे ऑन-डिव्हाइस AI</string>
+    <string name="onboarding_p3_body">%1$s (%2$s) \"उद्या संध्याकाळी\" सारखे रिमाइंडर इंग्रजी, हिन्दी, বাংলা, தமிழ், తెలుగు आणि मराठी मध्ये हाताळते — पूर्णपणे ऑफलाइन. आता किंवा नंतर AI बटणावरून इंस्टॉल करा.</string>
+    <string name="onboarding_continue">पुढे जा</string>
+    <string name="onboarding_allow_notifications">नोटिफिकेशनला परवानगी द्या</string>
+    <string name="onboarding_not_now">आता नको</string>
+    <string name="onboarding_install_ai">AI मॉडेल इंस्टॉल करा</string>
+    <string name="onboarding_maybe_later">नंतर</string>
+
+    <!-- Calendar quick-add -->
+    <string name="quick_add_placeholder">झटपट जोडा — “डेंटिस्ट tomorrow 6pm”</string>
+    <string name="quick_add_hint">असे लिहा: “डेंटिस्ट tomorrow 6pm”</string>
+    <string name="quick_add_added_task">टास्क जोडले · %1$s</string>
+    <string name="quick_add_added_event">इव्हेंट जोडले · %1$s</string>
+
+    <!-- Home-screen widgets -->
+    <string name="widget_note">नोट</string>
+    <string name="widget_task">टास्क</string>
+    <string name="widget_expense">खर्च</string>
+    <string name="widget_speak">बोला</string>
+    <string name="widget_spend_title">%1$s चा खर्च</string>
+    <string name="widget_no_expenses">या महिन्यात अजून खर्च नाही.</string>
+    <string name="widget_today">आज</string>
+    <string name="widget_nothing_scheduled">काहीही नियोजित नाही — आनंद घ्या.</string>
+    <string name="widget_more">+%1$d आणखी</string>
+</resources>

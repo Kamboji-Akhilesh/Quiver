@@ -2,10 +2,12 @@ package com.kamboji.quiver.expenses.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.kamboji.quiver.widgets.WidgetRefresher
 import org.json.JSONArray
 
 /** On-device persistence for expenses, backed by SharedPreferences JSON. */
 class ExpenseStore(context: Context) {
+    private val appContext = context.applicationContext
     private val prefs = context.getSharedPreferences("expenses", Context.MODE_PRIVATE)
 
     /** Observes list changes (e.g. expenses written by the AI agent) in-process. */
@@ -31,6 +33,8 @@ class ExpenseStore(context: Context) {
         val arr = JSONArray()
         expenses.forEach { arr.put(it.toJson()) }
         prefs.edit().putString(KEY_LIST, arr.toString()).apply()
+        // Every writer funnels through here, so the spend widget stays current.
+        WidgetRefresher.expensesChanged(appContext)
     }
 
     fun nextId(): Long {

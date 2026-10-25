@@ -14,8 +14,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
 import com.kamboji.quiver.screenshots.service.ScreenshotService
+import com.kamboji.quiver.ui.locale.AppLocale
 
 /** Single-surface entry point for the redesigned Quiver hub. */
 class QuiverActivity : ComponentActivity() {
@@ -23,17 +25,45 @@ class QuiverActivity : ComponentActivity() {
     private val permissions =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
 
+    // Apply the user's chosen UI language before any resources are resolved.
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
+
+    /** One-shot deep-link command (app shortcut / share router) for the shell. */
+    private val command = mutableStateOf<ShellCommand?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        setContent { QuiverApp() }
-        requestRuntimePermissions()
-        ensureExactAlarms()
-        ensureBackgroundAllowed()
+        command.value = ShellCommand.fromIntent(intent)
+        val prefs = getSharedPreferences("quiver_prefs", Context.MODE_PRIVATE)
+        val firstRun = !prefs.getBoolean("onboarded", false)
+        setContent {
+            QuiverApp(
+                command = command.value,
+                onCommandConsumed = { command.value = null },
+                showOnboarding = firstRun,
+                onOnboarded = { prefs.edit().putBoolean("onboarded", true).apply() },
+            )
+        }
+        // First run: onboarding asks for what it needs, with context, one screen
+        // at a time — nothing else may pile permission dialogs on top of it.
+        if (!firstRun) {
+            requestRuntimePermissions()
+            ensureExactAlarms()
+            ensureBackgroundAllowed()
+        }
         // Self-heal screenshot monitoring: the OS kills the service on app
         // updates and aggressive battery managers kill it at will, so restart
         // it (if not paused) every time the app is opened.
         ScreenshotService.startIfEnabled(this)
+    }
+
+    // singleTask: a shortcut/share launch while the app is alive lands here.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        command.value = ShellCommand.fromIntent(intent)
     }
 
     /**

@@ -1,0 +1,62 @@
+<resources>
+    <!-- Settings / language -->
+    <string name="settings_language">மொழி</string>
+    <string name="settings_language_system">சிஸ்டம் இயல்புநிலை</string>
+
+    <!-- Hub -->
+    <string name="hub_caught_up">எல்லாம் புதுப்பிக்கப்பட்டது</string>
+    <string name="greeting_morning">காலை வணக்கம்</string>
+    <string name="greeting_afternoon">மதிய வணக்கம்</string>
+    <string name="greeting_evening">மாலை வணக்கம்</string>
+    <string name="qa_clean">இப்போது சுத்தம்</string>
+    <string name="qa_convert">மாற்று</string>
+    <string name="qa_new_event">புதிய நிகழ்வு</string>
+    <string name="qa_new_note">புதிய குறிப்பு</string>
+    <string name="qa_add_expense">செலவு சேர்</string>
+    <string name="qa_ask_ai">AI-ஐ கேள்</string>
+    <string name="section_mini_apps">மினி ஆப்ஸ்</string>
+    <string name="section_recent">சமீபத்திய செயல்பாடு</string>
+    <string name="section_your_data">உங்கள் தரவு</string>
+    <string name="title_calendar">காலெண்டர்</string>
+    <string name="title_notes">குறிப்புகள்</string>
+    <string name="title_expenses">செலவுகள்</string>
+    <string name="title_screenshots">ஸ்கிரீன்ஷாட்கள்</string>
+    <string name="title_currency">நாணயம்</string>
+
+    <!-- Dock -->
+    <string name="dock_home">முகப்பு</string>
+    <string name="dock_search">தேடல்</string>
+    <string name="dock_apps">ஆப்ஸ்</string>
+    <string name="dock_calendar">காலெண்டர்</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_skip">தவிர்</string>
+    <string name="onboarding_p1_title">எல்லாம் உங்கள் ஃபோனில்</string>
+    <string name="onboarding_p1_body">ஸ்கிரீன்ஷாட், கரன்சி, காலெண்டர், குறிப்புகள், செலவுகள் — ஒரே உதவியாளரால் இணைக்கப்பட்ட சிறிய கருவிகள். கணக்கு இல்லை, கிளவுட் இல்லை: உங்கள் தரவு இந்த சாதனத்தை விட்டு வெளியேறாது.</string>
+    <string name="onboarding_p2_title">உண்மையிலேயே உதவும் அலர்ட்கள்</string>
+    <string name="onboarding_p2_body">Quiver நினைவூட்டல்களுக்கு உங்களை அழைக்கும், புதிய ஸ்கிரீன்ஷாட்களை சுத்தம் செய்ய முன்வரும், பேமெண்ட் நோட்டிஃபிகேஷனில் இருந்து UPI செலவுகளை பதிவு செய்யும். இதற்கு முன் Android-க்கு உங்கள் அனுமதி தேவை.</string>
+    <string name="onboarding_p3_title">உங்கள் சாதனத்திலேயே இயங்கும் AI</string>
+    <string name="onboarding_p3_body">%1$s (%2$s) \"நாளை மாலை\" போன்ற நினைவூட்டல்களை ஆங்கிலம், हिन्दी, বাংলা, தமிழ், తెలుగు, मराठी-ல் கையாளும் — முழுவதும் ஆஃப்லைன். இப்போது அல்லது பிறகு AI பட்டனில் இருந்து நிறுவவும்.</string>
+    <string name="onboarding_continue">தொடரவும்</string>
+    <string name="onboarding_allow_notifications">நோட்டிஃபிகேஷனை அனுமதி</string>
+    <string name="onboarding_not_now">இப்போது வேண்டாம்</string>
+    <string name="onboarding_install_ai">AI மாடலை நிறுவு</string>
+    <string name="onboarding_maybe_later">பிறகு</string>
+
+    <!-- Calendar quick-add -->
+    <string name="quick_add_placeholder">விரைவு சேர்ப்பு — “பல் மருத்துவர் tomorrow 6pm”</string>
+    <string name="quick_add_hint">இப்படி எழுதுங்கள்: “பல் மருத்துவர் tomorrow 6pm”</string>
+    <string name="quick_add_added_task">பணி சேர்க்கப்பட்டது · %1$s</string>
+    <string name="quick_add_added_event">நிகழ்வு சேர்க்கப்பட்டது · %1$s</string>
+
+    <!-- Home-screen widgets -->
+    <string name="widget_note">குறிப்பு</string>
+    <string name="widget_task">பணி</string>
+    <string name="widget_expense">செலவு</string>
+    <string name="widget_speak">பேசு</string>
+    <string name="widget_spend_title">%1$s செலவு</string>
+    <string name="widget_no_expenses">இந்த மாதம் இதுவரை செலவு இல்லை.</string>
+    <string name="widget_today">இன்று</string>
+    <string name="widget_nothing_scheduled">எதுவும் திட்டமிடப்படவில்லை — அனுபவியுங்கள்.</string>
+    <string name="widget_more">+%1$d மேலும்</string>
+</resources>

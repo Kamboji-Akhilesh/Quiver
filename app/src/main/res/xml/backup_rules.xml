@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+   Auto Backup (API < 31). Include ONLY SharedPreferences: that's where every
+   user store lives (notes, calendar_store, expenses, hub/app prefs, screenshot
+   settings) and it's tiny. Without explicit includes the system would try to
+   back up "everything", and files/llm-models (a multi-hundred-MB GGUF) blows
+   the 25 MB auto-backup quota — killing the backup entirely. The screenshot
+   history DB is device-specific (MediaStore URIs) and is deliberately out.
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <include domain="sharedpref" path="."/>
 </full-backup-content>
