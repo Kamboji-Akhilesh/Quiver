@@ -78,9 +78,15 @@ class DeleteWorker(
                 val sender = deleteIntent.intentSender
                 Log.d("SS_APP", "DeleteWorker: got intentSender, showing full-screen notification")
 
+                // Keep it restorable even without all-files access: copying needs only
+                // read access. DeleteConfirmActivity records the copy if the user
+                // allows the delete, and discards it if they don't.
+                val copy = runBlocking { TrashManager.copyToTrash(applicationContext, uri) }
+
                 // Create an activity intent with the sender
                 val activityIntent = Intent(applicationContext, DeleteConfirmActivity::class.java)
                 activityIntent.putExtra("sender", sender)
+                copy?.let { DeleteConfirmActivity.putTrashCopy(activityIntent, it) }
                 activityIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
 
                 val pendingIntent = PendingIntent.getActivity(
