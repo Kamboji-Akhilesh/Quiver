@@ -132,6 +132,7 @@ class ModelDownloadWorker(appContext: Context, params: WorkerParameters) :
     private fun buildNotification(pct: Int): Notification =
         Notification.Builder(applicationContext, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
+            .setGroup(CHANNEL) // never let Android bundle Quiver's notifications — see ExpenseCapture
             .setContentTitle("Installing ${AiModel.DISPLAY_NAME}")
             .setContentText("$pct% of ${AiModel.SIZE_LABEL}")
             .setProgress(100, pct, false)

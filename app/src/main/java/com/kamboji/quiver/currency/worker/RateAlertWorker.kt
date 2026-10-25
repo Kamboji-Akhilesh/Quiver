@@ -80,6 +80,7 @@ class RateAlertWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(
             .setContentText("Now ${trim(rate)} ${alert.to}")
             .setContentIntent(pi)
             .setAutoCancel(true)
+            .setGroup(CHANNEL) // never let Android bundle Quiver's notifications — see ExpenseCapture
             .build()
         nm.notify(NOTIF_BASE + alert.id.toInt(), n)
     }

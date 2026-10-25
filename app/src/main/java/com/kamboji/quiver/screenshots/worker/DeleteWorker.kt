@@ -18,7 +18,8 @@ import com.kamboji.quiver.screenshots.data.db.AppDatabase
 import com.kamboji.quiver.screenshots.data.models.DeleteDelay
 import com.kamboji.quiver.screenshots.data.models.DelayUnit
 import com.kamboji.quiver.screenshots.ui.DeleteConfirmActivity
-import com.kamboji.quiver.screenshots.ui.HistoryActivity
+import com.kamboji.quiver.ui.theme.AppKey
+import com.kamboji.quiver.widgets.openShellIntent
 import com.kamboji.quiver.screenshots.util.TrashManager
 import kotlinx.coroutines.runBlocking
 import java.util.UUID
@@ -144,9 +145,8 @@ class DeleteWorker(
             notificationManager.createNotificationChannel(channel)
         }
 
-        // Intent to open History activity for undo
-        val historyIntent = Intent(applicationContext, HistoryActivity::class.java)
-        historyIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // Deletion history (in the shell) for undo
+        val historyIntent = openShellIntent(applicationContext, AppKey.Screenshots, screen = "history")
         val historyPendingIntent = PendingIntent.getActivity(
             applicationContext,
             3001,
@@ -161,6 +161,7 @@ class DeleteWorker(
             Notification.Builder(applicationContext)
         }.apply {
             setSmallIcon(R.drawable.ic_delete)
+            setGroup(channelId) // never let Android bundle Quiver's notifications — see ExpenseCapture
             setContentTitle("Screenshot deleted")
             setContentText("Tap to undo (kept for 7 days)")
             setContentIntent(historyPendingIntent)
@@ -194,6 +195,7 @@ class DeleteWorker(
             Notification.Builder(applicationContext)
         }.apply {
             setSmallIcon(R.drawable.ic_delete)
+            setGroup(channelId) // never let Android bundle Quiver's notifications — see ExpenseCapture
             setContentTitle("Delete Screenshot?")
             setContentText("Tap to confirm screenshot deletion")
             setAutoCancel(true)

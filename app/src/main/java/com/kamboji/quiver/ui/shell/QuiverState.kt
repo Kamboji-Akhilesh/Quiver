@@ -10,9 +10,6 @@ enum class ToastKind { Success, Error, Info }
 
 data class ToastMsg(val text: String, val kind: ToastKind, val id: Long)
 
-/** Full-screen call-alert phase. */
-enum class CallPhase { Ringing, Reading }
-
 /**
  * In-memory UI state for the single-surface shell: which app is showing, which
  * overlays are open, theme, and the transient toast. Navigation state only —
@@ -43,15 +40,7 @@ class QuiverState {
     /** One-shot: open the AI panel already listening (widget mic); cleared on close. */
     var aiStartMic by mutableStateOf(false)
     var launcherOpen by mutableStateOf(false)
-    var call by mutableStateOf<CallPhase?>(null)
-    var callTitle by mutableStateOf("Reminder")
     var toast by mutableStateOf<ToastMsg?>(null)
-
-    /** Opens the full-screen call alert for [title] in its ringing phase. */
-    fun startCall(title: String) {
-        callTitle = title
-        call = CallPhase.Ringing
-    }
 
     /**
      * Bento personalization: pinned tiles sort to the top AND render as the

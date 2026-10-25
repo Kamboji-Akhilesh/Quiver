@@ -66,10 +66,11 @@ private fun dayFormatter(locale: Locale): DateTimeFormatter =
 private val TIME_FMT = DateTimeFormatter.ofPattern("h:mm a")
 
 /** Deep link into the shell, same route the app shortcuts use. */
-internal fun openShellIntent(context: Context, target: AppKey?): Intent =
+internal fun openShellIntent(context: Context, target: AppKey?, screen: String? = null): Intent =
     Intent(context, QuiverActivity::class.java)
         .setAction(ShellCommand.ACTION_OPEN)
         .apply { target?.let { putExtra(ShellCommand.EXTRA_TARGET, it.name) } }
+        .apply { screen?.let { putExtra(ShellCommand.EXTRA_SCREEN, it) } }
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
 /** Today's tasks and events; tasks are checkable right on the widget. */
