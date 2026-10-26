@@ -125,4 +125,19 @@ class QuiverBackupTest {
         assertTrue(QuiverBackup.newMoves(listOf(move), listOf(back)).isEmpty())
         assertEquals(1, QuiverBackup.newMoves(emptyList(), listOf(back)).size)
     }
+
+    @Test
+    fun `moves Move can't show are skipped`() {
+        val doc = QuiverBackup.export(emptyList(), emptyList(), emptyList()).put(
+            "moves",
+            org.json.JSONArray()
+                .put(org.json.JSONObject().put("type", "Teleport").put("startedAt", 1).put("endedAt", 2))
+                .put(org.json.JSONObject().put("type", "Run").put("startedAt", 1).put("endedAt", org.json.JSONObject.NULL))
+                .put(org.json.JSONObject().put("type", "Walk").put("startedAt", 1).put("endedAt", 5)
+                    .put("points", org.json.JSONArray().put(org.json.JSONArray("[1, 999, 0, 5, null, null, false]")))),
+        )
+        val moves = QuiverBackup.parse(doc.toString()).moves
+        assertEquals(listOf("Walk"), moves.map { it.move.type })
+        assertTrue(moves.single().points.isEmpty())
+    }
 }

@@ -46,7 +46,10 @@ object BackupCrypto {
 
     fun decrypt(envelope: JSONObject, password: CharArray): ByteArray {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        val key = key(password, unb64(envelope.getString("salt")), envelope.getInt("iter"))
+        // The count comes from the file: bound it, or a crafted one hangs the import.
+        val iterations = envelope.getInt("iter")
+        require(iterations in 10_000..10_000_000) { "Unsupported key strength" }
+        val key = key(password, unb64(envelope.getString("salt")), iterations)
         cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, unb64(envelope.getString("iv"))))
         return try {
             cipher.doFinal(unb64(envelope.getString("data")))

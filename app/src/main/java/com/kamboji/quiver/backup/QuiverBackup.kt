@@ -3,6 +3,7 @@ package com.kamboji.quiver.backup
 import com.kamboji.quiver.calendar.data.CalendarEntry
 import com.kamboji.quiver.currency.data.RateAlert
 import com.kamboji.quiver.expenses.data.Expense
+import com.kamboji.quiver.move.MoveType
 import com.kamboji.quiver.move.data.MoveEntity
 import com.kamboji.quiver.move.data.PointEntity
 import com.kamboji.quiver.notes.data.Note
@@ -56,7 +57,10 @@ object QuiverBackup {
             })
     }
 
-    private fun moveFrom(o: JSONObject): Move {
+    /** Null for anything Move couldn't display: an unknown type would crash it on every open. */
+    private fun moveFrom(o: JSONObject): Move? {
+        if (MoveType.entries.none { it.name == o.optString("type") }) return null
+        if (o.isNull("endedAt") || o.optLong("endedAt") < o.optLong("startedAt")) return null
         val move = MoveEntity(
             type = o.getString("type"), startedAt = o.getLong("startedAt"),
             endedAt = if (o.isNull("endedAt")) null else o.getLong("endedAt"),
@@ -65,14 +69,14 @@ object QuiverBackup {
             calories = o.optInt("calories"), splitsMs = o.optString("splitsMs"), preview = o.optString("preview"),
         )
         val arr = o.optJSONArray("points") ?: JSONArray()
-        val points = (0 until arr.length()).map { i ->
+        val points = (0 until arr.length()).mapNotNull { i ->
             val p = arr.getJSONArray(i)
             PointEntity(
                 moveId = 0, t = p.getLong(0), lat = p.getDouble(1), lon = p.getDouble(2), accM = p.getDouble(3).toFloat(),
                 altM = if (p.isNull(4)) null else p.getDouble(4),
                 speedMps = if (p.isNull(5)) null else p.getDouble(5).toFloat(),
                 resumed = p.optBoolean(6),
-            )
+            ).takeIf { it.lat in -90.0..90.0 && it.lon in -180.0..180.0 }
         }
         return Move(move, points)
     }
@@ -99,7 +103,7 @@ object QuiverBackup {
             entries = items("calendar", CalendarEntry::fromJson),
             expenses = items("expenses", Expense::fromJson),
             rateAlerts = items("rateAlerts", RateAlert::fromJson),
-            moves = items("moves", ::moveFrom),
+            moves = items("moves", ::moveFrom).filterNotNull(),
         )
     }
 
