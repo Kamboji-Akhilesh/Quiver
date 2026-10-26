@@ -354,6 +354,12 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
             ) {
                 QvIconButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, { close() }, contentDescription = tr(R.string.notes_back), tint = fg)
                 Spacer(Modifier.weight(1f))
+                // Voice dictation — inserts the transcript at the cursor.
+                if (!preview) QvIconButton(
+                    if (listening) Icons.Filled.Stop else Icons.Filled.Mic, { toggleMic() },
+                    contentDescription = if (listening) tr(R.string.notes_stop_dictation) else tr(R.string.notes_dictate),
+                    background = if (listening) Quiver.accent.a else null, tint = if (listening) Quiver.accent.on else fg,
+                )
                 QvIconButton(
                     if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
                     { pinned = !pinned; savedId?.let { vm.togglePin(it) } },
@@ -398,7 +404,7 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
                 }
                 Spacer(Modifier.height(40.dp))
             }
-            // bottom panel: note colour, then formatting (edit mode) with dictation at the end
+            // bottom panel: note colour, then formatting (edit mode)
             Column(
                 Modifier.fillMaxWidth().background(if (colors.flat) colors.surf else Color.Transparent)
                     .border(1.dp, if (colors.flat) colors.border else Color.Transparent)
@@ -415,28 +421,16 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
                         )
                     }
                 }
-                if (!preview) Row(verticalAlignment = Alignment.CenterVertically) {
-                    Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
-                        FmtButton(label = "H", fg = fg) { bodyValue = linePrefix(bodyValue, "# ") }
-                        FmtButton(icon = Icons.Filled.FormatBold, fg = fg) { bodyValue = wrap(bodyValue, "**") }
-                        FmtButton(icon = Icons.Filled.FormatItalic, fg = fg) { bodyValue = wrap(bodyValue, "*") }
-                        FmtButton(icon = Icons.AutoMirrored.Filled.FormatListBulleted, fg = fg) { bodyValue = linePrefix(bodyValue, "- ") }
-                        FmtButton(icon = Icons.Outlined.CheckBox, fg = fg) { bodyValue = linePrefix(bodyValue, "- [ ] ") }
-                        FmtButton(icon = Icons.Filled.FormatListNumbered, fg = fg) { bodyValue = linePrefix(bodyValue, "1. ") }
-                        FmtButton(icon = Icons.Filled.StrikethroughS, fg = fg) { bodyValue = wrap(bodyValue, "~~") }
-                        FmtButton(icon = Icons.Filled.Code, fg = fg) { bodyValue = wrap(bodyValue, "`") }
-                        FmtButton(icon = Icons.Filled.FormatQuote, fg = fg) { bodyValue = linePrefix(bodyValue, "> ") }
-                    }
-                    // Voice dictation — inserts the transcript at the cursor.
-                    val ac = Quiver.accent
-                    Row(
-                        Modifier.height(44.dp).clip(RoundedCornerShape(12.dp)).background(Brush.linearGradient(listOf(ac.a, ac.b)))
-                            .clickable { toggleMic() }.padding(horizontal = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Icon(if (listening) Icons.Filled.Stop else Icons.Filled.Mic, null, Modifier.size(18.dp), tint = ac.on)
-                        Text(if (listening) tr(R.string.notes_stop_dictation) else tr(R.string.notes_dictate), color = ac.on, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    }
+                if (!preview) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
+                    FmtButton(label = "H", fg = fg) { bodyValue = linePrefix(bodyValue, "# ") }
+                    FmtButton(icon = Icons.Filled.FormatBold, fg = fg) { bodyValue = wrap(bodyValue, "**") }
+                    FmtButton(icon = Icons.Filled.FormatItalic, fg = fg) { bodyValue = wrap(bodyValue, "*") }
+                    FmtButton(icon = Icons.AutoMirrored.Filled.FormatListBulleted, fg = fg) { bodyValue = linePrefix(bodyValue, "- ") }
+                    FmtButton(icon = Icons.Outlined.CheckBox, fg = fg) { bodyValue = linePrefix(bodyValue, "- [ ] ") }
+                    FmtButton(icon = Icons.Filled.FormatListNumbered, fg = fg) { bodyValue = linePrefix(bodyValue, "1. ") }
+                    FmtButton(icon = Icons.Filled.StrikethroughS, fg = fg) { bodyValue = wrap(bodyValue, "~~") }
+                    FmtButton(icon = Icons.Filled.Code, fg = fg) { bodyValue = wrap(bodyValue, "`") }
+                    FmtButton(icon = Icons.Filled.FormatQuote, fg = fg) { bodyValue = linePrefix(bodyValue, "> ") }
                 }
             }
         }

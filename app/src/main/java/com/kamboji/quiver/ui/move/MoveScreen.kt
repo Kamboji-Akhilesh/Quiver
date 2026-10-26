@@ -240,26 +240,14 @@ private fun StepsCard(moves: List<MoveEntity>, onOpen: () -> Unit) {
         allowed = ok
         if (ok) Steps.start(context)
     }
-    if (!Steps.hasChip(context)) return
-    if (!allowed) {
-        Row(
-            Modifier.fillMaxWidth().glass(colors).clip(RoundedCornerShape(22.dp))
-                .clickable { ask.launch(Manifest.permission.ACTIVITY_RECOGNITION) }.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(tr(R.string.steps_enable), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                Text(tr(R.string.steps_enable_why), fontSize = 12.sp, color = colors.dim, lineHeight = 16.sp)
-            }
-            Text(tr(R.string.focus_enable), color = ac.txt(colors.dark), fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        }
-        return
-    }
+    // The card always shows (goals, week, active minutes); without the step sensor or
+    // permission the ring stays at zero and a row below explains how to turn it on.
+    val chip = remember { Steps.hasChip(context) }
     val today = LocalDate.now()
     val dao = remember { MoveDatabase.get(context).steps() }
     val hours by remember { dao.between(today.minusDays(6).toString(), today.plusDays(1).toString()) }.collectAsState(emptyList())
     // Read the chip while the screen is open, so the count moves as you walk.
-    LaunchedEffect(Unit) { while (true) { Steps.sample(context); delay(30_000) } }
+    LaunchedEffect(allowed) { while (allowed && chip) { Steps.sample(context); delay(30_000) } }
     val byDay = hours.groupBy { it.day }.mapValues { (_, v) -> v.sumOf { it.steps } }
     val now = byDay[today.toString()] ?: 0
     val goal = Steps.goal(context)
@@ -300,6 +288,17 @@ private fun StepsCard(moves: List<MoveEntity>, onOpen: () -> Unit) {
                 Box(Modifier.fillMaxWidth((activeMin.toFloat() / target).coerceIn(0f, 1f)).height(6.dp).clip(RoundedCornerShape(3.dp)).background(ac.a))
             }
         }
+        if (!chip || !allowed) Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (colors.flat) colors.bg else colors.surf2)
+                .clickable(enabled = chip) { ask.launch(Manifest.permission.ACTIVITY_RECOGNITION) }.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(if (chip) tr(R.string.steps_enable) else tr(R.string.steps_no_sensor), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
+                Text(if (chip) tr(R.string.steps_enable_why) else tr(R.string.steps_no_sensor_why), fontSize = 12.sp, color = colors.dim, lineHeight = 16.sp)
+            }
+            if (chip) Text(tr(R.string.focus_enable), color = ac.txt(colors.dark), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        }
     }
 }
 
@@ -309,7 +308,16 @@ private fun Records(moves: List<MoveEntity>, onOpen: (Long) -> Unit) {
     val colors = Quiver.colors
     val ac = Accents.Move
     val byType = MoveType.entries.map { it to BestEfforts.records(it, moves) }.filter { it.second.isNotEmpty() }
-    if (byType.isEmpty()) return
+    if (byType.isEmpty()) {
+        SectionLabel(tr(R.string.move_personal_records))
+        Spacer(Modifier.height(4.dp))
+        Text(
+            tr(R.string.move_no_records_yet), fontSize = 13.sp, color = colors.dim, lineHeight = 18.sp,
+            modifier = Modifier.fillMaxWidth().glass(colors).padding(16.dp),
+        )
+        Spacer(Modifier.height(16.dp))
+        return
+    }
     byType.forEach { (type, records) ->
         SectionLabel(tr(R.string.move_personal_records) + " · " + type.displayName)
         Spacer(Modifier.height(4.dp))

@@ -1,5 +1,7 @@
 package com.kamboji.quiver.ui.currency
 
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import com.kamboji.quiver.ui.components.QvSegmented
 import com.kamboji.quiver.ui.locale.displayName
@@ -129,8 +131,8 @@ fun CurrencyScreen(state: QuiverState) {
                 Spacer(Modifier.height(12.dp))
                 when (tab) {
                     "convert" -> ConvertTab(vm, ac) { pickerFor = it }
-                    "rates" -> RatesTab(vm, ac)
-                    "alerts" -> AlertsTab(vm, ac)
+                    "rates" -> RatesTab(vm, ac) { pickerFor = "from" }
+                    "alerts" -> AlertsTab(vm, ac) { pickerFor = it }
                     else -> InfoTab(vm, ac)
                 }
             }
@@ -398,7 +400,7 @@ private fun CurrencyRow(code: String, ac: Accent, onClick: () -> Unit) {
 }
 
 @Composable
-private fun RatesTab(vm: CurrencyViewModel, ac: Accent) {
+private fun RatesTab(vm: CurrencyViewModel, ac: Accent, changeBase: () -> Unit) {
     val colors = Quiver.colors
     val ratesUi by vm.converter.collectAsState()
     var query by remember { mutableStateOf("") }
@@ -406,7 +408,13 @@ private fun RatesTab(vm: CurrencyViewModel, ac: Accent) {
     val list = all.filter { query.isBlank() || it.symbol.contains(query, true) || it.name.contains(query, true) }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(tr(R.string.currency_base_1_x_x, vm.from), fontSize = 13.sp, color = colors.dim)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(tr(R.string.currency_base_1_x_x, vm.from), Modifier.weight(1f), fontSize = 13.sp, color = colors.dim)
+            Box(
+                Modifier.height(32.dp).glass(colors, RoundedCornerShape(9.dp)).clickable(onClick = changeBase).padding(horizontal = 10.dp),
+                contentAlignment = Alignment.Center,
+            ) { Text(tr(R.string.currency_change_base), fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = colors.text) }
+        }
         Row(
             Modifier.fillMaxWidth().height(44.dp).glass(colors, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -442,25 +450,45 @@ private fun InfoTab(vm: CurrencyViewModel, ac: Accent) {
     val colors = Quiver.colors
     val converter by vm.converter.collectAsState()
     val cached = (converter as? Ui.Data)?.value
-    val updated = cached?.fetchedAtMillis?.let { SimpleDateFormat("MMM d, yyyy · HH:mm", Locale.getDefault()).format(Date(it)) } ?: "—"
+    val stale = cached?.isStale == true
+    val updated = cached?.fetchedAtMillis?.let {
+        val now = System.currentTimeMillis()
+        if (now - it < 60_000) tr(R.string.currency_just_now)
+        else android.text.format.DateUtils.getRelativeTimeSpanString(it, now, android.text.format.DateUtils.MINUTE_IN_MILLIS).toString()
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        InfoCard(Icons.Outlined.CloudQueue, tr(R.string.currency_offline_first), tr(R.string.currency_rates_fetch_live_when_you), ac)
-        InfoCard(Icons.AutoMirrored.Outlined.TrendingUp, tr(R.string.currency_frankfurter_api), tr(R.string.currency_european_central_bank_reference_rates), ac)
-        InfoCard(Icons.Outlined.Schedule, tr(R.string.currency_last_updated), "$updated${if (cached?.isStale == true) tr(R.string.currency_showing_saved_copy) else ""}", ac)
+        Row(
+            Modifier.fillMaxWidth().glass(colors).padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(Modifier.size(10.dp).clip(CircleShape).background(if (stale || cached == null) Color(0xFFFBBF24) else upColor(colors.flat)))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(if (stale) tr(R.string.currency_saved_rates) else tr(R.string.currency_live_rates), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
+                Text(if (updated != null) tr(R.string.currency_updated_x, updated) else tr(R.string.currency_loading_rates), fontSize = 12.5.sp, color = colors.dim)
+            }
+            Box(
+                Modifier.height(36.dp).clip(RoundedCornerShape(10.dp)).border(1.dp, colors.border, RoundedCornerShape(10.dp))
+                    .clickable { vm.loadConverter(); vm.loadSeries() }.padding(horizontal = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) { Text(tr(R.string.currency_refresh_now), fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = colors.text) }
+        }
+        InfoCard(Icons.Outlined.AccountBalance, tr(R.string.currency_info_ecb), tr(R.string.currency_info_ecb_sub), ac)
+        InfoCard(Icons.Outlined.CloudOff, tr(R.string.currency_info_offline), tr(R.string.currency_info_offline_sub), ac)
+        InfoCard(Icons.Outlined.NotificationsActive, tr(R.string.currency_info_alerts), tr(R.string.currency_info_alerts_sub), ac)
     }
 }
 
 @Composable
 private fun InfoCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, body: String, ac: Accent) {
     val colors = Quiver.colors
-    Row(Modifier.fillMaxWidth().glass(colors).padding(16.dp), horizontalArrangement = Arrangement.spacedBy(13.dp)) {
-        Box(Modifier.size(38.dp).clip(RoundedCornerShape(11.dp)).background(ac.iconColor(colors.dark).copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+    Row(Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(18.dp)).padding(horizontal = 16.dp, vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(ac.iconColor(colors.dark).copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
             Icon(icon, null, Modifier.size(18.dp), tint = ac.iconColor(colors.dark))
         }
-        Column {
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
-            Text(body, fontSize = 12.5.sp, color = colors.dim, lineHeight = 18.sp)
+            Text(body, fontSize = 12.5.sp, color = colors.dim, lineHeight = 17.sp)
         }
     }
 }
@@ -502,7 +530,7 @@ private fun CurrencyPicker(vm: CurrencyViewModel, forFrom: Boolean, onPick: (Str
 }
 
 @Composable
-private fun AlertsTab(vm: CurrencyViewModel, ac: Accent) {
+private fun AlertsTab(vm: CurrencyViewModel, ac: Accent, openPicker: (String) -> Unit) {
     val colors = Quiver.colors
     val context = LocalContext.current
     val store = remember { RateAlertStore(context) }
@@ -519,9 +547,9 @@ private fun AlertsTab(vm: CurrencyViewModel, ac: Accent) {
         Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(tr(R.string.currency_alert_me_when), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CodeChip(vm.from)
+                CodeChip(vm.from) { openPicker("from") }
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(16.dp), tint = colors.dim)
-                CodeChip(vm.to)
+                CodeChip(vm.to) { openPicker("to") }
                 Text(tr(R.string.currency_crosses), fontSize = 13.sp, color = colors.dim)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -567,12 +595,12 @@ private fun AlertsTab(vm: CurrencyViewModel, ac: Accent) {
         if (alerts.isEmpty()) {
             Column(Modifier.fillMaxWidth().padding(top = 30.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(
-                    Modifier.size(80.dp).clip(RoundedCornerShape(28.dp)).background(ac.a.copy(alpha = 0.12f))
-                        .border(1.dp, ac.a.copy(alpha = 0.25f), RoundedCornerShape(28.dp)),
+                    Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(colors.surf)
+                        .border(1.dp, colors.border, RoundedCornerShape(16.dp)),
                     contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Outlined.NotificationsActive, null, Modifier.size(36.dp), tint = ac.txt(colors.dark)) }
+                ) { Icon(Icons.Outlined.NotificationsActive, null, Modifier.size(24.dp), tint = ac.iconColor(colors.dark)) }
                 Spacer(Modifier.height(14.dp))
-                Text(tr(R.string.currency_no_rate_alerts), fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+                Text(tr(R.string.currency_no_rate_alerts), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, fontFamily = Display, color = colors.text)
                 Text(tr(R.string.currency_we_check_every_few_hours), fontSize = 12.5.sp, color = colors.dim, lineHeight = 18.sp, modifier = Modifier.padding(top = 4.dp, start = 20.dp, end = 20.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             }
         } else {
@@ -583,13 +611,16 @@ private fun AlertsTab(vm: CurrencyViewModel, ac: Accent) {
 }
 
 @Composable
-private fun CodeChip(code: String) {
+private fun CodeChip(code: String, onClick: () -> Unit) {
     val colors = Quiver.colors
-    Box(
+    Row(
         Modifier.height(44.dp).clip(RoundedCornerShape(12.dp)).background(if (colors.flat) colors.bg else colors.surf2)
-            .border(1.dp, colors.border, RoundedCornerShape(12.dp)).padding(horizontal = 12.dp),
-        contentAlignment = Alignment.Center,
-    ) { Text(code, fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text) }
+            .border(1.dp, colors.border, RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(start = 12.dp, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(code, fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
+        Icon(Icons.Filled.KeyboardArrowDown, null, Modifier.size(16.dp), tint = colors.dim)
+    }
 }
 
 @Composable

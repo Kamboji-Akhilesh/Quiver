@@ -276,10 +276,10 @@ private fun HistoryScreen(state: QuiverState) {
                 item {
                     Column(Modifier.fillMaxWidth().padding(top = 50.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(
-                            Modifier.size(88.dp).clip(RoundedCornerShape(30.dp)).background(ac.a.copy(alpha = 0.12f))
-                                .border(1.dp, ac.a.copy(alpha = 0.25f), RoundedCornerShape(30.dp)),
+                            Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(colors.surf)
+                                .border(1.dp, colors.border, RoundedCornerShape(16.dp)),
                             contentAlignment = Alignment.Center,
-                        ) { androidx.compose.material3.Icon(Icons.Outlined.Shield, null, Modifier.size(40.dp), tint = ac.txt(colors.dark)) }
+                        ) { androidx.compose.material3.Icon(Icons.Outlined.Shield, null, Modifier.size(24.dp), tint = ac.iconColor(colors.dark)) }
                         Spacer(Modifier.height(20.dp))
                         Text(tr(R.string.shots_trash_is_empty), fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
                         Text(tr(R.string.shots_cleaned_screenshots_appear_here_for), fontSize = 13.5.sp, color = colors.dim)
@@ -508,10 +508,10 @@ private fun SearchHint(ac: com.kamboji.quiver.ui.theme.Accent, title: String, bo
     val colors = Quiver.colors
     Column(Modifier.fillMaxWidth().padding(top = 60.dp, start = 32.dp, end = 32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
-            Modifier.size(88.dp).clip(RoundedCornerShape(30.dp)).background(ac.a.copy(alpha = 0.12f))
-                .border(1.dp, ac.a.copy(alpha = 0.25f), RoundedCornerShape(30.dp)),
+            Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(colors.surf)
+                .border(1.dp, colors.border, RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center,
-        ) { androidx.compose.material3.Icon(Icons.Outlined.Search, null, Modifier.size(40.dp), tint = ac.txt(colors.dark)) }
+        ) { androidx.compose.material3.Icon(Icons.Outlined.Search, null, Modifier.size(24.dp), tint = ac.iconColor(colors.dark)) }
         Spacer(Modifier.height(18.dp))
         Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
         Spacer(Modifier.height(6.dp))

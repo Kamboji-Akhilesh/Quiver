@@ -4,10 +4,7 @@ import com.kamboji.quiver.ui.theme.Body
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import com.kamboji.quiver.ui.components.Pill
-import androidx.compose.material.icons.outlined.Edit
-import com.kamboji.quiver.ui.components.QvIconButton
 import com.kamboji.quiver.ui.hub.meta
-import com.kamboji.quiver.ui.hub.HubPrefs
 import com.kamboji.quiver.R
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.verticalScroll
@@ -106,8 +103,6 @@ import java.time.ZoneId
 @Composable
 fun Launcher(state: QuiverState) {
     val colors = Quiver.colors
-    val context = LocalContext.current
-    val onHome = remember { HubPrefs(context).dashboardApps().toSet() }
     val apps = listOf(AppKey.Screenshots, AppKey.Calendar, AppKey.Focus, AppKey.Notes, AppKey.Expenses, AppKey.Move, AppKey.Currency)
     Column(
         Modifier.fillMaxSize().background(colors.bg).statusBarsPadding()
@@ -115,15 +110,12 @@ fun Launcher(state: QuiverState) {
             .verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(top = 6.dp, bottom = 140.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(tr(R.string.dock_apps), Modifier.weight(1f), fontSize = 26.sp, fontWeight = FontWeight.SemiBold, fontFamily = Display, color = colors.text)
-            QvIconButton(Icons.Outlined.Edit, { state.launcherOpen = false; state.editMode = true }, contentDescription = tr(R.string.hub_customize))
-        }
-        Text(tr(R.string.shell_apps_sub), fontSize = 13.sp, color = colors.dim, modifier = Modifier.padding(top = 0.dp))
+        Text(tr(R.string.dock_apps), Modifier.padding(top = 4.dp), fontSize = 26.sp, fontWeight = FontWeight.SemiBold, fontFamily = Display, color = colors.text)
+        Text(tr(R.string.shell_apps_sub), fontSize = 13.sp, color = colors.dim)
         (apps.map { it as AppKey? } + null).chunked(2).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 row.forEach { app ->
-                    if (app != null) LauncherTile(app, app in onHome, Modifier.weight(1f)) { state.go(app) }
+                    if (app != null) LauncherTile(app, Modifier.weight(1f)) { state.go(app) }
                     else Box(
                         Modifier.weight(1f).height(132.dp).border(1.dp, colors.border, RoundedCornerShape(18.dp)),
                         contentAlignment = Alignment.Center,
@@ -135,7 +127,7 @@ fun Launcher(state: QuiverState) {
 }
 
 @Composable
-private fun LauncherTile(app: AppKey, onHome: Boolean, modifier: Modifier, onClick: () -> Unit) {
+private fun LauncherTile(app: AppKey, modifier: Modifier, onClick: () -> Unit) {
     val colors = Quiver.colors
     val ac = Accents.of(app)
     val m = meta(app)
@@ -148,10 +140,6 @@ private fun LauncherTile(app: AppKey, onHome: Boolean, modifier: Modifier, onCli
             Text(stringResource(app.titleRes), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
             Text(m.tag, fontSize = 12.sp, color = colors.dim, lineHeight = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        if (onHome) Text(
-            tr(R.string.shell_on_home), Modifier.align(Alignment.TopEnd),
-            fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = Accents.Hub.txt(colors.dark),
-        )
     }
 }
 

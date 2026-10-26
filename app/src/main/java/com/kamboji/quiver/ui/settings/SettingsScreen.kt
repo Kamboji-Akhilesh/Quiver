@@ -171,21 +171,21 @@ private fun openAppSettings(context: Context) {
     }
 }
 
-/** A tappable miniature of [palette]: its dark form, and for Quiver its light form beside it. */
+/** A tappable miniature of [palette] in the chosen mode: dark, light, or both side by side for System. */
 @Composable
 private fun ThemeCard(palette: Palette, name: Int, sub: Int, modifier: Modifier) {
     val colors = Quiver.colors
     val selected = ThemeSettings.palette == palette
     Column(
         modifier.clip(RoundedCornerShape(14.dp))
-            .border(2.dp, if (selected) Quiver.accent.a else colors.border, RoundedCornerShape(14.dp))
+            .border(2.dp, if (selected) Quiver.accent.txt(colors.dark) else colors.border, RoundedCornerShape(14.dp))
             .clickable { ThemeSettings.choose(palette = palette) }
             .padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Row(Modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(8.dp))) {
-            Mini(palette, dark = true, Modifier.weight(1f))
-            if (palette == Palette.Quiver) Mini(palette, dark = false, Modifier.weight(1f))
+        Row(Modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(8.dp)).border(1.dp, colors.border, RoundedCornerShape(8.dp))) {
+            if (ThemeSettings.mode != ThemeMode.Light) Mini(palette, dark = true, Modifier.weight(1f))
+            if (ThemeSettings.mode != ThemeMode.Dark) Mini(palette, dark = false, Modifier.weight(1f))
         }
         Text(tr(name), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.text, fontFamily = Body)
         Text(tr(sub), fontSize = 11.sp, color = colors.dim)
@@ -196,7 +196,11 @@ private fun ThemeCard(palette: Palette, name: Int, sub: Int, modifier: Modifier)
 private fun Mini(palette: Palette, dark: Boolean, modifier: Modifier) {
     val c = colorsFor(palette, dark)
     val a = accentFor(AppKey.Hub, palette, dark)
-    val ground = if (palette == Palette.Glass) Brush.linearGradient(listOf(Color(0xFF2A1F4E), c.bg, Color(0xFF0B2A33))) else Brush.linearGradient(listOf(c.bg, c.bg))
+    val ground = when {
+        palette != Palette.Glass -> Brush.linearGradient(listOf(c.bg, c.bg))
+        dark -> Brush.linearGradient(listOf(Color(0xFF2A1F4E), c.bg, Color(0xFF0B2A33)))
+        else -> Brush.linearGradient(listOf(Color(0xFFE9E1FF), c.bg, Color(0xFFD9F3F8)))
+    }
     Column(modifier.fillMaxSize().background(ground).padding(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         repeat(2) { Box(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(3.dp)).background(c.surf).border(1.dp, c.border, RoundedCornerShape(3.dp))) }
         Box(Modifier.size(14.dp).clip(RoundedCornerShape(4.dp)).background(Brush.linearGradient(listOf(a.a, a.b))))

@@ -1,5 +1,6 @@
 package com.kamboji.quiver.ui.hub
 
+import androidx.compose.material.icons.outlined.GridView
 import android.net.Uri
 import androidx.compose.foundation.layout.fillMaxSize
 import com.kamboji.quiver.move.steps.Steps
@@ -183,7 +184,7 @@ fun HubScreen(state: QuiverState) {
         val saved = hubPrefs.pinnedApps()
         state.pinned.keys.toList().forEach { state.pinned[it] = it in saved }
     }
-    val dashApps = remember { mutableStateListOf<AppKey>().also { it.addAll(hubPrefs.dashboardApps()) } }
+    val dashApps = remember { mutableStateListOf<AppKey>().also { it.addAll(hubPrefs.dashboardApps().take(HOME_MAX)) } }
     var showAddPicker by remember { mutableStateOf(false) }
     val allApps = listOf(AppKey.Screenshots, AppKey.Currency, AppKey.Calendar, AppKey.Notes, AppKey.Expenses, AppKey.Focus, AppKey.Move)
 
@@ -308,10 +309,13 @@ fun HubScreen(state: QuiverState) {
             Spacer(Modifier.height(8.dp))
         }
 
-        val order = dashApps.sortedByDescending { state.pinned[it] == true }
+        // Home is a short list of favourites; the Apps page holds everything.
+        val order = dashApps.sortedByDescending { state.pinned[it] == true }.take(HOME_MAX)
         BentoGrid(
             state, order, monitoring, trash.size, todayCount, curRate, curVm.to, notesCount, monthSpend, hubPrefs,
+            canAdd = dashApps.size < HOME_MAX,
             onAddApp = { showAddPicker = true },
+            onAllApps = { state.closeOverlays(); state.launcherOpen = true },
             onRemoveApp = { app ->
                 dashApps.remove(app)
                 state.pinned[app] = false
@@ -344,7 +348,7 @@ fun HubScreen(state: QuiverState) {
         AddAppSheet(
             available = allApps.filter { it !in dashApps },
             onAdd = { app ->
-                if (app !in dashApps) { dashApps.add(app); hubPrefs.setDashboardApps(dashApps.toList()) }
+                if (app !in dashApps && dashApps.size < HOME_MAX) { dashApps.add(app); hubPrefs.setDashboardApps(dashApps.toList()) }
             },
             onDismiss = { showAddPicker = false },
         )
@@ -633,7 +637,7 @@ private fun QuickAction(label: String, icon: ImageVector, accent: Accent, onClic
 }
 
 @Composable
-private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boolean, trashCount: Int, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int, monthSpend: String, hubPrefs: HubPrefs, onAddApp: () -> Unit, onRemoveApp: (AppKey) -> Unit) {
+private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boolean, trashCount: Int, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int, monthSpend: String, hubPrefs: HubPrefs, canAdd: Boolean, onAddApp: () -> Unit, onAllApps: () -> Unit, onRemoveApp: (AppKey) -> Unit) {
     val colors = Quiver.colors
     val rows = packTiles(order) { state.pinned[it] == true }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -646,22 +650,27 @@ private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boole
                 if (row.size == 1 && state.pinned[row[0]] != true) Spacer(Modifier.weight(1f))
             }
         }
+        val add = canAdd && (state.editMode || order.isEmpty())
         Row(
-            Modifier.fillMaxWidth().height(80.dp).clip(RoundedCornerShape(18.dp))
-                .background(colors.surf)
-                .border(1.5.dp, colors.border2, RoundedCornerShape(18.dp))
-                .clickable(onClick = onAddApp),
+            Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(14.dp))
+                .border(1.dp, colors.border, RoundedCornerShape(14.dp))
+                .clickable(onClick = if (add) onAddApp else onAllApps),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {
-            Icon(Icons.Filled.Add, null, Modifier.size(20.dp), tint = colors.dim)
-            Spacer(Modifier.width(10.dp))
-            Text(tr(R.string.hub_more_mini_apps_land_here), color = colors.dim, fontWeight = FontWeight.SemiBold)
+            Icon(if (add) Icons.Filled.Add else Icons.Outlined.GridView, null, Modifier.size(18.dp), tint = colors.dim)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                if (add) tr(R.string.hub_add_to_home_x_of_y, order.size, HOME_MAX) else tr(R.string.hub_all_apps),
+                color = colors.dim, fontSize = 13.5.sp, fontWeight = FontWeight.Medium,
+            )
         }
     }
 }
 
 /** Greedily groups apps into rows: a big (pinned) tile fills its own row. */
+private const val HOME_MAX = 4
+
 private fun packTiles(order: List<AppKey>, isBig: (AppKey) -> Boolean): List<List<AppKey>> {
     val rows = mutableListOf<List<AppKey>>()
     var i = 0

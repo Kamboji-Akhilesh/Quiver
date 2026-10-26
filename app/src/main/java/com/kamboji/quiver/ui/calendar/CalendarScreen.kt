@@ -86,6 +86,7 @@ import com.kamboji.quiver.ui.components.QvTimePickerDialog
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.kamboji.quiver.R
+import com.kamboji.quiver.ui.components.QvToggle
 import com.kamboji.quiver.ui.components.QvTopBar
 import com.kamboji.quiver.ui.components.glass
 import com.kamboji.quiver.ui.shell.QuiverState
@@ -468,6 +469,7 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, editing: CalendarEntry? = 
     // Default to the next hour so a fresh entry is in the future (not already past).
     var hour by remember { mutableStateOf(startTime?.hour ?: ((java.time.LocalTime.now().hour + 1) % 24)) }
     var minute by remember { mutableStateOf(startTime?.minute ?: 0) }
+    var allDay by remember { mutableStateOf(editing?.allDay ?: false) }
     var alert by remember { mutableStateOf(editing?.alertStyle ?: AlertStyle.NOTIFICATION) }
     var lead by remember { mutableStateOf(editing?.alertLead ?: AlertLead.AT_TIME) }
     var repeatUnit by remember { mutableStateOf(editing?.repeatUnit ?: RepeatUnit.NONE) }
@@ -499,12 +501,13 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, editing: CalendarEntry? = 
                     .graphicsLayer { alpha = if (ready) 1f else 0.5f }
                     .clickable {
                         if (!ready) { onInvalid(); return@clickable }
-                        val start = date.atTime(hour, minute).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        // All-day entries keep a 9 AM start so any alert rings in the morning, not at midnight.
+                        val start = (if (allDay) date.atTime(9, 0) else date.atTime(hour, minute)).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
                         onAdd(
                             CalendarEntry(
                                 id = editing?.id ?: 0L, type = type, title = title.trim(), startMillis = start,
-                                endMillis = if (type == EntryType.EVENT) start + 3_600_000 else null,
-                                allDay = false, done = editing?.done ?: false, alertStyle = alert, alertLead = lead,
+                                endMillis = if (type == EntryType.EVENT && !allDay) start + 3_600_000 else null,
+                                allDay = allDay, done = editing?.done ?: false, alertStyle = alert, alertLead = lead,
                                 createdAtMillis = editing?.createdAtMillis ?: System.currentTimeMillis(),
                                 repeatUnit = repeatUnit, repeatInterval = repeatInterval,
                             ),
@@ -531,7 +534,11 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, editing: CalendarEntry? = 
             // date + time
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 InfoChip(Icons.Outlined.CalendarMonth, shortDate(date), ac, Modifier.weight(1f)) { showDate = true }
-                InfoChip(Icons.Outlined.Schedule, fmt12(hour, minute), ac, Modifier.weight(1f)) { showTime = true }
+                if (!allDay) InfoChip(Icons.Outlined.Schedule, fmt12(hour, minute), ac, Modifier.weight(1f)) { showTime = true }
+            }
+            Row(Modifier.fillMaxWidth().clickable { allDay = !allDay }, verticalAlignment = Alignment.CenterVertically) {
+                Text(tr(R.string.calendar_all_day), Modifier.weight(1f), fontSize = 14.sp, color = colors.text)
+                QvToggle(allDay, { allDay = !allDay }, ac)
             }
             // alert style
             FieldLabel(tr(R.string.calendar_alert))

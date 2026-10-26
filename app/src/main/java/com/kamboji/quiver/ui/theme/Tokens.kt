@@ -77,7 +77,7 @@ val GraphiteColors = QuiverColors(
     flat = true,
 )
 
-/** Quiver, light: Paper. Also Dusk's light form. */
+/** Quiver, light: Paper. */
 val PaperColors = QuiverColors(
     dark = false,
     bg = Color(0xFFF3F4F6),
@@ -107,10 +107,25 @@ val DuskColors = QuiverColors(
     flat = true,
 )
 
+/** Dusk, light: warm cream, so it doesn't read as Paper. */
+val DuskLightColors = QuiverColors(
+    dark = false,
+    bg = Color(0xFFF6F1E8),
+    bg2 = Color(0xFFFAF6EF),
+    surf = Color(0xFFFFFDF9),
+    surf2 = Color(0xFFF8F3EA),
+    border = Color(0xFFE8DFCF),
+    border2 = Color(0xFFD9CDB8),
+    text = Color(0xFF1C1710),
+    dim = Color(0xFF675C4C),
+    faint = Color(0xFF7A6E5C),
+    flat = true,
+)
+
 fun colorsFor(palette: Palette, dark: Boolean): QuiverColors = when (palette) {
     Palette.Glass -> if (dark) DarkColors else LightColors
     Palette.Quiver -> if (dark) GraphiteColors else PaperColors
-    Palette.Dusk -> if (dark) DuskColors else PaperColors
+    Palette.Dusk -> if (dark) DuskColors else DuskLightColors
 }
 
 /**
@@ -173,13 +188,15 @@ private fun appTint(app: AppKey, dark: Boolean): Color? = when (app) {
 /** The accent for [app] in [palette]: Glass keeps per-app accents, flat palettes share one. */
 fun accentFor(app: AppKey, palette: Palette, dark: Boolean): Accent {
     if (palette == Palette.Glass) return GlassAccents.of(app)
-    val (base, on) = when {
-        !dark -> Color(0xFF2B59E6) to Color.White          // Paper: cobalt
-        palette == Palette.Dusk -> Color(0xFFF6B23E) to Color(0xFF1A1300) // amber
-        else -> Color(0xFFC8F25C) to Color(0xFF0F1012)     // Graphite: lime
+    // base fills; deep is the same hue dark enough to read as text on a light ground
+    val (base, on, deep) = when {
+        palette == Palette.Dusk && dark -> Triple(Color(0xFFF6B23E), Color(0xFF1A1300), Color(0xFFF6B23E)) // amber
+        palette == Palette.Dusk -> Triple(Color(0xFFF2A93B), Color(0xFF1A1300), Color(0xFF8F5200))
+        dark -> Triple(Color(0xFFC8F25C), Color(0xFF0F1012), Color(0xFFC8F25C)) // Graphite: lime
+        else -> Triple(Color(0xFF9BD62A), Color(0xFF0F1012), Color(0xFF3F6B08)) // Paper: lime, deepened
     }
     return Accent(
-        a = base, b = base, deep = base, glow = base,
+        a = base, b = base, deep = deep, glow = base,
         extra = if (app == AppKey.Currency) Color(0xFFFBBF24) else null,
         on = on, tint = appTint(app, dark) ?: base,
     )
