@@ -531,4 +531,23 @@
     <string name="steps_today_of_x">steps today · goal %1$s</string>
     <!-- Auto-detected activity: %1$s duration, %2$s steps -->
     <string name="steps_auto_row">%1$s · %2$s steps · auto</string>
+    <string name="steps_goal_x">Goal %1$s steps a day</string>
+    <string name="steps_daily_goals">Daily goals: %1$d/7 achieved</string>
+    <string name="steps_weekly_target">Weekly target · active minutes</string>
+    <string name="steps_weekly_x_of_y">%1$d of %2$d</string>
+    <!-- Activity (day/week/month) screen -->
+    <string name="activity_title">My activity</string>
+    <string name="activity_day">Day</string>
+    <string name="activity_week">Week</string>
+    <string name="activity_month">Month</string>
+    <string name="activity_today_x">Today, %1$s</string>
+    <string name="activity_steps_x">%1$s steps</string>
+    <string name="activity_n_steps">%1$s steps</string>
+    <string name="activity_auto">auto</string>
+    <string name="activity_none">No activities in this period.</string>
+    <string name="activity_goals_x">Goals: %1$s steps a day · %2$d active minutes a week · edit</string>
+    <string name="activity_goals">Your goals</string>
+    <string name="activity_goal_steps">steps a day</string>
+    <string name="activity_goal_minutes">active min a week</string>
+    <string name="activity_goal_minutes_why">Active minutes are the time in your recorded and auto-detected walks, runs and rides. 150 a week is the WHO\'s recommended minimum.</string>
 </resources>

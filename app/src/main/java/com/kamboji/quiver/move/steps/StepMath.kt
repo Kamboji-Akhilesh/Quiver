@@ -1,7 +1,8 @@
 package com.kamboji.quiver.move.steps
 
 import java.time.Instant
-import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 import java.time.ZoneId
 
 /**
@@ -31,23 +32,30 @@ object StepMath {
         return if (steps < 0 || steps > MAX_STEPS_PER_HOUR * maxOf(hours, 1.0)) 0L to from else steps to from
     }
 
-    /** Spreads [steps] taken evenly over [from, to] across the days it touches. */
-    fun split(steps: Long, from: Long, to: Long, zone: ZoneId): Map<LocalDate, Long> {
+    /**
+     * Spreads [steps] evenly over [from, to] across the local clock hours it
+     * touches, keyed by each hour's start. Hourly so a day can be charted like
+     * Google Fit's timeline; days and weeks are sums of hours.
+     */
+    fun split(steps: Long, from: Long, to: Long, zone: ZoneId): Map<LocalDateTime, Long> {
         if (steps <= 0) return emptyMap()
-        val start = Instant.ofEpochMilli(from).atZone(zone).toLocalDate()
-        val end = Instant.ofEpochMilli(to).atZone(zone).toLocalDate()
-        if (start == end || to <= from) return mapOf(end to steps)
-        val out = LinkedHashMap<LocalDate, Long>()
-        var day = start
+        fun hourOf(t: Long) = Instant.ofEpochMilli(t).atZone(zone).toLocalDateTime().truncatedTo(ChronoUnit.HOURS)
+        val last = hourOf(to)
+        if (to <= from || hourOf(from) == last) return mapOf(last to steps)
+        val out = LinkedHashMap<LocalDateTime, Long>()
+        var hour = hourOf(from)
         var given = 0L
-        while (!day.isAfter(end)) {
-            val a = maxOf(from, day.atStartOfDay(zone).toInstant().toEpochMilli())
-            val b = minOf(to, day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli())
-            val share = if (day == end) steps - given else steps * (b - a) / (to - from)
-            if (share > 0) out[day] = share
+        while (!hour.isAfter(last)) {
+            val a = maxOf(from, hour.atZone(zone).toInstant().toEpochMilli())
+            val b = minOf(to, hour.plusHours(1).atZone(zone).toInstant().toEpochMilli())
+            val share = if (hour == last) steps - given else steps * (b - a) / (to - from)
+            if (share > 0) out[hour] = share
             given += share
-            day = day.plusDays(1)
+            hour = hour.plusHours(1)
         }
         return out
     }
+
+    /** Storage key for an hour: "2026-10-26T13" — sorts by time, and a day is a prefix. */
+    fun key(hour: LocalDateTime): String = "%sT%02d".format(hour.toLocalDate(), hour.hour)
 }

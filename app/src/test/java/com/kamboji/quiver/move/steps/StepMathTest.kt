@@ -25,17 +25,23 @@ class StepMathTest {
     @Test fun glitchIsIgnored() =
         assertEquals(0L, StepMath.stepsBetween(Reading(0, 0, 1), Reading(h / 4, 2_000_000, 1), bootAt = -h).first)
 
-    @Test fun sameDayStaysWhole() =
-        assertEquals(mapOf(day to 500L), StepMath.split(500, midnight + h, midnight + 2 * h, zone))
+    @Test fun sameHourStaysWhole() =
+        assertEquals(mapOf(day.atTime(1, 0) to 500L), StepMath.split(500, midnight + h + 60_000, midnight + h + 900_000, zone))
 
     @Test fun midnightSplitsByTime() {
-        // 1000 steps from 23:00 to 01:00: half before midnight, half after.
+        // 1000 steps from 23:00 to 01:00: half in the 23:00 hour, half in the 00:00 hour.
         val split = StepMath.split(1_000, midnight - h, midnight + h, zone)
-        assertEquals(mapOf(day.minusDays(1) to 500L, day to 500L), split)
+        assertEquals(mapOf(day.minusDays(1).atTime(23, 0) to 500L, day.atTime(0, 0) to 500L), split)
     }
 
     @Test fun splitNeverLosesSteps() {
-        val split = StepMath.split(1_001, midnight - 7 * h, midnight + 30 * h, zone)
+        val split = StepMath.split(1_001, midnight - 7 * h + 123_456, midnight + 30 * h, zone)
         assertEquals(1_001L, split.values.sum())
+        assertEquals(38, split.size)
+    }
+
+    @Test fun keysSortByTimeAndPrefixByDay() {
+        assertEquals("2026-10-26T09", StepMath.key(day.atTime(9, 0)))
+        assertEquals(true, StepMath.key(day.atTime(9, 0)) < StepMath.key(day.atTime(13, 0)))
     }
 }

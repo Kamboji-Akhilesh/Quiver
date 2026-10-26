@@ -105,23 +105,28 @@ interface MoveDao {
     }
 }
 
-/** Steps on one day ("2026-10-26"), from the phone's step counter (move/steps). */
-@Entity(tableName = "daily_steps")
-data class DailySteps(@PrimaryKey val day: String, val steps: Long)
+/** Steps in one local clock hour ("2026-10-26T13"), from the phone's step counter (move/steps). */
+@Entity(tableName = "step_hours")
+data class StepHour(@PrimaryKey val hour: String, val steps: Long) {
+    val day: String get() = hour.substring(0, 10)
+}
 
 @Dao
 interface StepsDao {
-    @Query("SELECT * FROM daily_steps WHERE day = :day") fun get(day: String): DailySteps?
-    @Query("SELECT * FROM daily_steps WHERE day >= :from ORDER BY day") fun since(from: String): Flow<List<DailySteps>>
-    @Query("SELECT * FROM daily_steps WHERE day >= :from ORDER BY day") suspend fun sinceOnce(from: String): List<DailySteps>
-    @Upsert fun put(row: DailySteps)
+    @Query("SELECT * FROM step_hours WHERE hour = :hour") fun get(hour: String): StepHour?
+    /** Hours from the start of [fromDay] up to (not including) [toDay]. */
+    @Query("SELECT * FROM step_hours WHERE hour >= :fromDay AND hour < :toDay ORDER BY hour")
+    fun between(fromDay: String, toDay: String): Flow<List<StepHour>>
+    @Query("SELECT * FROM step_hours WHERE hour >= :fromDay AND hour < :toDay ORDER BY hour")
+    suspend fun betweenOnce(fromDay: String, toDay: String): List<StepHour>
+    @Upsert fun put(row: StepHour)
 
     @Transaction
-    fun add(day: String, steps: Long) = put(DailySteps(day, (get(day)?.steps ?: 0) + steps))
+    fun add(hour: String, steps: Long) = put(StepHour(hour, (get(hour)?.steps ?: 0) + steps))
 }
 
 /** Separate from the screenshots database so neither needs a migration for the other. */
-@Database(entities = [MoveEntity::class, PointEntity::class, DailySteps::class], version = 2, exportSchema = false)
+@Database(entities = [MoveEntity::class, PointEntity::class, StepHour::class], version = 2, exportSchema = false)
 abstract class MoveDatabase : RoomDatabase() {
     abstract fun dao(): MoveDao
     abstract fun steps(): StepsDao
@@ -129,10 +134,10 @@ abstract class MoveDatabase : RoomDatabase() {
     companion object {
         @Volatile private var instance: MoveDatabase? = null
 
-        /** v2: daily step totals, and auto-detected activities. */
+        /** v2: hourly step totals, and auto-detected activities. */
         internal val V1_TO_V2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("CREATE TABLE IF NOT EXISTS daily_steps (day TEXT NOT NULL PRIMARY KEY, steps INTEGER NOT NULL)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS step_hours (hour TEXT NOT NULL PRIMARY KEY, steps INTEGER NOT NULL)")
                 db.execSQL("ALTER TABLE moves ADD COLUMN auto INTEGER NOT NULL DEFAULT 0")
             }
         }

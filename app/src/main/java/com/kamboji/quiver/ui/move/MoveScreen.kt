@@ -115,6 +115,7 @@ fun MoveScreen(state: QuiverState) {
     val live by MoveRecorder.live.collectAsState()
     val finished by MoveRecorder.finished.collectAsState()
     var detailId by remember { mutableStateOf<Long?>(null) }
+    var showActivity by remember { mutableStateOf(false) }
 
     // Recording ended → open its summary, once.
     LaunchedEffect(finished) {
@@ -130,14 +131,15 @@ fun MoveScreen(state: QuiverState) {
             BackHandler { detailId = null }
             DetailScreen(state, detailId!!) { detailId = null }
         }
-        else -> HomeScreen(state) { detailId = it }
+        showActivity -> ActivityScreen(onBack = { showActivity = false }) { detailId = it }
+        else -> HomeScreen(state, onActivity = { showActivity = true }) { detailId = it }
     }
 }
 
 // ---------------------------------------------------------------- home
 
 @Composable
-private fun HomeScreen(state: QuiverState, onOpen: (Long) -> Unit) {
+private fun HomeScreen(state: QuiverState, onActivity: () -> Unit, onOpen: (Long) -> Unit) {
     val ac = Accents.Move
     val colors = Quiver.colors
     val context = LocalContext.current
@@ -171,7 +173,7 @@ private fun HomeScreen(state: QuiverState, onOpen: (Long) -> Unit) {
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp).padding(bottom = 150.dp),
         ) {
-            StepsCard()
+            StepsCard(moves, onActivity)
             Spacer(Modifier.height(14.dp))
 
             // Start card
@@ -227,9 +229,12 @@ private fun HomeScreen(state: QuiverState, onOpen: (Long) -> Unit) {
     }
 }
 
-/** Today's steps from the phone's step counter, the goal, and the last 7 days. */
+/**
+ * Today's steps from the phone's step counter as a ring, the last 7 days'
+ * goal rings, and the weekly active-minutes target — like Google Fit's home.
+ */
 @Composable
-private fun StepsCard() {
+private fun StepsCard(moves: List<MoveEntity>, onOpen: () -> Unit) {
     val colors = Quiver.colors
     val ac = Accents.Move
     val context = LocalContext.current
@@ -255,34 +260,62 @@ private fun StepsCard() {
     }
     val today = LocalDate.now()
     val dao = remember { MoveDatabase.get(context).steps() }
-    val days by remember { dao.since(today.minusDays(6).toString()) }.collectAsState(emptyList())
+    val hours by remember { dao.between(today.minusDays(6).toString(), today.plusDays(1).toString()) }.collectAsState(emptyList())
     // Read the chip while the screen is open, so the count moves as you walk.
     LaunchedEffect(Unit) { while (true) { Steps.sample(context); delay(30_000) } }
-    val byDay = days.associate { it.day to it.steps }
+    val byDay = hours.groupBy { it.day }.mapValues { (_, v) -> v.sumOf { it.steps } }
     val now = byDay[today.toString()] ?: 0
     val goal = Steps.goal(context)
-    Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("%,d".format(now), fontSize = 34.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
-            Text(tr(R.string.steps_today_of_x, "%,d".format(goal)), fontSize = 13.sp, color = colors.dim, modifier = Modifier.padding(bottom = 6.dp))
-        }
-        Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(colors.border)) {
-            Box(Modifier.fillMaxWidth((now.toFloat() / goal).coerceIn(0f, 1f)).height(8.dp).clip(RoundedCornerShape(4.dp)).background(Brush.linearGradient(listOf(ac.a, ac.b))))
-        }
-        val week = (6 downTo 0).map { today.minusDays(it.toLong()) }
-        val top = maxOf(goal.toLong(), week.maxOf { byDay[it.toString()] ?: 0 })
-        Row(Modifier.fillMaxWidth().height(64.dp).padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
-            week.forEach { d ->
-                val n = byDay[d.toString()] ?: 0
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(
-                        Modifier.fillMaxWidth().height((44 * n / top).toInt().coerceAtLeast(3).dp).clip(RoundedCornerShape(4.dp))
-                            .background(if (n >= goal) ac.a else ac.a.copy(alpha = 0.35f)),
-                    )
-                    Text(d.dayOfWeek.getDisplayName(java.time.format.TextStyle.NARROW, java.util.Locale.getDefault()), fontSize = 10.sp, color = if (d == today) colors.text else colors.faint)
+    val week = (6 downTo 0).map { today.minusDays(it.toLong()) }
+    val achieved = week.count { (byDay[it.toString()] ?: 0) >= goal }
+    val weekStart = startOfWeekMillis()
+    val activeMin = moves.filter { it.startedAt >= weekStart }.sumOf { it.movingMs } / 60_000
+    val target = Steps.weeklyMinutes(context)
+
+    Column(Modifier.fillMaxWidth().glass(colors).clickable(onClick = onOpen).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Box(Modifier.size(112.dp), contentAlignment = Alignment.Center) {
+                Ring(now.toFloat() / goal, ac.a, colors.border, 10.dp, Modifier.fillMaxSize())
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("%,d".format(now), fontSize = 22.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
+                    Text(tr(R.string.move_stat_steps), fontSize = 11.sp, color = colors.dim)
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(tr(R.string.steps_goal_x, "%,d".format(goal)), fontSize = 12.5.sp, color = colors.dim)
+                Text(tr(R.string.steps_daily_goals, achieved), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    week.forEach { d ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Ring((byDay[d.toString()] ?: 0).toFloat() / goal, ac.a, colors.border, 3.dp, Modifier.size(20.dp))
+                            Text(d.dayOfWeek.getDisplayName(java.time.format.TextStyle.NARROW, java.util.Locale.getDefault()), fontSize = 9.5.sp, color = if (d == today) colors.text else colors.faint)
+                        }
+                    }
                 }
             }
         }
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row {
+                Text(tr(R.string.steps_weekly_target), Modifier.weight(1f), fontSize = 12.5.sp, color = colors.dim)
+                Text(tr(R.string.steps_weekly_x_of_y, activeMin, target), fontSize = 12.5.sp, fontFamily = Mono, color = colors.text)
+            }
+            Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(colors.border)) {
+                Box(Modifier.fillMaxWidth((activeMin.toFloat() / target).coerceIn(0f, 1f)).height(6.dp).clip(RoundedCornerShape(3.dp)).background(ac.a))
+            }
+        }
+    }
+}
+
+/** A progress ring; a second lap past the goal draws over the first. */
+@Composable
+private fun Ring(progress: Float, color: Color, track: Color, width: androidx.compose.ui.unit.Dp, modifier: Modifier) {
+    androidx.compose.foundation.Canvas(modifier) {
+        val stroke = androidx.compose.ui.graphics.drawscope.Stroke(width.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+        val inset = width.toPx() / 2
+        val box = androidx.compose.ui.geometry.Size(size.width - 2 * inset, size.height - 2 * inset)
+        val at = Offset(inset, inset)
+        drawArc(track, 0f, 360f, false, at, box, style = stroke)
+        if (progress > 0) drawArc(color, -90f, 360f * progress.coerceAtMost(1f), false, at, box, style = stroke)
     }
 }
 
@@ -538,7 +571,7 @@ private fun ElevationChart(profile: List<Pair<Double, Double>>, color: Color, mo
 // ---------------------------------------------------------------- shared bits
 
 @Composable
-private fun RouteThumb(points: List<Pair<Double, Double>>, color: Color, modifier: Modifier) {
+internal fun RouteThumb(points: List<Pair<Double, Double>>, color: Color, modifier: Modifier) {
     Canvas(modifier.padding(8.dp)) {
         if (points.size < 2) return@Canvas
         val minLat = points.minOf { it.first }

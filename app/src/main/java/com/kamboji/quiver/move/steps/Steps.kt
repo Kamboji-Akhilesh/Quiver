@@ -92,7 +92,7 @@ object Steps {
                 (if (Instant.ofEpochMilli(bootAt).atZone(zone).toLocalDate() == LocalDate.now(zone)) total else 0L) to bootAt
             }
             val dao = MoveDatabase.get(context).steps()
-            StepMath.split(steps, from, now, zone).forEach { (day, n) -> dao.add(day.toString(), n) }
+            StepMath.split(steps, from, now, zone).forEach { (hour, n) -> dao.add(StepMath.key(hour), n) }
             prefs.edit().putLong("at", now).putLong("total", total).putInt("boot", cur.boot).apply()
         }
     }
@@ -101,6 +101,12 @@ object Steps {
 
     fun setGoal(context: Context, steps: Int) =
         context.getSharedPreferences(PREF, Context.MODE_PRIVATE).edit().putInt("goal", steps).apply()
+
+    /** Weekly target of active minutes (time in recorded or auto-detected activities). 150 = WHO's weekly minimum. */
+    fun weeklyMinutes(context: Context): Int = context.getSharedPreferences(PREF, Context.MODE_PRIVATE).getInt("weekly_min", 150)
+
+    fun setWeeklyMinutes(context: Context, minutes: Int) =
+        context.getSharedPreferences(PREF, Context.MODE_PRIVATE).edit().putInt("weekly_min", minutes).apply()
 }
 
 class StepWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
