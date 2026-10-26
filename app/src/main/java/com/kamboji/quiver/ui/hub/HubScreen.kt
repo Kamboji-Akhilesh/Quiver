@@ -1,5 +1,17 @@
 package com.kamboji.quiver.ui.hub
 
+import android.net.Uri
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import com.kamboji.quiver.backup.BackupCrypto
+import com.kamboji.quiver.backup.BackupIO
+import com.kamboji.quiver.ui.components.Pill
+import kotlinx.coroutines.launch
 import com.kamboji.quiver.ui.locale.trPlural
 
 import com.kamboji.quiver.ui.locale.tr
@@ -70,15 +82,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kamboji.quiver.R
-import com.kamboji.quiver.backup.QuiverBackup
 import com.kamboji.quiver.calendar.CalendarViewModel
-import com.kamboji.quiver.calendar.alert.AlertScheduler
 import com.kamboji.quiver.calendar.data.CalendarStore
 import com.kamboji.quiver.currency.CurrencyViewModel
 import com.kamboji.quiver.currency.Ui
 import com.kamboji.quiver.expenses.ExpensesViewModel
-import com.kamboji.quiver.currency.worker.RateAlertWorker
-import com.kamboji.quiver.currency.data.RateAlertStore
 import com.kamboji.quiver.expenses.data.ExpenseMath
 import com.kamboji.quiver.expenses.data.ExpenseStore
 import com.kamboji.quiver.focus.FocusPrefs
@@ -402,80 +410,155 @@ private fun buildHubActivity(
 }.sortedByDescending { it.ts }.take(3)
 
 /**
- * Export/import of the three JSON stores. SAF pickers keep this permissionless:
- * the user chooses where the backup goes / comes from.
+ * Export/import of everything (notes, calendar, expenses, alerts, Move) as one
+ * password-encrypted file. SAF pickers keep this permissionless: the user
+ * chooses where the backup goes / comes from.
  */
 @Composable
 private fun DataSection(state: QuiverState) {
     val colors = Quiver.colors
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    // Which password sheet is open; the password waits here while the file picker is up.
+    var asking by remember { mutableStateOf<Uri?>(null) }
+    var askExport by remember { mutableStateOf(false) }
+    var exportPassword by remember { mutableStateOf<CharArray?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var wrong by remember { mutableStateOf(false) }
 
     val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        runCatching {
-            val doc = QuiverBackup.export(
-                NotesStore(context).getAll(),
-                CalendarStore(context).getAll(),
-                ExpenseStore(context).getAll(),
-                RateAlertStore(context).getAll(),
-            )
-            context.contentResolver.openOutputStream(uri)!!.use { it.write(doc.toString(2).toByteArray()) }
-        }.onSuccess { state.toast(tr(R.string.hub_backup_saved)) }
-            .onFailure { state.toast(tr(R.string.hub_export_failed), ToastKind.Error) }
+        val pw = exportPassword ?: return@rememberLauncherForActivityResult
+        exportPassword = null
+        if (uri == null) { pw.fill(' '); return@rememberLauncherForActivityResult }
+        scope.launch {
+            busy = true
+            runCatching { BackupIO.export(context, uri, pw) }
+                .onSuccess { state.toast(tr(R.string.hub_backup_saved)) }
+                .onFailure { state.toast(tr(R.string.hub_export_failed), ToastKind.Error) }
+            pw.fill(' ')
+            busy = false
+        }
+    }
+
+    fun import(uri: Uri, password: CharArray?) = scope.launch {
+        busy = true
+        wrong = false
+        runCatching { BackupIO.merge(context, BackupIO.read(context, uri, password)) }
+            .onSuccess { c ->
+                asking = null
+                state.toast(
+                    if (c.total == 0) tr(R.string.hub_everything_was_already_here)
+                    else tr(
+                        R.string.hub_imported_x,
+                        listOfNotNull(
+                            trPlural(R.plurals.count_notes, c.notes),
+                            trPlural(R.plurals.count_calendar_items, c.calendar),
+                            trPlural(R.plurals.count_expenses, c.expenses),
+                            c.alerts.takeIf { it > 0 }?.let { trPlural(R.plurals.count_alerts, it) },
+                            c.moves.takeIf { it > 0 }?.let { trPlural(R.plurals.count_activities, it) },
+                        ).joinToString(" · "),
+                    ),
+                )
+            }
+            .onFailure { e ->
+                when (e) {
+                    is BackupIO.NeedsPassword -> { wrong = false; asking = uri }
+                    is BackupCrypto.WrongPassword -> wrong = true
+                    else -> { asking = null; state.toast(tr(R.string.hub_that_file_isn_t_a), ToastKind.Error) }
+                }
+            }
+        password?.fill(' ')
+        busy = false
     }
 
     val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        runCatching {
-            val text = context.contentResolver.openInputStream(uri)!!.bufferedReader().use { it.readText() }
-            val imported = QuiverBackup.parse(text)
-
-            val notesStore = NotesStore(context)
-            val notes = QuiverBackup.mergeNotes(notesStore.getAll(), imported.notes) { notesStore.nextId() }
-            notesStore.saveAll(notes.merged)
-
-            val calStore = CalendarStore(context)
-            val cal = QuiverBackup.mergeEntries(calStore.getAll(), imported.entries) { calStore.nextId() }
-            calStore.saveAll(cal.merged)
-            // Imported reminders should fire like locally-created ones.
-            cal.added.forEach { AlertScheduler.reschedule(context, it) }
-
-            val expStore = ExpenseStore(context)
-            val exp = QuiverBackup.mergeExpenses(expStore.getAll(), imported.expenses) { expStore.nextId() }
-            expStore.saveAll(exp.merged)
-
-            val alertStore = RateAlertStore(context)
-            val alerts = QuiverBackup.mergeRateAlerts(alertStore.getAll(), imported.rateAlerts) { alertStore.nextId() }
-            alertStore.saveAll(alerts.merged)
-            // Imported alerts need the background check running to ever fire.
-            if (alerts.added.any { !it.triggered }) RateAlertWorker.ensureScheduled(context)
-
-            listOf(notes.added.size, cal.added.size, exp.added.size, alerts.added.size)
-        }.onSuccess { (n, c, e, a) ->
-            state.toast(
-                if (n + c + e + a == 0) tr(R.string.hub_everything_was_already_here)
-                else tr(
-                    R.string.hub_imported_x,
-                    listOfNotNull(
-                        trPlural(R.plurals.count_notes, n),
-                        trPlural(R.plurals.count_calendar_items, c),
-                        trPlural(R.plurals.count_expenses, e),
-                        a.takeIf { it > 0 }?.let { trPlural(R.plurals.count_alerts, it) },
-                    ).joinToString(" · "),
-                ),
-            )
-        }.onFailure { state.toast(tr(R.string.hub_that_file_isn_t_a), ToastKind.Error) }
+        if (uri != null) import(uri, null)
     }
 
     Column(Modifier.fillMaxWidth().glass(colors).padding(6.dp)) {
         DataRow(Icons.Outlined.FileUpload, tr(R.string.hub_export_data), tr(R.string.hub_notes_calendar_expenses_alerts_one), true) {
-            exporter.launch("quiver-backup-${LocalDate.now()}.json")
+            askExport = true
         }
         DataRow(Icons.Outlined.FileDownload, tr(R.string.hub_import_data), tr(R.string.hub_merge_a_backup_into_this), false) {
             importer.launch(arrayOf("application/json"))
         }
     }
+
+    if (askExport) PasswordSheet(
+        title = tr(R.string.backup_set_password), detail = tr(R.string.backup_set_password_why),
+        confirm = true, busy = false, error = null, onDismiss = { askExport = false },
+    ) { pw ->
+        exportPassword = pw
+        askExport = false
+        exporter.launch("quiver-backup-${LocalDate.now()}.json")
+    }
+    asking?.let { uri ->
+        PasswordSheet(
+            title = tr(R.string.backup_enter_password), detail = tr(R.string.backup_enter_password_why),
+            confirm = false, busy = busy, error = if (wrong) tr(R.string.backup_wrong_password) else null,
+            onDismiss = { asking = null },
+        ) { pw -> import(uri, pw) }
+    }
 }
+
+@Composable
+private fun PasswordSheet(
+    title: String,
+    detail: String,
+    confirm: Boolean,
+    busy: Boolean,
+    error: String?,
+    onDismiss: () -> Unit,
+    onSubmit: (CharArray) -> Unit,
+) {
+    val colors = Quiver.colors
+    var pw by remember { mutableStateOf("") }
+    var again by remember { mutableStateOf("") }
+    val problem = when {
+        pw.length < MIN_PASSWORD -> tr(R.string.backup_password_too_short, MIN_PASSWORD)
+        confirm && again != pw -> tr(R.string.backup_passwords_differ)
+        else -> null
+    }
+    QuiverModalSheet(onDismiss) { _ ->
+        Column(
+            Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 24.dp).imePadding(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(title, fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+            Text(detail, fontSize = 13.sp, color = colors.dim, lineHeight = 18.sp)
+            PasswordField(pw, { pw = it }, tr(R.string.backup_password))
+            if (confirm) PasswordField(again, { again = it }, tr(R.string.backup_password_again))
+            val shown = error ?: problem?.takeIf { pw.isNotEmpty() && (!confirm || again.isNotEmpty()) }
+            if (shown != null) Text(shown, fontSize = 12.5.sp, color = Color(0xFFE5484D))
+            Pill(
+                if (busy) tr(R.string.backup_working) else tr(R.string.backup_continue),
+                problem == null && !busy, Accents.Hub,
+                { if (problem == null && !busy) onSubmit(pw.toCharArray()) },
+                Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PasswordField(value: String, onChange: (String) -> Unit, hint: String) {
+    val colors = Quiver.colors
+    Box(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(100.dp)).background(colors.surf)
+            .border(1.dp, colors.border, RoundedCornerShape(100.dp)).padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        if (value.isEmpty()) Text(hint, fontSize = 15.sp, color = colors.faint)
+        BasicTextField(
+            value, onChange, singleLine = true,
+            textStyle = TextStyle(color = colors.text, fontSize = 15.sp), cursorBrush = SolidColor(Accents.Hub.a),
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+private const val MIN_PASSWORD = 8
 
 @Composable
 private fun DataRow(icon: ImageVector, title: String, detail: String, divider: Boolean, onClick: () -> Unit) {

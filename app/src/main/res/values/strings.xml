@@ -275,7 +275,7 @@
     <string name="hub_merge_a_backup_into_this">Merge a backup into this phone</string>
     <string name="hub_monitoring_active">Monitoring active</string>
     <string name="hub_more_mini_apps_land_here">More mini-apps land here</string>
-    <string name="hub_notes_calendar_expenses_alerts_one">Notes, calendar, expenses &amp; alerts → one file</string>
+    <string name="hub_notes_calendar_expenses_alerts_one">Notes, calendar, expenses, alerts &amp; activities → one encrypted file</string>
     <string name="hub_nothing_yet_clean_a_screenshot">Nothing yet — clean a screenshot or add an event to see it here.</string>
     <string name="hub_paused">Paused</string>
     <string name="hub_pin_a_card_to_feature">Pin a card to feature it large · pinned cards sort to the top</string>
@@ -491,4 +491,16 @@
     <!-- %1$s is e.g. "312 expenses" -->
     <string name="capture_history_title">Imported %1$s from your bank SMS</string>
     <string name="capture_history_text">Past payments are in Expenses — tap to see them</string>
+    <!-- Encrypted backups -->
+    <string name="backup_set_password">Protect this backup</string>
+    <string name="backup_set_password_why">The file is encrypted with this password. Keep it safe — without it the backup can\'t be opened, not even by Quiver.</string>
+    <string name="backup_enter_password">Backup password</string>
+    <string name="backup_enter_password_why">This backup is encrypted. Enter the password it was saved with.</string>
+    <string name="backup_password">Password</string>
+    <string name="backup_password_again">Same password again</string>
+    <string name="backup_password_too_short">At least %1$d characters</string>
+    <string name="backup_passwords_differ">The passwords don\'t match</string>
+    <string name="backup_wrong_password">Wrong password</string>
+    <string name="backup_continue">Continue</string>
+    <string name="backup_working">Working…</string>
 </resources>

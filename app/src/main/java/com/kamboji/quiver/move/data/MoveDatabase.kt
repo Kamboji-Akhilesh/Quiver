@@ -11,6 +11,7 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.Transaction
 import androidx.room.Update
 import com.kamboji.quiver.move.Fix
 import com.kamboji.quiver.move.MoveType
@@ -86,6 +87,16 @@ interface MoveDao {
 
     @Query("DELETE FROM moves WHERE id = :id")
     suspend fun delete(id: Long)
+
+    @Query("SELECT * FROM moves WHERE endedAt IS NOT NULL ORDER BY startedAt")
+    suspend fun allFinished(): List<MoveEntity>
+
+    /** Restores a backed-up activity under a fresh id. */
+    @Transaction
+    suspend fun insertWithPoints(move: MoveEntity, points: List<PointEntity>) {
+        val id = insert(move.copy(id = 0))
+        insertPoints(points.map { it.copy(id = 0, moveId = id) })
+    }
 }
 
 /** Separate from the screenshots database so neither needs a migration for the other. */
