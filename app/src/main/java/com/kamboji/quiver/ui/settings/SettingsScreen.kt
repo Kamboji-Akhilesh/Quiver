@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -49,6 +50,7 @@ import com.kamboji.quiver.expenses.capture.SmsCapture
 import com.kamboji.quiver.focus.FocusGate
 import com.kamboji.quiver.move.MovePrefs
 import com.kamboji.quiver.move.steps.Steps
+import com.kamboji.quiver.ui.components.QvSegmented
 import com.kamboji.quiver.ui.components.QvToggle
 import com.kamboji.quiver.ui.components.QvTopBar
 import com.kamboji.quiver.ui.components.SectionLabel
@@ -85,14 +87,15 @@ fun SettingsScreen(state: QuiverState) {
     Column(Modifier.fillMaxSize().background(colors.bg).statusBarsPadding()) {
         QvTopBar(tr(R.string.settings_title), ac, onBack = { state.settingsOpen = false })
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp).padding(bottom = 48.dp),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             SectionLabel(tr(R.string.settings_appearance))
-            Column(Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(22.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Segmented(
-                    listOf(ThemeMode.System to R.string.settings_mode_system, ThemeMode.Light to R.string.settings_mode_light, ThemeMode.Dark to R.string.settings_mode_dark),
+            Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                QvSegmented(
+                    listOf(ThemeMode.System to tr(R.string.settings_mode_system), ThemeMode.Light to tr(R.string.settings_mode_light), ThemeMode.Dark to tr(R.string.settings_mode_dark)),
                     ThemeSettings.mode,
+                    track = if (colors.flat) colors.bg else null,
                 ) { ThemeSettings.choose(mode = it) }
                 Text(tr(R.string.settings_colour_theme), fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -104,16 +107,19 @@ fun SettingsScreen(state: QuiverState) {
 
             Spacer(Modifier.height(6.dp))
             SectionLabel(tr(R.string.hub_daily))
-            BriefRow()
-            var voice by remember { mutableStateOf(MovePrefs(context).voiceSplits) }
-            SwitchRow(tr(R.string.move_voice_setting), tr(R.string.settings_voice_sub), voice) {
-                voice = !voice
-                MovePrefs(context).voiceSplits = voice
+            Column(Modifier.fillMaxWidth().glass(colors).padding(horizontal = 16.dp, vertical = 2.dp)) {
+                BriefRow()
+                Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
+                var voice by remember { mutableStateOf(MovePrefs(context).voiceSplits) }
+                SwitchRow(tr(R.string.move_voice_setting), tr(R.string.settings_voice_sub), voice) {
+                    voice = !voice
+                    MovePrefs(context).voiceSplits = voice
+                }
             }
 
             Spacer(Modifier.height(6.dp))
             SectionLabel(tr(R.string.settings_permissions))
-            Column(Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(22.dp)).padding(horizontal = 16.dp)) {
+            Column(Modifier.fillMaxWidth().glass(colors).padding(horizontal = 16.dp, vertical = 2.dp)) {
                 GrantRow(tr(R.string.settings_perm_sms), tr(R.string.settings_perm_sms_sub), grants.sms, true) {
                     if (grants.sms) openAppSettings(context) else ask.launch(Manifest.permission.READ_SMS)
                 }
@@ -165,27 +171,6 @@ private fun openAppSettings(context: Context) {
     }
 }
 
-@Composable
-private fun <T> Segmented(options: List<Pair<T, Int>>, selected: T, onPick: (T) -> Unit) {
-    val colors = Quiver.colors
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(colors.bg).padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        options.forEach { (value, label) ->
-            val on = value == selected
-            Box(
-                Modifier.weight(1f).height(38.dp).clip(RoundedCornerShape(9.dp))
-                    .background(if (on) colors.surf2 else Color.Transparent)
-                    .clickable { onPick(value) },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(tr(label), fontSize = 13.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium, color = if (on) colors.text else colors.dim)
-            }
-        }
-    }
-}
-
 /** A tappable miniature of [palette]: its dark form, and for Quiver its light form beside it. */
 @Composable
 private fun ThemeCard(palette: Palette, name: Int, sub: Int, modifier: Modifier) {
@@ -222,10 +207,10 @@ private fun Mini(palette: Palette, dark: Boolean, modifier: Modifier) {
 private fun SwitchRow(title: String, sub: String, on: Boolean, onToggle: () -> Unit) {
     val colors = Quiver.colors
     Row(
-        Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(22.dp)).clickable(onClick = onToggle).padding(horizontal = 16.dp, vertical = 14.dp),
+        Modifier.fillMaxWidth().heightIn(min = 58.dp).clickable(onClick = onToggle).padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
             Text(sub, fontSize = 12.sp, color = colors.dim)
         }
@@ -237,8 +222,8 @@ private fun SwitchRow(title: String, sub: String, on: Boolean, onToggle: () -> U
 @Composable
 private fun GrantRow(title: String, sub: String, granted: Boolean, divider: Boolean, onClick: () -> Unit) {
     val colors = Quiver.colors
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 58.dp).clickable(onClick = onClick).padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
             Text(sub, fontSize = 12.sp, color = colors.dim)
         }

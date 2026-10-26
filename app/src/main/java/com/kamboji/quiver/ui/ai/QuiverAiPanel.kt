@@ -99,29 +99,29 @@ fun QuiverAiPanel(onClose: () -> Unit, initialInput: String? = null, startMic: B
                 Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Box(Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(Brush.linearGradient(listOf(AiA, AiB))), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.AutoAwesome, null, Modifier.size(26.dp), tint = AiOn)
+                Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Brush.linearGradient(listOf(AiA, AiB))), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.AutoAwesome, null, Modifier.size(20.dp), tint = AiOn)
                 }
                 Column(Modifier.weight(1f)) {
-                    Text(tr(R.string.ai_quiver_ai), fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+                    Text(tr(R.string.ai_quiver_ai), fontSize = 20.sp, fontWeight = FontWeight.SemiBold, fontFamily = Display, color = colors.text)
                     Text(
                         when (val s = state) {
                             is ModelState.Ready -> tr(R.string.ai_on_device_x, s.label)
                             is ModelState.Downloading -> tr(R.string.ai_installing_model)
                             else -> tr(R.string.ai_install_to_start)
                         },
-                        fontSize = 12.5.sp, color = Accents.Hub.txt(colors.dark), fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp, color = colors.dim,
                     )
                 }
                 if (state is ModelState.Ready) {
                     Box(
-                        Modifier.size(38.dp).clip(CircleShape)
+                        Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
                             .background(if (showManage) AiA.copy(alpha = 0.2f) else colors.surf)
-                            .border(1.dp, colors.border, CircleShape).clickable { showManage = !showManage },
+                            .border(1.dp, colors.border, RoundedCornerShape(12.dp)).clickable { showManage = !showManage },
                         contentAlignment = Alignment.Center,
                     ) { Icon(Icons.Outlined.Tune, tr(R.string.ai_manage_model), Modifier.size(18.dp), tint = if (showManage) Accents.Hub.txt(colors.dark) else colors.text) }
                 }
-                Box(Modifier.size(38.dp).clip(CircleShape).background(colors.surf).border(1.dp, colors.border, CircleShape).clickable { hide() }, contentAlignment = Alignment.Center) {
+                Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(12.dp)).clickable { hide() }, contentAlignment = Alignment.Center) {
                     Icon(Icons.Filled.Close, null, Modifier.size(18.dp), tint = colors.text)
                 }
             }
@@ -263,8 +263,8 @@ private fun ChatBody(vm: AiViewModel, initialInput: String? = null, startMic: Bo
             VoiceLanguages.forEach { l ->
                 val sel = l == vm.lang
                 Box(
-                    Modifier.clip(RoundedCornerShape(100.dp)).background(if (sel) AiA.copy(alpha = 0.18f) else colors.surf)
-                        .border(1.dp, if (sel) AiA.copy(alpha = 0.5f) else colors.border, RoundedCornerShape(100.dp))
+                    Modifier.clip(RoundedCornerShape(17.dp)).background(if (sel) AiA.copy(alpha = 0.12f) else Color.Transparent)
+                        .border(1.dp, if (sel) Accents.Hub.txt(colors.dark) else colors.border, RoundedCornerShape(17.dp))
                         .clickable { vm.setLanguage(l) }.padding(horizontal = 12.dp, vertical = 6.dp),
                 ) { Text(l.label, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = if (sel) Accents.Hub.txt(colors.dark) else colors.dim) }
             }
@@ -272,27 +272,30 @@ private fun ChatBody(vm: AiViewModel, initialInput: String? = null, startMic: Bo
 
         // input bar
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 18.dp, top = 2.dp)
-                .clip(RoundedCornerShape(100.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(100.dp))
-                .padding(start = 18.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 22.dp, top = 2.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Box(Modifier.weight(1f)) {
+            Box(
+                Modifier.weight(1f).height(50.dp).clip(RoundedCornerShape(16.dp)).background(colors.surf)
+                    .border(1.dp, colors.border, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
                 if (input.isEmpty() && !vm.listening) Text(tr(R.string.ai_ask_anything), color = colors.dim, fontSize = 14.5.sp)
                 if (vm.listening) Text(tr(R.string.ai_listening), color = AiA, fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold)
                 BasicTextField(input, { input = it }, textStyle = TextStyle(color = colors.text, fontSize = 14.5.sp), cursorBrush = SolidColor(AiA), modifier = Modifier.fillMaxWidth())
             }
             // mic
             Box(
-                Modifier.size(40.dp).clip(CircleShape).background(if (vm.listening) AiA else colors.surf2).clickable {
+                Modifier.size(50.dp).clip(RoundedCornerShape(16.dp)).background(if (vm.listening) AiA else colors.surf)
+                    .border(1.dp, colors.border, RoundedCornerShape(16.dp)).clickable {
                     if (vm.listening) vm.stopListening()
                     else if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) vm.startListening()
                     else micPermission.launch(Manifest.permission.RECORD_AUDIO)
                 }, contentAlignment = Alignment.Center,
-            ) { Icon(if (vm.listening) Icons.Filled.Stop else Icons.Filled.Mic, tr(R.string.ai_voice), Modifier.size(20.dp), tint = if (vm.listening) AiOn else colors.dim) }
+            ) { Icon(if (vm.listening) Icons.Filled.Stop else Icons.Filled.Mic, tr(R.string.ai_voice), Modifier.size(20.dp), tint = if (vm.listening) AiOn else colors.text) }
             // send
             Box(
-                Modifier.size(42.dp).clip(CircleShape).background(Brush.linearGradient(listOf(AiA, AiB))).clickable {
+                Modifier.size(50.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(AiA, AiB))).clickable {
                     if (input.isNotBlank() && !vm.generating) { vm.send(input); input = "" }
                 }, contentAlignment = Alignment.Center,
             ) { Icon(Icons.AutoMirrored.Filled.ArrowForward, tr(R.string.ai_send), Modifier.size(20.dp), tint = AiOn) }
@@ -305,9 +308,11 @@ private fun Bubble(msg: ChatMsg, onSpeak: () -> Unit) {
     val colors = Quiver.colors
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (msg.fromUser) Arrangement.End else Arrangement.Start) {
         Column(
-            Modifier.widthIn(max = 290.dp).clip(RoundedCornerShape(18.dp))
+            Modifier.widthIn(max = 300.dp)
+                .clip(if (msg.fromUser) RoundedCornerShape(18.dp, 18.dp, 6.dp, 18.dp) else RoundedCornerShape(18.dp, 18.dp, 18.dp, 6.dp))
                 .background(if (msg.fromUser) Brush.linearGradient(listOf(AiA, AiB)) else SolidColor(colors.surf2))
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+                .border(1.dp, if (msg.fromUser) Color.Transparent else colors.border, if (msg.fromUser) RoundedCornerShape(18.dp, 18.dp, 6.dp, 18.dp) else RoundedCornerShape(18.dp, 18.dp, 18.dp, 6.dp))
+                .padding(horizontal = 14.dp, vertical = 11.dp),
         ) {
             if (!msg.fromUser && msg.streaming) {
                 WorkingBubbleContent(msg.text)

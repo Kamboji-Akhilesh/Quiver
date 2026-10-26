@@ -1,5 +1,13 @@
 package com.kamboji.quiver.ui.shell
 
+import com.kamboji.quiver.ui.theme.Body
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import com.kamboji.quiver.ui.components.Pill
+import androidx.compose.material.icons.outlined.Edit
+import com.kamboji.quiver.ui.components.QvIconButton
+import com.kamboji.quiver.ui.hub.meta
+import com.kamboji.quiver.ui.hub.HubPrefs
 import com.kamboji.quiver.R
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.verticalScroll
@@ -94,59 +102,56 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 
-/** App launcher bottom sheet. */
+/** Every mini-app, as a page under the dock; the ones on Home are marked. */
 @Composable
 fun Launcher(state: QuiverState) {
     val colors = Quiver.colors
-    val items = listOf(
-        AppKey.Screenshots to Icons.Outlined.Image,
-        AppKey.Currency to Icons.Outlined.SwapHoriz,
-        AppKey.Calendar to Icons.Outlined.CalendarMonth,
-        AppKey.Notes to Icons.AutoMirrored.Outlined.StickyNote2,
-        AppKey.Expenses to Icons.Outlined.Payments,
-        AppKey.Focus to Icons.Outlined.SelfImprovement,
-        AppKey.Move to Icons.AutoMirrored.Outlined.DirectionsRun,
-    )
-    QuiverModalSheet(onDismiss = { state.launcherOpen = false }) { _ ->
-        Column(
-            Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 30.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(tr(R.string.shell_your_apps), fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text, modifier = Modifier.fillMaxWidth())
-            Text(tr(R.string.shell_jump_straight_into_any_mini), fontSize = 13.sp, color = colors.dim, modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 18.dp))
-            // 3 per row
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items.chunked(3).forEach { row ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        row.forEach { (app, icon) -> LauncherTile(app, icon, Modifier.weight(1f)) { state.go(app) } }
-                        repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
-                    }
+    val context = LocalContext.current
+    val onHome = remember { HubPrefs(context).dashboardApps().toSet() }
+    val apps = listOf(AppKey.Screenshots, AppKey.Calendar, AppKey.Focus, AppKey.Notes, AppKey.Expenses, AppKey.Move, AppKey.Currency)
+    Column(
+        Modifier.fillMaxSize().background(colors.bg).statusBarsPadding()
+            .clickable(remember { MutableInteractionSource() }, null) {}
+            .verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(top = 6.dp, bottom = 140.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(tr(R.string.dock_apps), Modifier.weight(1f), fontSize = 26.sp, fontWeight = FontWeight.SemiBold, fontFamily = Display, color = colors.text)
+            QvIconButton(Icons.Outlined.Edit, { state.launcherOpen = false; state.editMode = true }, contentDescription = tr(R.string.hub_customize))
+        }
+        Text(tr(R.string.shell_apps_sub), fontSize = 13.sp, color = colors.dim, modifier = Modifier.padding(top = 0.dp))
+        (apps.map { it as AppKey? } + null).chunked(2).forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                row.forEach { app ->
+                    if (app != null) LauncherTile(app, app in onHome, Modifier.weight(1f)) { state.go(app) }
+                    else Box(
+                        Modifier.weight(1f).height(132.dp).border(1.dp, colors.border, RoundedCornerShape(18.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) { Text(tr(R.string.shell_more_coming_soon), fontSize = 12.sp, color = colors.dim) }
                 }
             }
-            Spacer(Modifier.height(18.dp))
-            Text(tr(R.string.shell_more_coming_soon), color = colors.faint, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
 
 @Composable
-private fun LauncherTile(app: AppKey, icon: ImageVector, modifier: Modifier, onClick: () -> Unit) {
+private fun LauncherTile(app: AppKey, onHome: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val colors = Quiver.colors
     val ac = Accents.of(app)
-    val name = stringResource(app.titleRes)
-    Column(
-        modifier.clip(RoundedCornerShape(22.dp))
-            .background(if (colors.flat) SolidColor(colors.surf) else Brush.linearGradient(listOf(ac.a.copy(alpha = if (colors.dark) 0.2f else 0.16f), ac.b.copy(alpha = if (colors.dark) 0.08f else 0.06f))))
-            .border(1.dp, if (colors.flat) colors.border else ac.a.copy(alpha = 0.3f), RoundedCornerShape(22.dp))
-            .clickable(onClick = onClick).padding(vertical = 18.dp, horizontal = 10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Box(
-            Modifier.size(50.dp).clip(RoundedCornerShape(16.dp)).background(ac.iconColor(colors.dark).copy(alpha = 0.16f)),
-            contentAlignment = Alignment.Center,
-        ) { Icon(icon, null, Modifier.size(26.dp), tint = ac.iconColor(colors.dark)) }
-        Text(name, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
+    val m = meta(app)
+    Box(modifier.height(132.dp).glass(colors, RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(14.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(
+                Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(ac.iconColor(colors.dark).copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center,
+            ) { Icon(m.icon, null, Modifier.size(20.dp), tint = ac.iconColor(colors.dark)) }
+            Text(stringResource(app.titleRes), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
+            Text(m.tag, fontSize = 12.sp, color = colors.dim, lineHeight = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        if (onHome) Text(
+            tr(R.string.shell_on_home), Modifier.align(Alignment.TopEnd),
+            fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = Accents.Hub.txt(colors.dark),
+        )
     }
 }
 
@@ -189,89 +194,85 @@ fun SearchOverlay(state: QuiverState) {
         }
     }
 
+    var filter by remember { mutableStateOf("all") }
+    val showShots = filter == "all" || filter == "shots"
+    val showNotes = filter == "all" || filter == "notes"
+    val showActions = filter == "all" || filter == "actions"
+
     Column(
         Modifier.fillMaxSize().background(if (colors.flat) colors.bg else if (colors.dark) Color(0xEB080810) else Color(0xF2F4F5FA))
             .statusBarsPadding()
             .clickable(remember { MutableInteractionSource() }, null) {},
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 14.dp),
+            Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            Box(
+                Modifier.size(40.dp, 48.dp).clip(RoundedCornerShape(12.dp)).clickable { state.searchOpen = false },
+                contentAlignment = Alignment.Center,
+            ) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, tr(R.string.shell_cancel), Modifier.size(22.dp), tint = colors.text) }
             Row(
-                Modifier.weight(1f).clip(RoundedCornerShape(100.dp)).background(colors.surf)
-                    .border(1.dp, Accents.Hub.a.copy(alpha = 0.4f), RoundedCornerShape(100.dp))
-                    .padding(horizontal = 16.dp, vertical = 13.dp),
+                Modifier.weight(1f).height(48.dp).clip(RoundedCornerShape(14.dp)).background(colors.surf)
+                    .border(1.dp, Accents.Hub.txt(colors.dark), RoundedCornerShape(14.dp))
+                    .padding(start = 14.dp, end = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(11.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Icon(Icons.Outlined.Search, null, Modifier.size(19.dp), tint = Accents.Hub.txt(colors.dark))
+                Icon(Icons.Outlined.Search, null, Modifier.size(18.dp), tint = colors.dim)
                 Box(Modifier.weight(1f)) {
-                    if (query.isEmpty()) Text(tr(R.string.shell_search_apps_actions_rates), color = colors.dim, fontSize = 15.5.sp)
+                    if (query.isEmpty()) Text(tr(R.string.shell_search_apps_actions_rates), color = colors.dim, fontSize = 15.sp, maxLines = 1)
                     BasicTextField(
                         query, { query = it },
-                        textStyle = TextStyle(color = colors.text, fontSize = 15.5.sp),
+                        textStyle = TextStyle(color = colors.text, fontSize = 15.sp, fontFamily = Body),
                         cursorBrush = SolidColor(Accents.Hub.a),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().focusRequester(focus),
                     )
                 }
+                if (query.isNotEmpty()) Box(
+                    Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(colors.border).clickable { query = "" },
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.Filled.Close, "Clear", Modifier.size(16.dp), tint = colors.text) }
             }
-            Text(tr(R.string.shell_cancel), color = colors.dim, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { state.searchOpen = false })
         }
-        Column(Modifier.padding(horizontal = 18.dp).verticalScroll(rememberScrollState())) {
-            if (shots.isNotEmpty()) {
-                SectionLabel(tr(R.string.search_in_screenshots))
-                Spacer(Modifier.height(8.dp))
-                shots.forEach { m ->
-                    ResultRow(Icons.Outlined.Image, Accents.Screenshots, m.snippet, m.row.fileName) { openImage(context, m, state) }
-                }
-                Spacer(Modifier.height(8.dp))
+        Column(Modifier.padding(horizontal = 20.dp).verticalScroll(rememberScrollState()).padding(bottom = 40.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (query.isNotBlank()) Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                val total = shots.size + notes.size + filtered.size + 1
+                Pill(tr(R.string.search_filter_all) + " · $total", filter == "all", Accents.Hub, { filter = "all" })
+                Pill(tr(R.string.title_screenshots), filter == "shots", Accents.Hub, { filter = "shots" })
+                Pill(tr(R.string.title_notes), filter == "notes", Accents.Hub, { filter = "notes" })
+                Pill(tr(R.string.shell_actions), filter == "actions", Accents.Hub, { filter = "actions" })
             }
-            if (notes.isNotEmpty()) {
+            if (showShots && shots.isNotEmpty()) {
+                SectionLabel(tr(R.string.search_in_screenshots))
+                ResultCard(shots) { i, m ->
+                    ResultRow(Icons.Outlined.Image, Accents.Screenshots, m.row.fileName, m.snippet, i < shots.lastIndex) { openImage(context, m, state) }
+                }
+            }
+            if (showNotes && notes.isNotEmpty()) {
                 SectionLabel(tr(R.string.title_notes))
-                Spacer(Modifier.height(8.dp))
-                notes.forEach { n ->
-                    ResultRow(Icons.AutoMirrored.Outlined.StickyNote2, Accents.Notes, n.title.ifBlank { tr(R.string.hub_untitled_note) }, n.body.lineSequence().firstOrNull { it.isNotBlank() } ?: "") {
+                ResultCard(notes) { i, n ->
+                    ResultRow(Icons.AutoMirrored.Outlined.StickyNote2, Accents.Notes, n.title.ifBlank { tr(R.string.hub_untitled_note) }, n.body.lineSequence().firstOrNull { it.isNotBlank() } ?: "", i < notes.lastIndex) {
                         state.searchOpen = false
                         state.go(AppKey.Notes)
                     }
                 }
-                Spacer(Modifier.height(8.dp))
             }
-            SectionLabel(if (query.isBlank()) tr(R.string.shell_quick_actions) else tr(R.string.shell_actions))
-            Spacer(Modifier.height(8.dp))
-            filtered.forEach { a ->
-                Row(
-                    Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(18.dp)).clickable { state.go(a.app); if (a.screen == "history") state.screenshotsScreen = "history" }
-                        .padding(horizontal = 15.dp, vertical = 13.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(13.dp),
-                ) {
-                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(a.accent.iconColor(colors.dark).copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
-                        Icon(a.icon, null, Modifier.size(19.dp), tint = a.accent.iconColor(colors.dark))
+            if (showActions) {
+                SectionLabel(if (query.isBlank()) tr(R.string.shell_quick_actions) else tr(R.string.shell_actions))
+                Column(Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(18.dp)).padding(horizontal = 14.dp, vertical = 2.dp)) {
+                    ResultRow(
+                        Icons.Filled.AutoAwesome, Accents.Hub,
+                        if (query.isBlank()) tr(R.string.shell_ask_quiver_ai) else tr(R.string.search_ask_ai_about_x, query),
+                        tr(R.string.shell_let_ai_handle_it_across), filtered.isNotEmpty(),
+                    ) { state.searchOpen = false; state.aiOpen = true }
+                    filtered.forEachIndexed { i, a ->
+                        ResultRow(a.icon, a.accent, a.label, "", i < filtered.lastIndex) {
+                            state.go(a.app); if (a.screen == "history") state.screenshotsScreen = "history"
+                        }
                     }
-                    Text(a.label, Modifier.weight(1f), color = colors.text, fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold)
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(17.dp), tint = colors.faint)
-                }
-                Spacer(Modifier.height(9.dp))
-            }
-            Spacer(Modifier.height(12.dp))
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
-                    .background(if (colors.flat) SolidColor(colors.surf) else Brush.linearGradient(listOf(Accents.Hub.a.copy(alpha = if (colors.dark) 0.22f else 0.16f), Accents.Hub.b.copy(alpha = 0.12f))))
-                    .border(1.dp, if (colors.flat) colors.border else Accents.Hub.a.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
-                    .clickable { state.searchOpen = false; state.aiOpen = true }.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(13.dp),
-            ) {
-                Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Brush.linearGradient(listOf(Accents.Hub.a, Accents.Hub.b))), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.AutoAwesome, null, Modifier.size(21.dp), tint = Accents.Hub.on)
-                }
-                Column(Modifier.weight(1f)) {
-                    Text(if (query.isBlank()) tr(R.string.shell_ask_quiver_ai) else "“$query”", fontSize = 14.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                    Text(tr(R.string.shell_let_ai_handle_it_across), fontSize = 12.5.sp, color = colors.dim)
                 }
             }
         }
@@ -279,20 +280,27 @@ fun SearchOverlay(state: QuiverState) {
 }
 
 @Composable
-private fun ResultRow(icon: ImageVector, accent: Accent, title: String, sub: String, onClick: () -> Unit) {
+private fun <T> ResultCard(items: List<T>, row: @Composable (Int, T) -> Unit) {
+    Column(Modifier.fillMaxWidth().glass(Quiver.colors, RoundedCornerShape(18.dp)).padding(horizontal = 14.dp, vertical = 2.dp)) {
+        items.forEachIndexed { i, t -> row(i, t) }
+    }
+}
+
+@Composable
+private fun ResultRow(icon: ImageVector, accent: Accent, title: String, sub: String, divider: Boolean, onClick: () -> Unit) {
     val colors = Quiver.colors
     Row(
-        Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(horizontal = 15.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().heightIn(min = 58.dp).clickable(onClick = onClick).padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(13.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(accent.iconColor(colors.dark).copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
-            Icon(icon, null, Modifier.size(19.dp), tint = accent.iconColor(colors.dark))
+        Box(Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(accent.iconColor(colors.dark).copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+            Icon(icon, null, Modifier.size(16.dp), tint = accent.iconColor(colors.dark))
         }
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, color = colors.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (sub.isNotBlank()) Text(sub, color = colors.dim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
-    Spacer(Modifier.height(9.dp))
+    if (divider) Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
 }

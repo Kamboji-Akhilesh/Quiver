@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -195,14 +196,14 @@ fun CalendarScreen(state: QuiverState) {
                 stringResource(R.string.title_calendar), ac, onBack = { state.go(AppKey.Hub) },
                 trailing = {
                     QvIconButton(
-                        Icons.Filled.Add, { sheet = CalSheet.New }, size = 42.dp,
-                        background = colors.surf, tint = colors.text,
+                        Icons.Filled.Add, { sheet = CalSheet.New },
+                        background = ac.a, tint = ac.on, contentDescription = "Add event or task",
                     )
                 },
             )
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                    .padding(horizontal = 18.dp).padding(bottom = 150.dp),
+                    .padding(horizontal = 20.dp).padding(bottom = 150.dp),
             ) {
                 // quick add — one line, no composer
                 Row(
@@ -232,34 +233,31 @@ fun CalendarScreen(state: QuiverState) {
                 Spacer(Modifier.height(12.dp))
 
                 // month card
-                Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp)) {
+                Column(Modifier.fillMaxWidth().glass(colors).padding(14.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        Row {
-                            Text(monthName(month.month) + " ", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-                            Text("${month.year}", fontSize = 19.sp, fontWeight = FontWeight.Medium, fontFamily = Display, color = colors.dim)
-                        }
+                        Text("${monthName(month.month)} ${month.year}", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, fontFamily = Display, color = colors.text)
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            QvIconButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, { month = month.minusMonths(1) }, size = 34.dp, iconSize = 17.dp)
-                            QvIconButton(Icons.AutoMirrored.Filled.KeyboardArrowRight, { month = month.plusMonths(1) }, size = 34.dp, iconSize = 17.dp)
+                            QvIconButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, { month = month.minusMonths(1) }, size = 36.dp, iconSize = 16.dp, background = Color.Transparent, contentDescription = "Previous month")
+                            QvIconButton(Icons.AutoMirrored.Filled.KeyboardArrowRight, { month = month.plusMonths(1) }, size = 36.dp, iconSize = 16.dp, background = Color.Transparent, contentDescription = "Next month")
                         }
                     }
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(8.dp))
                     Row(Modifier.fillMaxWidth()) {
                         listOf("S", "M", "T", "W", "T", "F", "S").forEach {
-                            Text(it, Modifier.weight(1f), color = colors.faint, fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                            Text(it, Modifier.weight(1f), color = colors.faint, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                         }
                     }
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(8.dp))
                     MonthGrid(month, selected, today, entries, ac) { selected = it }
                 }
 
                 // agenda header
-                Spacer(Modifier.height(16.dp))
-                Row(Modifier.fillMaxWidth().padding(horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                    Row {
-                        Text(shortDate(selected), fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-                        if (selected == today) Text(tr(R.string.calendar_today), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = ac.txt(colors.dark))
-                    }
+                Spacer(Modifier.height(14.dp))
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(
+                        shortDate(selected) + if (selected == today) tr(R.string.calendar_today) else "",
+                        fontSize = 18.sp, fontWeight = FontWeight.SemiBold, fontFamily = Display, color = colors.text,
+                    )
                     Text(trPlural(R.plurals.count_items, dayItems.size), fontSize = 12.5.sp, color = colors.dim)
                 }
                 Spacer(Modifier.height(12.dp))
@@ -267,7 +265,7 @@ fun CalendarScreen(state: QuiverState) {
                 if (dayItems.isEmpty()) {
                     EmptyAgenda(ac)
                 } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         dayItems.forEach { e ->
                             EventRow(
                                 e, ac,
@@ -336,7 +334,7 @@ private fun MonthGrid(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 for (i in 0 until 7) {
                     val date = week.getOrNull(i)
-                    Box(Modifier.weight(1f).aspectRatio(1f), contentAlignment = Alignment.Center) {
+                    Box(Modifier.weight(1f).height(42.dp), contentAlignment = Alignment.Center) {
                         if (date != null) {
                             val items = entries.filter { it.occursOn(date) }
                             DayCell(date, date == selected, date == today, items, ac) { onSelect(date) }
@@ -352,25 +350,25 @@ private fun MonthGrid(
 private fun DayCell(date: LocalDate, isSel: Boolean, isToday: Boolean, items: List<CalendarEntry>, ac: Accent, onClick: () -> Unit) {
     val colors = Quiver.colors
     Column(
-        Modifier.fillMaxSize().clip(RoundedCornerShape(13.dp))
+        Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp))
             .background(if (isSel) Brush.linearGradient(listOf(ac.a, ac.b)) else SolidColor(Color.Transparent))
-            .border(1.dp, if (isToday && !isSel) ac.a.copy(alpha = 0.5f) else Color.Transparent, RoundedCornerShape(13.dp))
+            .border(1.dp, if (isToday && !isSel) ac.a.copy(alpha = 0.5f) else Color.Transparent, RoundedCornerShape(12.dp))
             .clickable(remember { MutableInteractionSource() }, null, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
             "${date.dayOfMonth}",
-            color = if (isSel) Color(0xFF06121A) else if (isToday) ac.txt(colors.dark) else colors.text,
+            color = if (isSel) ac.on else if (isToday) ac.txt(colors.dark) else colors.text,
             fontWeight = if (isSel || isToday) FontWeight.Bold else FontWeight.Medium,
-            fontSize = 14.sp, fontFamily = Mono,
+            fontSize = 14.sp,
         )
         Row(Modifier.height(5.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             items.take(3).forEach { e ->
                 Box(
                     Modifier.size(4.dp).clip(RoundedCornerShape(4.dp)).background(
-                        if (isSel) Color(0xFF06121A) else when (kindOf(e)) {
-                            Kind.Call -> CallPink; Kind.Task -> TaskAmber; Kind.Event -> ac.a
+                        if (isSel) ac.on else when (kindOf(e)) {
+                            Kind.Call -> CallPink; Kind.Task -> TaskAmber; Kind.Event -> ac.iconColor(colors.dark)
                         },
                     ),
                 )
@@ -382,7 +380,7 @@ private fun DayCell(date: LocalDate, isSel: Boolean, isToday: Boolean, items: Li
 @Composable
 private fun EventRow(e: CalendarEntry, ac: Accent, onClick: () -> Unit, onToggle: () -> Unit) {
     val colors = Quiver.colors
-    val col = if (e.alertStyle == AlertStyle.CALL) CallPink else if (e.isTask) TaskAmber else ac.a
+    val col = if (e.alertStyle == AlertStyle.CALL) CallPink else if (e.isTask) TaskAmber else if (e.allDay) colors.faint else ac.iconColor(colors.dark)
     val subtitle = when {
         e.isTask && e.done -> tr(R.string.calendar_completed)
         else -> buildList {
@@ -396,29 +394,28 @@ private fun EventRow(e: CalendarEntry, ac: Accent, onClick: () -> Unit, onToggle
     }
     val lt = if (e.allDay) null else Instant.ofEpochMilli(e.startMillis).atZone(ZoneId.systemDefault()).toLocalTime()
     Row(
-        Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp),
+        Modifier.fillMaxWidth().height(IntrinsicSize.Min).glass(colors, RoundedCornerShape(16.dp)).clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(Modifier.width(4.dp).height(40.dp).clip(RoundedCornerShape(4.dp)).background(col))
-        Column(Modifier.width(54.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(if (lt == null) tr(R.string.calendar_allday_top) else lt.format(TIME_HM), fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text, maxLines = 1)
-            Text(if (lt == null) tr(R.string.calendar_allday_bottom) else lt.format(TIME_AMPM), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = colors.faint, letterSpacing = 0.5.sp, maxLines = 1)
-        }
         if (e.isTask) {
             Box(
-                Modifier.size(24.dp).clip(RoundedCornerShape(8.dp))
-                    .background(if (e.done) TaskAmber else Color.Transparent)
-                    .border(2.dp, if (e.done) TaskAmber else colors.border2, RoundedCornerShape(8.dp))
+                Modifier.size(22.dp).clip(RoundedCornerShape(7.dp))
+                    .background(if (e.done) ac.a else Color.Transparent)
+                    .border(2.dp, if (e.done) ac.a else colors.border2, RoundedCornerShape(7.dp))
                     .clickable(onClick = onToggle),
                 contentAlignment = Alignment.Center,
-            ) { if (e.done) Icon(Icons.Filled.Check, null, Modifier.size(15.dp), tint = Color(0xFF1A1408)) }
+            ) { if (e.done) Icon(Icons.Filled.Check, null, Modifier.size(14.dp), tint = ac.on) }
         } else {
-            Box(Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(col.copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
-                Icon(Icons.Outlined.CalendarMonth, null, Modifier.size(18.dp), tint = col)
-            }
+            Box(Modifier.width(4.dp).fillMaxHeight().clip(RoundedCornerShape(2.dp)).background(col))
         }
+        Text(
+            if (lt == null) tr(R.string.calendar_allday_top) + " " + tr(R.string.calendar_allday_bottom) else lt.format(TIME_HM) + " " + lt.format(TIME_AMPM),
+            fontSize = 12.5.sp, fontWeight = FontWeight.Medium, fontFamily = Mono, color = colors.dim, maxLines = 1,
+            modifier = Modifier.width(62.dp),
+        )
         Column(Modifier.weight(1f)) {
-            Text(e.title, fontSize = 14.5.sp, fontWeight = FontWeight.Bold, color = if (e.done) colors.dim else colors.text, textDecoration = if (e.done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null, maxLines = 1)
+            Text(e.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = if (e.done) colors.dim else colors.text, textDecoration = if (e.done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null, maxLines = 1)
             Text(subtitle, fontSize = 12.sp, color = colors.dim, maxLines = 1)
         }
     }
@@ -429,12 +426,12 @@ private fun EmptyAgenda(ac: Accent) {
     val colors = Quiver.colors
     Column(Modifier.fillMaxWidth().padding(vertical = 40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
-            Modifier.size(88.dp).clip(RoundedCornerShape(30.dp)).background(ac.a.copy(alpha = 0.12f))
-                .border(1.dp, ac.a.copy(alpha = 0.25f), RoundedCornerShape(30.dp)),
+            Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(colors.surf)
+                .border(1.dp, colors.border, RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center,
-        ) { Icon(Icons.Outlined.CalendarMonth, null, Modifier.size(40.dp), tint = ac.txt(colors.dark)) }
-        Spacer(Modifier.height(16.dp))
-        Text(tr(R.string.calendar_nothing_scheduled), fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+        ) { Icon(Icons.Outlined.CalendarMonth, null, Modifier.size(24.dp), tint = ac.iconColor(colors.dark)) }
+        Spacer(Modifier.height(14.dp))
+        Text(tr(R.string.calendar_nothing_scheduled), fontSize = 17.sp, fontWeight = FontWeight.SemiBold, fontFamily = Display, color = colors.text)
         Text(tr(R.string.calendar_tap_to_add_an_event), fontSize = 13.5.sp, color = colors.dim)
     }
 }
@@ -516,7 +513,7 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, editing: CalendarEntry? = 
                     }
                     .padding(vertical = 15.dp),
                 contentAlignment = Alignment.Center,
-            ) { Text(if (isEdit) tr(R.string.calendar_save_changes) else if (type == EntryType.TASK) tr(R.string.calendar_add_task) else tr(R.string.calendar_add_event), color = Color(0xFF06121A), fontSize = 15.sp, fontWeight = FontWeight.Bold) }
+            ) { Text(if (isEdit) tr(R.string.calendar_save_changes) else if (type == EntryType.TASK) tr(R.string.calendar_add_task) else tr(R.string.calendar_add_event), color = ac.on, fontSize = 15.sp, fontWeight = FontWeight.Bold) }
         },
     ) {
             // title
@@ -673,7 +670,7 @@ private fun EventViewSheet(e: CalendarEntry, ac: Accent, onDismiss: () -> Unit, 
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(listOf(ac.a, ac.b)))
                     .clickable { onEdit() }.padding(vertical = 14.dp),
                 contentAlignment = Alignment.Center,
-            ) { Text(tr(R.string.calendar_edit), color = Color(0xFF06121A), fontSize = 14.5.sp, fontWeight = FontWeight.Bold) }
+            ) { Text(tr(R.string.calendar_edit), color = Quiver.accent.on, fontSize = 14.5.sp, fontWeight = FontWeight.Bold) }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(14.dp)).clickable { hide() }.padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
                     Text(tr(R.string.calendar_close), color = colors.text, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)

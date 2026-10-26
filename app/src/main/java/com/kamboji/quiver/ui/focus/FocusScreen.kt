@@ -42,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -56,6 +57,7 @@ import com.kamboji.quiver.focus.ScreenTime
 import com.kamboji.quiver.focus.FocusTarget
 import com.kamboji.quiver.ui.components.EnableAccessDialog
 import com.kamboji.quiver.ui.components.Pill
+import com.kamboji.quiver.ui.components.QvSegmented
 import com.kamboji.quiver.ui.components.QvToggle
 import com.kamboji.quiver.ui.components.QvTopBar
 import com.kamboji.quiver.ui.components.SectionLabel
@@ -92,7 +94,7 @@ fun FocusScreen(state: QuiverState) {
             QvTopBar(stringResource(R.string.title_focus), ac, onBack = { state.go(AppKey.Hub) })
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                    .padding(horizontal = 18.dp).padding(bottom = 150.dp),
+                    .padding(horizontal = 20.dp).padding(bottom = 150.dp),
             ) {
                 // Status + counter
                 Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp)) {
@@ -104,12 +106,14 @@ fun FocusScreen(state: QuiverState) {
                             color = if (serviceOn) ac.txt(colors.dark) else colors.dim,
                         )
                     }
-                    Spacer(Modifier.height(10.dp))
-                    Text("$today", fontSize = 34.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
-                    Text(
-                        tr(R.string.focus_all_time, trPlural(R.plurals.focus_feeds_blocked_today, today), total),
-                        fontSize = 12.5.sp, color = colors.dim,
-                    )
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("$today", fontSize = 34.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
+                        Text(
+                            tr(R.string.focus_all_time, trPlural(R.plurals.focus_feeds_blocked_today, today), total),
+                            fontSize = 13.sp, color = colors.dim, modifier = Modifier.padding(bottom = 7.dp),
+                        )
+                    }
                 }
 
                 if (!serviceOn) {
@@ -117,63 +121,51 @@ fun FocusScreen(state: QuiverState) {
                     EnableCard(onEnable = { showEnable = true })
                 }
 
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(16.dp))
                 SectionLabel(tr(R.string.screen_time_today))
                 ScreenTimeCard(focused)
 
                 // Once bank-safe mode is set up there's nothing to do here; Settings shows its state.
                 if (!gateReady) {
-                    Spacer(Modifier.height(18.dp))
+                    Spacer(Modifier.height(16.dp))
                     SectionLabel(tr(R.string.focus_bank_safe))
                     BankSafeCard(focused)
                 }
 
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(16.dp))
                 SectionLabel(tr(R.string.focus_block))
-                Column(Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp))) {
+                Column(Modifier.fillMaxWidth().glass(colors)) {
                     FocusTarget.entries.forEachIndexed { i, t ->
                         Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp),
+                            Modifier.fillMaxWidth().height(54.dp).padding(horizontal = 16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(t.label, Modifier.weight(1f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
+                            Text(t.label, Modifier.weight(1f), fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
                             QvToggle(blocked[t] == true, {
                                 val now = blocked[t] != true
                                 blocked[t] = now
                                 prefs.setBlocked(t, now)
                             }, ac)
                         }
-                        if (i < FocusTarget.entries.lastIndex) Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
+                        if (i < FocusTarget.entries.lastIndex) Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(1.dp).background(colors.border))
                     }
                 }
 
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(16.dp))
                 SectionLabel(tr(R.string.focus_allowance))
                 AllowanceCard(prefs, focused)
 
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(16.dp))
                 SectionLabel(tr(R.string.focus_when_blocked))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Pill(tr(R.string.focus_go_back), !closeApp, ac, { closeApp = false; prefs.closeApp = false })
-                    Pill(tr(R.string.focus_close_the_app), closeApp, ac, { closeApp = true; prefs.closeApp = true })
-                }
+                QvSegmented(
+                    listOf(false to tr(R.string.focus_go_back), true to tr(R.string.focus_close_the_app)),
+                    closeApp,
+                ) { closeApp = it; prefs.closeApp = it }
                 Text(
                     if (closeApp) tr(R.string.focus_sends_you_to_the_home)
                     else tr(R.string.focus_presses_back_you_stay_in),
-                    fontSize = 12.sp, color = colors.dim, modifier = Modifier.padding(top = 8.dp, start = 2.dp),
+                    fontSize = 12.sp, color = colors.faint, modifier = Modifier.padding(top = 8.dp),
                 )
-
-                Spacer(Modifier.height(18.dp))
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Icon(Icons.Outlined.Lock, null, Modifier.size(16.dp).padding(top = 2.dp), tint = colors.faint)
-                    Text(
-                        tr(R.string.focus_android_only_lets_quiver_see),
-                        fontSize = 12.sp, color = colors.faint, lineHeight = 16.sp,
-                    )
-                }
             }
         }
 
@@ -221,7 +213,7 @@ private fun BankSafeCard(focused: Boolean) {
     // Starts the gate as soon as both grants are in place.
     LaunchedEffect(usage, toggle) { FocusGate.sync(context) }
 
-    Column(Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Icon(Icons.Outlined.AccountBalance, null, Modifier.size(18.dp), tint = ac.txt(colors.dark))
             Text(
@@ -269,7 +261,7 @@ private fun ScreenTimeCard(focused: Boolean) {
     val apps by produceState<List<Pair<String, Long>>?>(null, focused, allowed) {
         value = if (allowed) withContext(Dispatchers.IO) { ScreenTime.forDay(context) } else null
     }
-    Column(Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (!allowed) {
             Text(tr(R.string.screen_time_needs_access), fontSize = 12.5.sp, color = colors.dim, lineHeight = 17.sp)
             Text(
@@ -281,7 +273,7 @@ private fun ScreenTimeCard(focused: Boolean) {
             return@Column
         }
         val list = apps ?: return@Column
-        Text(ScreenTime.hm(list.sumOf { it.second }), fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
+        Text(ScreenTime.hm(list.sumOf { it.second }), fontSize = 26.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
         val top = list.take(6)
         val max = top.firstOrNull()?.second ?: 1L
         top.forEach { (pkg, ms) ->
@@ -294,7 +286,7 @@ private fun ScreenTimeCard(focused: Boolean) {
                     Text(ScreenTime.hm(ms), fontSize = 12.5.sp, fontFamily = Mono, color = colors.dim)
                 }
                 Box(Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(3.dp)).background(colors.border)) {
-                    Box(Modifier.fillMaxWidth(ms.toFloat() / max).height(5.dp).clip(RoundedCornerShape(3.dp)).background(ac.a))
+                    Box(Modifier.fillMaxWidth(ms.toFloat() / max).height(5.dp).clip(RoundedCornerShape(3.dp)).background(ac.iconColor(colors.dark)))
                 }
             }
         }
@@ -309,20 +301,20 @@ private fun AllowanceCard(prefs: FocusPrefs, focused: Boolean) {
     val ac = Accents.Focus
     var minutes by remember { mutableStateOf(prefs.allowanceMin) }
     val used = remember(focused) { prefs.feedMsToday() / 60_000 }
-    Column(Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.fillMaxWidth().glass(colors).padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf(0, 5, 10, 15).forEach { m ->
                 val on = minutes == m
                 Box(
-                    Modifier.weight(1f).height(42.dp).clip(RoundedCornerShape(11.dp))
-                        .background(if (on) ac.a.copy(alpha = 0.14f) else colors.surf2)
+                    Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(11.dp))
+                        .background(if (on) ac.a.copy(alpha = 0.12f) else Color.Transparent)
                         .border(1.dp, if (on) ac.a else colors.border, RoundedCornerShape(11.dp))
                         .clickable { minutes = m; prefs.allowanceMin = m },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         if (m == 0) tr(R.string.focus_allowance_off) else tr(R.string.focus_allowance_x, m),
-                        fontSize = 13.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = 13.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium,
                         color = if (on) ac.txt(colors.dark) else colors.text,
                     )
                 }

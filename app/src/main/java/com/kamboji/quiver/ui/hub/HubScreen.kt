@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -123,9 +124,9 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Calendar
 
-private data class AppMeta(val tag: String, val icon: ImageVector)
+internal data class AppMeta(val tag: String, val icon: ImageVector)
 
-private fun meta(app: AppKey): AppMeta = when (app) {
+internal fun meta(app: AppKey): AppMeta = when (app) {
     AppKey.Screenshots -> AppMeta(tr(R.string.hub_clear_the_clutter), Icons.Outlined.Image)
     AppKey.Currency -> AppMeta(tr(R.string.hub_live_offline_rates), Icons.Outlined.SwapHoriz)
     AppKey.Calendar -> AppMeta(tr(R.string.hub_tasks_events_calls), Icons.Outlined.CalendarMonth)
@@ -200,21 +201,22 @@ fun HubScreen(state: QuiverState) {
         Modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 18.dp)
+            .padding(horizontal = 20.dp)
             .padding(top = 4.dp, bottom = 140.dp),
     ) {
         // ---- header ----
         Row(
             Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column {
-                Text(stringResource(greetingRes()), color = colors.dim, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text(stringResource(greetingRes()), color = colors.dim, fontSize = 13.sp)
                 Text(
                     tr(R.string.hub_quiver),
                     fontSize = 30.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = (-0.5).sp,
                     fontFamily = Display,
                     // Glass keeps its gradient wordmark; flat themes use plain text.
                     style = if (colors.flat) TextStyle(color = colors.text) else TextStyle(brush = Brush.linearGradient(listOf(Accents.Hub.a, Accents.Hub.b))),
@@ -230,48 +232,48 @@ fun HubScreen(state: QuiverState) {
         // ---- search trigger ----
         Spacer(Modifier.height(18.dp))
         Row(
-            Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(100.dp))
+            Modifier.fillMaxWidth().height(48.dp).glass(colors, RoundedCornerShape(14.dp))
                 .clickable { state.closeOverlays(); state.searchOpen = true }
-                .padding(horizontal = 18.dp, vertical = 13.dp),
+                .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(11.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Icon(Icons.Outlined.Search, null, Modifier.size(19.dp), tint = colors.dim)
-            Text(tr(R.string.hub_search_apps_actions_rates), color = colors.dim, fontSize = 14.5.sp, modifier = Modifier.weight(1f))
+            Icon(Icons.Outlined.Search, null, Modifier.size(18.dp), tint = colors.dim)
+            Text(tr(R.string.hub_search_apps_actions_rates), color = colors.dim, fontSize = 14.sp, modifier = Modifier.weight(1f))
         }
 
         // ---- AI suggestion banner (real, adaptive) ----
         Spacer(Modifier.height(14.dp))
         val (bannerText, bannerAction) = hubSuggestion(state, trash.size, todayCount, monitoring)
         Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
                 .background(
                     if (colors.flat) SolidColor(colors.surf)
                     else Brush.linearGradient(listOf(Accents.Hub.a.copy(alpha = if (colors.dark) 0.22f else 0.18f), Accents.Hub.b.copy(alpha = 0.14f))),
                 )
-                .border(1.dp, if (colors.flat) colors.border else Accents.Hub.a.copy(alpha = 0.4f), RoundedCornerShape(24.dp))
+                .border(1.dp, if (colors.flat) colors.border else Accents.Hub.a.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
                 .clickable { bannerAction() }
-                .padding(16.dp),
+                .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Box(
-                Modifier.size(44.dp).clip(RoundedCornerShape(14.dp))
+                Modifier.size(36.dp).clip(RoundedCornerShape(10.dp))
                     .background(Brush.linearGradient(listOf(Accents.Hub.a, Accents.Hub.b))),
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Filled.AutoAwesome, null, Modifier.size(24.dp), tint = Accents.Hub.on) }
-            Column(Modifier.weight(1f)) {
-                Text(tr(R.string.hub_quiver_ai), color = Accents.Hub.txt(colors.dark), fontSize = 11.5.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                Text(bannerText, color = colors.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, lineHeight = 18.sp)
+            ) { Icon(Icons.Filled.AutoAwesome, null, Modifier.size(18.dp), tint = Accents.Hub.on) }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(tr(R.string.hub_quiver_ai), color = Accents.Hub.txt(colors.dark), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
+                Text(bannerText, color = colors.text, fontSize = 14.sp, lineHeight = 19.sp)
             }
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(20.dp), tint = colors.dim)
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(16.dp), tint = colors.dim)
         }
 
         // ---- quick actions ----
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(14.dp))
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(9.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             QuickAction(stringResource(R.string.qa_clean), Icons.Outlined.Image, Accents.Screenshots) { state.go(AppKey.Screenshots) }
             QuickAction(stringResource(R.string.qa_convert), Icons.Outlined.SwapHoriz, Accents.Currency) { state.go(AppKey.Currency) }
@@ -284,19 +286,19 @@ fun HubScreen(state: QuiverState) {
         }
 
         // ---- mini apps ----
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(18.dp))
         SectionLabel(stringResource(R.string.section_mini_apps)) {
             Box(
-                Modifier.size(38.dp).clip(RoundedCornerShape(12.dp))
+                Modifier.size(36.dp).clip(RoundedCornerShape(10.dp))
                     .background(if (state.editMode) Accents.Hub.a else colors.surf)
-                    .border(1.dp, if (state.editMode) Accents.Hub.a else colors.border, RoundedCornerShape(12.dp))
+                    .border(1.dp, if (state.editMode) Accents.Hub.a else colors.border, RoundedCornerShape(10.dp))
                     .clickable { state.editMode = !state.editMode },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     if (state.editMode) Icons.Filled.Check else Icons.Outlined.Edit,
                     if (state.editMode) tr(R.string.hub_done) else tr(R.string.hub_customize),
-                    Modifier.size(17.dp), tint = if (state.editMode) Accents.Hub.on else colors.text,
+                    Modifier.size(16.dp), tint = if (state.editMode) Accents.Hub.on else colors.text,
                 )
             }
         }
@@ -509,13 +511,12 @@ internal fun BriefRow() {
     var time by remember { mutableStateOf(MorningBrief.time(context)) }
     var picking by remember { mutableStateOf(false) }
     Row(
-        Modifier.fillMaxWidth().glass(colors).clip(RoundedCornerShape(22.dp))
-            .clickable { picking = true }.padding(horizontal = 18.dp, vertical = 14.dp),
+        Modifier.fillMaxWidth().heightIn(min = 58.dp).clickable { picking = true }.padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(13.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(Modifier.weight(1f)) {
-            Text(tr(R.string.brief_setting), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(tr(R.string.brief_setting), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
             Text(
                 if (on) tr(R.string.brief_setting_on, time.format(DateTimeFormatter.ofPattern("h:mm a"))) else tr(R.string.brief_setting_off),
                 fontSize = 12.sp, color = colors.dim, lineHeight = 16.sp,
@@ -598,12 +599,8 @@ private fun DataRow(icon: ImageVector, title: String, detail: String, divider: B
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(13.dp),
     ) {
-        Box(
-            Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(Accents.Hub.a.copy(alpha = 0.14f)),
-            contentAlignment = Alignment.Center,
-        ) { Icon(icon, null, Modifier.size(19.dp), tint = Accents.Hub.txt(colors.dark)) }
-        Column(Modifier.weight(1f)) {
-            Text(title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
             Text(detail, fontSize = 12.sp, color = colors.dim)
         }
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(18.dp), tint = colors.dim)
@@ -615,22 +612,23 @@ private fun DataRow(icon: ImageVector, title: String, detail: String, divider: B
 private fun HeaderIcon(icon: ImageVector, label: String, onClick: () -> Unit) {
     val colors = Quiver.colors
     Box(
-        Modifier.size(44.dp).clip(CircleShape).background(colors.surf)
-            .border(1.dp, colors.border, CircleShape).clickable(onClick = onClick),
+        Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(colors.surf)
+            .border(1.dp, colors.border, RoundedCornerShape(12.dp)).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
-    ) { Icon(icon, label, Modifier.size(21.dp), tint = colors.text) }
+    ) { Icon(icon, label, Modifier.size(18.dp), tint = colors.text) }
 }
 
 @Composable
 private fun QuickAction(label: String, icon: ImageVector, accent: Accent, onClick: () -> Unit) {
     val colors = Quiver.colors
     Row(
-        Modifier.glass(colors, RoundedCornerShape(16.dp)).clickable(onClick = onClick).padding(horizontal = 15.dp, vertical = 11.dp),
+        Modifier.height(40.dp).clip(RoundedCornerShape(12.dp)).border(1.dp, colors.border, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick).padding(start = 12.dp, end = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Icon(icon, null, Modifier.size(17.dp), tint = accent.iconColor(colors.dark))
-        Text(label, color = colors.text, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, fontFamily = Body)
+        Icon(icon, null, Modifier.size(16.dp), tint = accent.iconColor(colors.dark))
+        Text(label, color = colors.text, fontSize = 13.sp, fontWeight = FontWeight.Medium, fontFamily = Body)
     }
 }
 
@@ -638,9 +636,9 @@ private fun QuickAction(label: String, icon: ImageVector, accent: Accent, onClic
 private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boolean, trashCount: Int, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int, monthSpend: String, hubPrefs: HubPrefs, onAddApp: () -> Unit, onRemoveApp: (AppKey) -> Unit) {
     val colors = Quiver.colors
     val rows = packTiles(order) { state.pinned[it] == true }
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         rows.forEach { row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 row.forEach { app ->
                     val big = state.pinned[app] == true
                     BentoTile(state, app, big, monitoring, trashCount, todayCount, curRate, curTo, notesCount, monthSpend, hubPrefs, { onRemoveApp(app) }, Modifier.weight(1f))
@@ -649,9 +647,9 @@ private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boole
             }
         }
         Row(
-            Modifier.fillMaxWidth().height(80.dp).clip(RoundedCornerShape(24.dp))
+            Modifier.fillMaxWidth().height(80.dp).clip(RoundedCornerShape(18.dp))
                 .background(colors.surf)
-                .border(1.5.dp, colors.border2, RoundedCornerShape(24.dp))
+                .border(1.5.dp, colors.border2, RoundedCornerShape(18.dp))
                 .clickable(onClick = onAddApp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
@@ -701,8 +699,8 @@ private fun BentoTile(
     val m = meta(app)
     Box(
         modifier
-            .height(124.dp)
-            .clip(RoundedCornerShape(22.dp))
+            .height(120.dp)
+            .clip(RoundedCornerShape(18.dp))
             .background(
                 if (colors.flat) SolidColor(colors.surf)
                 else Brush.linearGradient(
@@ -712,19 +710,19 @@ private fun BentoTile(
                     ),
                 ),
             )
-            .border(1.dp, if (colors.flat) colors.border else ac.a.copy(alpha = if (colors.dark) 0.28f else 0.32f), RoundedCornerShape(22.dp))
+            .border(1.dp, if (colors.flat) colors.border else ac.a.copy(alpha = if (colors.dark) 0.28f else 0.32f), RoundedCornerShape(18.dp))
             .clickable { if (state.editMode) togglePin(state, app, hubPrefs) else state.go(app) }
             .padding(14.dp),
     ) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(
-                    Modifier.size(34.dp).clip(RoundedCornerShape(10.dp))
-                        .background(ac.iconColor(colors.dark).copy(alpha = if (colors.dark) 0.16f else 0.12f)),
+                    Modifier.size(32.dp).clip(RoundedCornerShape(9.dp))
+                        .background(ac.iconColor(colors.dark).copy(alpha = if (colors.dark) 0.14f else 0.12f)),
                     contentAlignment = Alignment.Center,
-                ) { Icon(m.icon, null, Modifier.size(18.dp), tint = ac.iconColor(colors.dark)) }
+                ) { Icon(m.icon, null, Modifier.size(17.dp), tint = ac.iconColor(colors.dark)) }
                 Text(
-                    stringResource(app.titleRes), fontSize = 15.5.sp, fontWeight = FontWeight.Bold, fontFamily = Display,
+                    stringResource(app.titleRes), fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
                     color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
                 )
             }

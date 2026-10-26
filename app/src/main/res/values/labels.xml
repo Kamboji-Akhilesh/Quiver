@@ -76,7 +76,7 @@
     <string name="calendar_edit_task">Edit task</string>
     <string name="calendar_edit_event">Edit event</string>
     <!-- %1$s rate, %2$s currency code -->
-    <string name="currency_now_x">now %1$s %2$s</string>
+    <string name="currency_now_x">Now %1$s %2$s</string>
     <string name="currency_crosses">crosses</string>
     <string name="currency_eg_x">e.g. %1$s</string>
     <!-- %1$s "3 feeds blocked today", %2$s all-time count -->

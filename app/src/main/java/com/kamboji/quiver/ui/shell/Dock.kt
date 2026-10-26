@@ -10,11 +10,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -41,68 +40,47 @@ import com.kamboji.quiver.ui.theme.AppKey
 import com.kamboji.quiver.ui.theme.Accents
 import com.kamboji.quiver.ui.theme.Quiver
 
-/** The floating glass dock: Home · Search · [AI] · Apps · Calendar. */
+/** The bottom bar: Home · Search · [AI] · Apps · Calendar. */
 @Composable
 fun Dock(state: QuiverState, modifier: Modifier = Modifier) {
     val colors = Quiver.colors
-    Column(
-        modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
+    val hub = Accents.Hub
+    val active = hub.txt(colors.dark)
+    val shape = RoundedCornerShape(20.dp)
+    Row(
+        modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .height(64.dp)
+            .clip(shape)
+            .background(if (colors.flat) colors.surf else if (colors.dark) Color(0xB814141F) else Color(0xC7FFFFFF))
+            .border(1.dp, colors.border, shape),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceAround,
     ) {
-        // The raised AI button overflows the pill's top edge, so it lives in a
-        // Box (which doesn't clip) overlaid on the row, with top space reserved
-        // for the protrusion. The row reserves a center gap for it.
-        Box(contentAlignment = Alignment.TopCenter) {
-            Row(
-                Modifier
-                    .padding(top = 24.dp)
-                    .clip(RoundedCornerShape(30.dp))
-                    .background(if (colors.dark) Color(0xB814141F) else Color(0xC7FFFFFF))
-                    .border(1.dp, colors.border, RoundedCornerShape(30.dp))
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                DockItem(Icons.Outlined.Home, stringResource(R.string.dock_home), state.app == AppKey.Hub, Accents.of(state.app).txt(colors.dark)) {
-                    state.go(AppKey.Hub)
-                }
-                DockItem(Icons.Outlined.Search, stringResource(R.string.dock_search), false, colors.dim) {
-                    state.closeOverlays(); state.searchOpen = true
-                }
-                // Reserved gap that the floating AI button sits over.
-                Spacer(Modifier.width(60.dp))
-                DockItem(Icons.Outlined.GridView, stringResource(R.string.dock_apps), false, colors.dim) {
-                    state.closeOverlays(); state.launcherOpen = true
-                }
-                DockItem(
-                    Icons.Outlined.CalendarMonth, stringResource(R.string.dock_calendar),
-                    state.app == AppKey.Calendar, Accents.Calendar.txt(colors.dark),
-                ) { state.go(AppKey.Calendar) }
-            }
-            // Floating AI button — drawn on top, protruding above the pill.
-            Box(
-                Modifier
-                    .align(Alignment.TopCenter)
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(Accents.Hub.a, Accents.Hub.b)))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) { state.closeOverlays(); state.aiOpen = true },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Filled.AutoAwesome, "Quiver AI", Modifier.size(26.dp), tint = Accents.Hub.on)
-            }
+        DockItem(Icons.Outlined.Home, stringResource(R.string.dock_home), state.app == AppKey.Hub && !state.launcherOpen, active) {
+            state.closeOverlays()
+            state.go(AppKey.Hub)
         }
-        Spacer(Modifier.height(9.dp))
+        DockItem(Icons.Outlined.Search, stringResource(R.string.dock_search), false, active) {
+            state.closeOverlays(); state.searchOpen = true
+        }
         Box(
             Modifier
-                .width(116.dp)
-                .height(4.5.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(if (colors.dark) Color(0x59FFFFFF) else Color(0x5212162D)),
-        )
+                .size(48.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Brush.linearGradient(listOf(hub.a, hub.b)))
+                .clickable { state.closeOverlays(); state.aiOpen = true },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Filled.AutoAwesome, "Ask Quiver AI", Modifier.size(22.dp), tint = hub.on)
+        }
+        DockItem(Icons.Outlined.GridView, stringResource(R.string.dock_apps), state.launcherOpen, active) {
+            state.closeOverlays(); state.launcherOpen = true
+        }
+        DockItem(Icons.Outlined.CalendarMonth, stringResource(R.string.dock_calendar), state.app == AppKey.Calendar, active) {
+            state.go(AppKey.Calendar)
+        }
     }
 }
 
@@ -115,25 +93,26 @@ private fun DockItem(
     onClick: () -> Unit,
 ) {
     val colors = Quiver.colors
+    val tint = if (active) activeColor else colors.dim
     Column(
         Modifier
-            .width(58.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .widthIn(min = 48.dp)
+            .clip(RoundedCornerShape(12.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick,
             )
-            .padding(vertical = 4.dp, horizontal = 4.dp),
+            .padding(4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(icon, label, Modifier.size(22.dp), tint = if (active) activeColor else colors.dim)
+        Icon(icon, null, Modifier.size(20.dp), tint = tint)
         Spacer(Modifier.height(3.dp))
         Text(
             label,
-            color = if (active) activeColor else colors.dim,
-            fontSize = 9.5.sp,
-            fontWeight = FontWeight.SemiBold,
+            color = tint,
+            fontSize = 11.sp,
+            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
             maxLines = 1,
             softWrap = false,
         )

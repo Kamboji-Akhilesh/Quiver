@@ -1,5 +1,8 @@
 package com.kamboji.quiver.ui.notes
 
+import com.kamboji.quiver.ui.theme.Body
+import android.text.format.DateUtils
+import androidx.compose.material.icons.filled.Add
 import com.kamboji.quiver.ui.locale.tr
 import android.Manifest
 import android.content.pm.PackageManager
@@ -138,11 +141,14 @@ private fun NotesList(state: QuiverState, vm: NotesViewModel, onNew: () -> Unit,
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            QvTopBar(stringResource(R.string.title_notes), ac, onBack = { state.go(AppKey.Hub) })
+            QvTopBar(
+                stringResource(R.string.title_notes), ac, onBack = { state.go(AppKey.Hub) },
+                trailing = { QvIconButton(Icons.Filled.Add, onNew, background = ac.a, tint = ac.on, contentDescription = tr(R.string.notes_new_note)) },
+            )
             // search
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 18.dp).glass(colors, RoundedCornerShape(100.dp))
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(48.dp).glass(colors, RoundedCornerShape(14.dp))
+                    .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Icon(Icons.Outlined.Search, null, Modifier.size(18.dp), tint = colors.dim)
@@ -160,10 +166,10 @@ private fun NotesList(state: QuiverState, vm: NotesViewModel, onNew: () -> Unit,
                 }
                 else -> LazyVerticalStaggeredGrid(
                     columns = StaggeredGridCells.Fixed(2),
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
                     contentPadding = PaddingValues(bottom = 120.dp),
-                    verticalItemSpacing = 12.dp,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalItemSpacing = 10.dp,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     if (pinned.isNotEmpty()) {
                         item(span = StaggeredGridItemSpan.FullLine) { SectionLabel(tr(R.string.notes_pinned)) }
@@ -175,17 +181,6 @@ private fun NotesList(state: QuiverState, vm: NotesViewModel, onNew: () -> Unit,
                     }
                 }
             }
-        }
-
-        // New-note button
-        Row(
-            Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(20.dp)
-                .clip(RoundedCornerShape(100.dp)).background(Brush.linearGradient(listOf(ac.a, ac.b)))
-                .clickable(onClick = onNew).padding(horizontal = 20.dp, vertical = 15.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Icon(Icons.AutoMirrored.Outlined.StickyNote2, null, Modifier.size(20.dp), tint = Color(0xFF1A1408))
-            Text(tr(R.string.notes_new_note), color = Color(0xFF1A1408), fontWeight = FontWeight.Bold)
         }
 
         actionsFor?.let { note ->
@@ -206,26 +201,29 @@ private fun NotesList(state: QuiverState, vm: NotesViewModel, onNew: () -> Unit,
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun NoteCard(note: Note, onClick: () -> Unit, onLongPress: () -> Unit) {
-    val dark = Quiver.colors.dark
+    val colors = Quiver.colors
     val nc = NotePalette.of(note.colorId)
-    val fg = nc.onBg(dark)
+    // A coloured note is a light tint of its colour with a matching outline; the default is a plain card.
+    val tinted = note.colorId != 0
     Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(nc.bg(dark))
-            .border(1.dp, fg.copy(alpha = 0.06f), RoundedCornerShape(18.dp))
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+            .background(if (tinted) nc.accent.copy(alpha = 0.10f) else colors.surf)
+            .border(1.dp, if (tinted) nc.accent.copy(alpha = 0.35f) else colors.border, RoundedCornerShape(18.dp))
             .combinedClickable(onClick = onClick, onLongClick = onLongPress)
-            .padding(horizontal = 14.dp, vertical = 13.dp),
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        if (note.pinned) {
-            Icon(Icons.Filled.PushPin, null, Modifier.align(Alignment.End).size(15.dp), tint = nc.accent)
-        }
         if (note.title.isNotBlank()) {
-            Text(note.title.trim(), color = fg, fontSize = 15.5.sp, fontWeight = FontWeight.Bold, maxLines = 3, overflow = TextOverflow.Ellipsis, lineHeight = 20.sp)
-            if (note.body.isNotBlank()) Spacer(Modifier.height(6.dp))
+            Text(note.title.trim(), color = colors.text, fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 3, overflow = TextOverflow.Ellipsis, lineHeight = 19.sp)
         }
         if (note.body.isNotBlank()) {
-            val md = rememberMarkdown(note.body.trim(), 13.5.sp, fg.copy(alpha = 0.78f), fg.copy(alpha = 0.55f), nc.accent)
-            Text(md, maxLines = if (note.title.isBlank()) 12 else 8, overflow = TextOverflow.Ellipsis, lineHeight = 19.sp)
+            val md = rememberMarkdown(note.body.trim(), 12.5.sp, colors.dim, colors.faint, nc.accent)
+            Text(md, maxLines = if (note.title.isBlank()) 12 else 8, overflow = TextOverflow.Ellipsis, lineHeight = 17.sp)
         }
+        Text(
+            DateUtils.getRelativeTimeSpanString(note.updatedAtMillis, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString(),
+            fontSize = 11.sp, color = colors.faint,
+        )
     }
 }
 
@@ -235,12 +233,12 @@ private fun EmptyNotes(ac: com.kamboji.quiver.ui.theme.Accent) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
-                Modifier.size(88.dp).clip(RoundedCornerShape(30.dp)).background(ac.a.copy(alpha = 0.12f))
-                    .border(1.dp, ac.a.copy(alpha = 0.25f), RoundedCornerShape(30.dp)),
+                Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(colors.surf)
+                    .border(1.dp, colors.border, RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.AutoMirrored.Outlined.StickyNote2, null, Modifier.size(40.dp), tint = ac.txt(colors.dark)) }
-            Spacer(Modifier.height(16.dp))
-            Text(tr(R.string.notes_no_notes_yet), fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+            ) { Icon(Icons.AutoMirrored.Outlined.StickyNote2, null, Modifier.size(24.dp), tint = ac.iconColor(colors.dark)) }
+            Spacer(Modifier.height(14.dp))
+            Text(tr(R.string.notes_no_notes_yet), fontSize = 17.sp, fontWeight = FontWeight.SemiBold, fontFamily = Display, color = colors.text)
             Text(tr(R.string.notes_tap_new_note_to_jot), fontSize = 13.5.sp, color = colors.dim)
         }
     }
@@ -304,7 +302,10 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
     val titleFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { if (existing == null) titleFocus.requestFocus() }
     val nc = NotePalette.of(colorId)
-    val fg = nc.onBg(dark)
+    val colors = Quiver.colors
+    // Flat themes keep the page plain; the note's colour shows on its card and swatch.
+    val fg = if (colors.flat) colors.text else nc.onBg(dark)
+    val ground = if (colors.flat) colors.bg else nc.bg(dark)
 
     // Voice dictation: platform STT (no recording kept) inserts at the cursor.
     val voice = remember { VoiceController(context) }
@@ -344,37 +345,30 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
     fun close() { save(); onClose() }
     BackHandler { close() }
 
-    Box(Modifier.fillMaxSize().background(nc.bg(dark))) {
+    Box(Modifier.fillMaxSize().background(ground)) {
         Column(Modifier.fillMaxSize().imePadding()) {
             Row(
-                Modifier.fillMaxWidth().padding(start = 8.dp, end = 12.dp, top = 6.dp, bottom = 4.dp),
+                Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 QvIconButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, { close() }, contentDescription = tr(R.string.notes_back), tint = fg)
                 Spacer(Modifier.weight(1f))
-                Box(
-                    Modifier.size(42.dp).clip(CircleShape).clickable { preview = !preview },
-                    contentAlignment = Alignment.Center,
-                ) { Icon(if (preview) Icons.Outlined.Edit else Icons.Outlined.Visibility, tr(R.string.notes_preview), Modifier.size(21.dp), tint = fg) }
-                Box(
-                    Modifier.size(42.dp).clip(CircleShape).clickable {
-                        pinned = !pinned
-                        savedId?.let { vm.togglePin(it) }
-                    },
-                    contentAlignment = Alignment.Center,
-                ) { Icon(if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin, tr(R.string.notes_pin), Modifier.size(21.dp), tint = if (pinned) nc.accent else fg) }
-                Box(
-                    Modifier.size(42.dp).clip(CircleShape).clickable {
-                        discarded = true
-                        savedId?.let { vm.delete(it) }
-                        onClose()
-                    },
-                    contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Filled.DeleteOutline, tr(R.string.notes_delete), Modifier.size(21.dp), tint = fg) }
+                QvIconButton(
+                    if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                    { pinned = !pinned; savedId?.let { vm.togglePin(it) } },
+                    contentDescription = tr(R.string.notes_pin), tint = if (pinned) Quiver.accent.txt(dark) else fg,
+                )
+                QvIconButton(if (preview) Icons.Outlined.Edit else Icons.Outlined.Visibility, { preview = !preview }, contentDescription = tr(R.string.notes_preview), tint = fg)
+                QvIconButton(
+                    Icons.Filled.DeleteOutline,
+                    { discarded = true; savedId?.let { vm.delete(it) }; onClose() },
+                    contentDescription = tr(R.string.notes_delete), tint = fg,
+                )
             }
             Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
                 if (preview) {
-                    if (title.isNotBlank()) Text(title.trim(), color = fg, fontSize = 24.sp, fontWeight = FontWeight.Bold, lineHeight = 30.sp, modifier = Modifier.padding(top = 4.dp))
+                    if (title.isNotBlank()) Text(title.trim(), color = fg, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, fontFamily = Display, lineHeight = 34.sp, modifier = Modifier.padding(top = 4.dp))
                     Spacer(Modifier.height(12.dp))
                     if (body.isNotBlank()) {
                         MarkdownView(
@@ -386,8 +380,8 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
                     }
                 } else {
                     Box(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                        if (title.isEmpty()) Text(tr(R.string.notes_title), color = fg.copy(alpha = 0.4f), fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        BasicTextField(title, { title = it }, textStyle = TextStyle(color = fg, fontSize = 24.sp, fontWeight = FontWeight.Bold, lineHeight = 30.sp), cursorBrush = SolidColor(nc.accent), modifier = Modifier.fillMaxWidth().focusRequester(titleFocus))
+                        if (title.isEmpty()) Text(tr(R.string.notes_title), color = fg.copy(alpha = 0.4f), fontSize = 28.sp, fontWeight = FontWeight.SemiBold, fontFamily = Display)
+                        BasicTextField(title, { title = it }, textStyle = TextStyle(color = fg, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, fontFamily = Display, lineHeight = 34.sp), cursorBrush = SolidColor(nc.accent), modifier = Modifier.fillMaxWidth().focusRequester(titleFocus))
                     }
                     Spacer(Modifier.height(12.dp))
                     Box(Modifier.fillMaxWidth()) {
@@ -395,7 +389,7 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
                         BasicTextField(
                             bodyValue,
                             { bodyValue = continueList(bodyValue, it) ?: it },
-                            textStyle = TextStyle(color = fg.copy(alpha = 0.9f), fontSize = 16.sp, lineHeight = 24.sp),
+                            textStyle = TextStyle(color = fg.copy(alpha = 0.9f), fontSize = 15.sp, lineHeight = 22.sp, fontFamily = Body),
                             cursorBrush = SolidColor(nc.accent),
                             visualTransformation = rememberMarkdownTransformation(16.sp, fg.copy(alpha = 0.9f), fg.copy(alpha = 0.4f), nc.accent),
                             modifier = Modifier.fillMaxWidth(),
@@ -404,53 +398,45 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
                 }
                 Spacer(Modifier.height(40.dp))
             }
-            // markdown formatting toolbar (edit mode only)
-            if (!preview) {
-                Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // Voice dictation — inserts the transcript at the cursor.
-                    Box(
-                        Modifier.size(38.dp).clip(RoundedCornerShape(10.dp))
-                            .background(if (listening) nc.accent else fg.copy(alpha = 0.08f))
-                            .clickable { toggleMic() },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            if (listening) Icons.Filled.Stop else Icons.Filled.Mic,
-                            if (listening) tr(R.string.notes_stop_dictation) else tr(R.string.notes_dictate),
-                            Modifier.size(20.dp),
-                            tint = if (listening) Color.White else fg,
+            // bottom panel: note colour, then formatting (edit mode) with dictation at the end
+            Column(
+                Modifier.fillMaxWidth().background(if (colors.flat) colors.surf else Color.Transparent)
+                    .border(1.dp, if (colors.flat) colors.border else Color.Transparent)
+                    .navigationBarsPadding().padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    NotePalette.colors.forEachIndexed { i, c ->
+                        val sel = i == colorId
+                        Box(
+                            Modifier.size(26.dp).clip(CircleShape).background(if (i == 0) colors.surf2 else c.accent)
+                                .border(2.dp, if (sel) fg else if (i == 0) colors.border2 else Color.Transparent, CircleShape)
+                                .clickable { colorId = i },
                         )
                     }
-                    FmtButton(label = "H1", fg = fg) { bodyValue = linePrefix(bodyValue, "# ") }
-                    FmtButton(label = "H2", fg = fg) { bodyValue = linePrefix(bodyValue, "## ") }
-                    FmtButton(icon = Icons.Filled.FormatBold, fg = fg) { bodyValue = wrap(bodyValue, "**") }
-                    FmtButton(icon = Icons.Filled.FormatItalic, fg = fg) { bodyValue = wrap(bodyValue, "*") }
-                    FmtButton(icon = Icons.Filled.StrikethroughS, fg = fg) { bodyValue = wrap(bodyValue, "~~") }
-                    FmtButton(icon = Icons.Filled.Code, fg = fg) { bodyValue = wrap(bodyValue, "`") }
-                    FmtButton(icon = Icons.AutoMirrored.Filled.FormatListBulleted, fg = fg) { bodyValue = linePrefix(bodyValue, "- ") }
-                    FmtButton(icon = Icons.Filled.FormatListNumbered, fg = fg) { bodyValue = linePrefix(bodyValue, "1. ") }
-                    FmtButton(icon = Icons.Outlined.CheckBox, fg = fg) { bodyValue = linePrefix(bodyValue, "- [ ] ") }
-                    FmtButton(icon = Icons.Filled.FormatQuote, fg = fg) { bodyValue = linePrefix(bodyValue, "> ") }
                 }
-            }
-            // colour strip
-            Row(
-                Modifier.fillMaxWidth().navigationBarsPadding().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                NotePalette.colors.forEachIndexed { i, c ->
-                    val sel = i == colorId
-                    Box(
-                        Modifier.size(36.dp).clip(CircleShape).background(c.accent)
-                            .border(2.5.dp, if (sel) fg else Color.Transparent, CircleShape)
-                            .clickable { colorId = i },
-                        contentAlignment = Alignment.Center,
-                    ) { if (sel) Icon(Icons.Filled.Check, null, Modifier.size(18.dp), tint = Color.White) }
+                if (!preview) Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
+                        FmtButton(label = "H", fg = fg) { bodyValue = linePrefix(bodyValue, "# ") }
+                        FmtButton(icon = Icons.Filled.FormatBold, fg = fg) { bodyValue = wrap(bodyValue, "**") }
+                        FmtButton(icon = Icons.Filled.FormatItalic, fg = fg) { bodyValue = wrap(bodyValue, "*") }
+                        FmtButton(icon = Icons.AutoMirrored.Filled.FormatListBulleted, fg = fg) { bodyValue = linePrefix(bodyValue, "- ") }
+                        FmtButton(icon = Icons.Outlined.CheckBox, fg = fg) { bodyValue = linePrefix(bodyValue, "- [ ] ") }
+                        FmtButton(icon = Icons.Filled.FormatListNumbered, fg = fg) { bodyValue = linePrefix(bodyValue, "1. ") }
+                        FmtButton(icon = Icons.Filled.StrikethroughS, fg = fg) { bodyValue = wrap(bodyValue, "~~") }
+                        FmtButton(icon = Icons.Filled.Code, fg = fg) { bodyValue = wrap(bodyValue, "`") }
+                        FmtButton(icon = Icons.Filled.FormatQuote, fg = fg) { bodyValue = linePrefix(bodyValue, "> ") }
+                    }
+                    // Voice dictation — inserts the transcript at the cursor.
+                    val ac = Quiver.accent
+                    Row(
+                        Modifier.height(44.dp).clip(RoundedCornerShape(12.dp)).background(Brush.linearGradient(listOf(ac.a, ac.b)))
+                            .clickable { toggleMic() }.padding(horizontal = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(if (listening) Icons.Filled.Stop else Icons.Filled.Mic, null, Modifier.size(18.dp), tint = ac.on)
+                        Text(if (listening) tr(R.string.notes_stop_dictation) else tr(R.string.notes_dictate), color = ac.on, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -460,11 +446,11 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
 @Composable
 private fun FmtButton(label: String? = null, icon: androidx.compose.ui.graphics.vector.ImageVector? = null, fg: Color, onClick: () -> Unit) {
     Box(
-        Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)).background(fg.copy(alpha = 0.08f)).clickable(onClick = onClick),
+        Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         if (icon != null) Icon(icon, label, Modifier.size(20.dp), tint = fg)
-        else Text(label ?: "", color = fg, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        else Text(label ?: "", color = fg, fontSize = 15.sp, fontWeight = FontWeight.Bold)
     }
 }
 

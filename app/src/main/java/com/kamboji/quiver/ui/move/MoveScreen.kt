@@ -169,54 +169,39 @@ private fun HomeScreen(state: QuiverState, onActivity: () -> Unit, onHeatmap: ()
         )
     }
 
-    val weekStart = startOfWeekMillis()
-    val week = moves.filter { it.startedAt >= weekStart }
 
     Column(Modifier.fillMaxSize()) {
         QvTopBar(stringResource(R.string.title_move), ac, onBack = { state.go(AppKey.Hub) })
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp).padding(bottom = 150.dp),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 150.dp),
         ) {
             StepsCard(moves, onActivity)
             Spacer(Modifier.height(14.dp))
 
             // Start card
-            Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     MoveType.entries.forEach { t -> Pill(t.displayName, t == type, ac, { type = t }) }
                 }
                 Box(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(100.dp))
+                    Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(14.dp))
                         .background(Brush.linearGradient(listOf(ac.a, ac.b)))
-                        .clickable { start() }.padding(vertical = 16.dp),
+                        .clickable { start() },
                     contentAlignment = Alignment.Center,
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Filled.PlayArrow, null, Modifier.size(22.dp), tint = ac.on)
-                        Text(tr(R.string.move_start_x, type.displayName.lowercase()), color = ac.on, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Filled.PlayArrow, null, Modifier.size(20.dp), tint = ac.on)
+                        Text(tr(R.string.move_start_x, type.displayName.lowercase()), color = ac.on, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     }
                 }
+                Text(
+                    tr(R.string.move_calories_use_x, "%.0f".format(weight)),
+                    fontSize = 12.sp, color = colors.faint,
+                    modifier = Modifier.clickable { weightDialog = true },
+                )
             }
 
-            Spacer(Modifier.height(18.dp))
-            SectionLabel(tr(R.string.move_this_week))
-            Row(Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).padding(16.dp)) {
-                Stat(tr(R.string.unit_km, "%.1f".format(week.sumOf { it.distanceM } / 1000)), tr(R.string.move_stat_distance), Modifier.weight(1f))
-                Stat("${week.size}", trPlural(R.plurals.move_stat_activities, week.size), Modifier.weight(1f))
-                Stat(MoveFormat.duration(week.sumOf { it.movingMs }), tr(R.string.move_stat_moving), Modifier.weight(1f))
-            }
-            Text(
-                tr(R.string.move_calories_use_x, "%.0f".format(weight)),
-                fontSize = 12.sp, color = colors.dim,
-                modifier = Modifier.padding(top = 8.dp, start = 2.dp).clickable { weightDialog = true },
-            )
-            var voice by remember { mutableStateOf(prefs.voiceSplits) }
-            Row(Modifier.fillMaxWidth().padding(top = 10.dp, start = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(tr(R.string.move_voice_setting), Modifier.weight(1f), fontSize = 13.sp, color = colors.text)
-                QvToggle(voice, { voice = !voice; prefs.voiceSplits = voice }, ac)
-            }
-
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(16.dp))
             Records(moves, onOpen)
 
             SectionLabel(tr(R.string.move_activities), trailing = {
@@ -286,16 +271,16 @@ private fun StepsCard(moves: List<MoveEntity>, onOpen: () -> Unit) {
 
     Column(Modifier.fillMaxWidth().glass(colors).clickable(onClick = onOpen).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Box(Modifier.size(112.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(104.dp), contentAlignment = Alignment.Center) {
                 Ring(now.toFloat() / goal, ac.a, colors.border, 10.dp, Modifier.fillMaxSize())
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("%,d".format(now), fontSize = 22.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
+                    Text("%,d".format(now), fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
                     Text(tr(R.string.move_stat_steps), fontSize = 11.sp, color = colors.dim)
                 }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(tr(R.string.steps_goal_x, "%,d".format(goal)), fontSize = 12.5.sp, color = colors.dim)
-                Text(tr(R.string.steps_daily_goals, achieved), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                Text(tr(R.string.steps_daily_goals, achieved), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
                 Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     week.forEach { d ->
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -325,20 +310,21 @@ private fun Records(moves: List<MoveEntity>, onOpen: (Long) -> Unit) {
     val ac = Accents.Move
     val byType = MoveType.entries.map { it to BestEfforts.records(it, moves) }.filter { it.second.isNotEmpty() }
     if (byType.isEmpty()) return
-    SectionLabel(tr(R.string.move_personal_records))
-    Column(Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        byType.forEach { (type, records) ->
-            Text(type.displayName, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = ac.txt(colors.dark))
-            records.forEach { (e, m) ->
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { onOpen(m.id) }, verticalAlignment = Alignment.CenterVertically) {
-                    Text(BestEfforts.label(e.distanceM), Modifier.weight(1f), fontSize = 13.sp, color = colors.text)
-                    Text(formatDate(m.startedAt).substringBefore(" ·"), fontSize = 11.sp, color = colors.faint, modifier = Modifier.padding(end = 10.dp))
-                    Text(MoveFormat.duration(e.ms), fontSize = 13.sp, fontFamily = Mono, color = colors.text)
+    byType.forEach { (type, records) ->
+        SectionLabel(tr(R.string.move_personal_records) + " · " + type.displayName)
+        Spacer(Modifier.height(4.dp))
+        Column(Modifier.fillMaxWidth().glass(colors).padding(horizontal = 16.dp, vertical = 4.dp)) {
+            records.forEachIndexed { i, (e, m) ->
+                Row(Modifier.fillMaxWidth().height(44.dp).clickable { onOpen(m.id) }, verticalAlignment = Alignment.CenterVertically) {
+                    Text(BestEfforts.label(e.distanceM), Modifier.weight(1f), fontSize = 14.sp, color = colors.text)
+                    Text(formatDate(m.startedAt).substringBefore(" ·"), fontSize = 12.sp, color = colors.faint, modifier = Modifier.padding(end = 12.dp))
+                    Text(MoveFormat.duration(e.ms), fontSize = 14.sp, fontWeight = FontWeight.Medium, fontFamily = Mono, color = colors.text)
                 }
+                if (i < records.lastIndex) Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
             }
         }
+        Spacer(Modifier.height(16.dp))
     }
-    Spacer(Modifier.height(18.dp))
 }
 
 /** A progress ring; a second lap past the goal draws over the first. */
@@ -360,20 +346,20 @@ private fun ActivityRow(m: MoveEntity, onClick: () -> Unit) {
     val ac = Accents.Move
     Row(
         // Auto-detected activities have no route to open.
-        Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).then(if (m.auto) Modifier else Modifier.clickable(onClick = onClick)).padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp),
+        Modifier.fillMaxWidth().glass(colors).then(if (m.auto) Modifier else Modifier.clickable(onClick = onClick)).padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         RouteThumb(
-            MoveSummary.parsePreview(m.preview), ac.a,
-            Modifier.size(58.dp).clip(RoundedCornerShape(14.dp)).background(ac.a.copy(alpha = 0.10f)),
+            MoveSummary.parsePreview(m.preview), ac.txt(colors.dark),
+            Modifier.size(54.dp).clip(RoundedCornerShape(14.dp)).background(if (colors.flat) colors.surf2 else ac.a.copy(alpha = 0.10f)),
         )
-        Column(Modifier.weight(1f)) {
-            Text(MoveSummary.title(m.moveType, m.startedAt), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
-            Text(formatDate(m.startedAt), fontSize = 11.5.sp, color = colors.dim)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(MoveSummary.title(m.moveType, m.startedAt), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
+            Text(formatDate(m.startedAt), fontSize = 12.sp, color = colors.dim)
             Text(
                 if (m.auto) tr(R.string.steps_auto_row, MoveFormat.duration(m.movingMs), "%,d".format(m.steps))
                 else "${MoveFormat.km(m.distanceM)} · ${MoveFormat.duration(m.movingMs)} · ${MoveFormat.rate(m.moveType, m.distanceM, m.movingMs)}",
-                fontSize = 12.sp, fontFamily = Mono, color = colors.text, modifier = Modifier.padding(top = 3.dp),
+                fontSize = 12.5.sp, fontWeight = FontWeight.Medium, fontFamily = Mono, color = colors.text,
             )
         }
     }
@@ -394,42 +380,42 @@ private fun LiveScreen(state: QuiverState, live: MoveRecorder.Live) {
         QvTopBar(tr(R.string.move_recording_x, live.type.displayName.lowercase()), ac, onBack = { state.go(AppKey.Hub) }, trailing = { GpsBadge(live.accuracyM) })
         MoveMap(
             live.track, follow = true, accent = ac.a, dark = colors.dark,
-            modifier = Modifier.fillMaxWidth().height(260.dp).padding(horizontal = 18.dp).clip(RoundedCornerShape(24.dp)),
+            modifier = Modifier.fillMaxWidth().height(260.dp).padding(horizontal = 20.dp).clip(RoundedCornerShape(20.dp)),
         )
         Column(
-            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 18.dp),
+            Modifier.fillMaxWidth().padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("%.2f".format(live.distanceM / 1000), fontSize = 64.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
+            Text("%.2f".format(live.distanceM / 1000), fontSize = 64.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text, letterSpacing = (-2).sp)
             Text(tr(R.string.move_kilometres), fontSize = 13.sp, color = colors.dim)
             Spacer(Modifier.height(18.dp))
-            Row(Modifier.fillMaxWidth()) {
-                Stat(MoveFormat.duration(live.movingMs), tr(R.string.move_moving_time), Modifier.weight(1f))
-                Stat(
-                    if (live.type == MoveType.Ride) MoveFormat.speed((live.speedMps ?: 0.0) * 3.6)
-                    else MoveFormat.pace(live.speedMps?.takeIf { it >= live.type.pauseSpeedMps }?.let { (1000 / it).toLong() }),
-                    if (live.type == MoveType.Ride) tr(R.string.move_stat_speed) else tr(R.string.move_current_pace),
-                    Modifier.weight(1f),
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-            Row(Modifier.fillMaxWidth()) {
-                Stat(MoveFormat.rate(live.type, live.distanceM, live.movingMs), if (live.type == MoveType.Ride) tr(R.string.move_avg_speed) else tr(R.string.move_avg_pace), Modifier.weight(1f))
-                Stat(tr(R.string.unit_m, "%.0f".format(live.elevationGainM)), tr(R.string.move_stat_climb), Modifier.weight(1f))
-                if (live.type.countsSteps) Stat("${live.steps}", tr(R.string.move_stat_steps), Modifier.weight(1f))
-                else Stat(MoveFormat.duration(now - live.startedAt), tr(R.string.move_stat_elapsed), Modifier.weight(1f))
+            Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    BigStat(MoveFormat.duration(live.movingMs), tr(R.string.move_moving_time), Modifier.weight(1f))
+                    BigStat(
+                        if (live.type == MoveType.Ride) MoveFormat.speed((live.speedMps ?: 0.0) * 3.6)
+                        else MoveFormat.pace(live.speedMps?.takeIf { it >= live.type.pauseSpeedMps }?.let { (1000 / it).toLong() }),
+                        if (live.type == MoveType.Ride) tr(R.string.move_stat_speed) else tr(R.string.move_current_pace),
+                        Modifier.weight(1f),
+                    )
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (live.type.countsSteps) BigStat("%,d".format(live.steps), tr(R.string.move_stat_steps), Modifier.weight(1f))
+                    else BigStat(MoveFormat.duration(now - live.startedAt), tr(R.string.move_stat_elapsed), Modifier.weight(1f))
+                    BigStat(tr(R.string.unit_m, "%.0f".format(live.elevationGainM)), tr(R.string.move_stat_climb), Modifier.weight(1f))
+                }
             }
         }
         Spacer(Modifier.weight(1f))
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 28.dp).padding(bottom = 36.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically,
+            Modifier.fillMaxWidth().padding(bottom = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(40.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically,
         ) {
             RoundButton(
                 if (live.paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
                 if (live.paused) tr(R.string.move_resume) else tr(R.string.move_pause),
                 // Glass: coloured Pause, pink Finish (original). Flat themes: quiet Pause, accent Finish.
-                if (colors.flat) colors.surf2 else ac.a, if (colors.flat) colors.text else Color.White,
+                if (colors.flat) colors.surf else ac.a, if (colors.flat) colors.text else Color.White,
             ) { if (live.paused) MoveRecorder.resume(context) else MoveRecorder.pause(context) }
             RoundButton(
                 Icons.Filled.Stop, tr(R.string.move_finish),
@@ -502,12 +488,11 @@ private fun DetailScreen(state: QuiverState, id: Long, onBack: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        QvTopBar(title, ac, onBack = onBack)
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp).padding(bottom = 150.dp)) {
-            Text(formatDate(move.startedAt), fontSize = 12.5.sp, color = colors.dim, modifier = Modifier.padding(start = 2.dp, bottom = 10.dp))
+        QvTopBar(title, ac, onBack = onBack, subtitle = formatDate(move.startedAt))
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 150.dp)) {
             if (track.size > 1) {
                 RouteWithReplay(move, track, BestEfforts.prs(move, allMoves))
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(12.dp))
             }
             Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(Modifier.fillMaxWidth()) {
@@ -528,17 +513,25 @@ private fun DetailScreen(state: QuiverState, id: Long, onBack: () -> Unit) {
                 val prs = remember(move, allMoves) { BestEfforts.prs(move, allMoves).associateBy { it.effort.distanceM } }
                 Spacer(Modifier.height(18.dp))
                 SectionLabel(tr(R.string.move_best_efforts))
-                Column(Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    efforts.forEach { e ->
+                Spacer(Modifier.height(4.dp))
+                Column(Modifier.fillMaxWidth().glass(colors).padding(horizontal = 16.dp, vertical = 2.dp)) {
+                    efforts.forEachIndexed { i, e ->
                         val pr = prs[e.distanceM]
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(BestEfforts.label(e.distanceM), Modifier.weight(1f), fontSize = 13.sp, color = colors.text)
-                            if (pr != null) Text(
-                                if (pr.previousMs != null) tr(R.string.move_pr_was_x, MoveFormat.duration(pr.previousMs)) else tr(R.string.move_pr_first),
-                                fontSize = 11.5.sp, color = ac.txt(colors.dark), fontWeight = FontWeight.Bold,
-                            )
-                            Text(MoveFormat.duration(e.ms), fontSize = 13.sp, fontFamily = Mono, color = colors.text)
+                        Row(Modifier.height(42.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(BestEfforts.label(e.distanceM), Modifier.weight(1f), fontSize = 14.sp, color = colors.text)
+                            if (pr != null) {
+                                Text(
+                                    "PR", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = ac.on,
+                                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(ac.a).padding(horizontal = 7.dp, vertical = 3.dp),
+                                )
+                                Text(
+                                    if (pr.previousMs != null) tr(R.string.move_was_x, MoveFormat.duration(pr.previousMs)) else tr(R.string.move_pr_first),
+                                    fontSize = 12.sp, color = colors.dim,
+                                )
+                            }
+                            Text(MoveFormat.duration(e.ms), fontSize = 14.sp, fontWeight = FontWeight.Medium, fontFamily = Mono, color = colors.text)
                         }
+                        if (i < efforts.lastIndex) Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
                     }
                 }
             }
@@ -615,13 +608,13 @@ private fun RouteWithReplay(move: MoveEntity, track: List<Fix>, prs: List<BestEf
     }
     LaunchedEffect(banner) { if (banner != null) { delay(3_000); banner = null } }
 
-    Box(Modifier.fillMaxWidth().height(260.dp).clip(RoundedCornerShape(24.dp))) {
+    Box(Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(20.dp))) {
         MoveMap(track, follow = false, accent = ac.a, dark = colors.dark, modifier = Modifier.fillMaxSize(), paceColours = pace, replayAt = at)
         at?.let { i ->
             Text(
                 "${MoveFormat.km(dist[i])} · ${MoveFormat.duration(track[i].t - track.first().t)}",
                 fontSize = 13.sp, fontFamily = Mono, color = Color.White, fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.TopStart).padding(10.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xAA000000)).padding(horizontal = 10.dp, vertical = 5.dp),
+                modifier = Modifier.align(Alignment.TopStart).padding(10.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xD90F1012)).padding(horizontal = 10.dp, vertical = 5.dp),
             )
         }
         banner?.let {
@@ -632,12 +625,12 @@ private fun RouteWithReplay(move: MoveEntity, track: List<Fix>, prs: List<BestEf
             )
         }
     }
-    Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         Pill(if (playing) tr(R.string.move_replay_stop) else tr(R.string.move_replay), playing, ac, { at = if (playing) null else 0 })
-        Pill(tr(R.string.move_pace_colours), pace, ac, { pace = !pace })
-        if (pace) Row(Modifier.align(Alignment.CenterVertically), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Spacer(Modifier.weight(1f))
+        if (pace) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(tr(R.string.move_pace_slower), fontSize = 11.sp, color = colors.dim)
-            Box(Modifier.width(44.dp).height(8.dp).clip(RoundedCornerShape(4.dp)).background(Brush.horizontalGradient(listOf(ac.a.copy(alpha = 0.25f), ac.a))))
+            Box(Modifier.width(54.dp).height(8.dp).clip(RoundedCornerShape(4.dp)).background(Brush.horizontalGradient(listOf(ac.a.copy(alpha = 0.25f), ac.a))))
             Text(tr(R.string.move_pace_faster), fontSize = 11.sp, color = colors.dim)
         }
     }
@@ -721,9 +714,18 @@ internal fun RouteThumb(points: List<Pair<Double, Double>>, color: Color, modifi
 @Composable
 private fun Stat(value: String, label: String, modifier: Modifier = Modifier) {
     val colors = Quiver.colors
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text, maxLines = 1)
         Text(label, fontSize = 11.5.sp, color = colors.dim, maxLines = 1)
+    }
+}
+
+@Composable
+private fun BigStat(value: String, label: String, modifier: Modifier = Modifier) {
+    val colors = Quiver.colors
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(value, fontSize = 22.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text, maxLines = 1)
+        Text(label, fontSize = 12.sp, color = colors.dim, maxLines = 1)
     }
 }
 
@@ -732,10 +734,11 @@ private fun RoundButton(icon: androidx.compose.ui.graphics.vector.ImageVector, l
     val colors = Quiver.colors
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(
-            Modifier.size(76.dp).clip(CircleShape).background(color).clickable(onClick = onClick),
+            Modifier.size(76.dp).clip(CircleShape).background(color)
+                .border(1.dp, if (color == colors.surf) colors.border else Color.Transparent, CircleShape).clickable(onClick = onClick),
             contentAlignment = Alignment.Center,
-        ) { Icon(icon, label, Modifier.size(34.dp), tint = tint) }
-        Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
+        ) { Icon(icon, label, Modifier.size(30.dp), tint = tint) }
+        Text(label, fontSize = 12.5.sp, color = colors.dim)
     }
 }
 
@@ -745,7 +748,7 @@ private fun ConfirmDialog(title: String, body: String, action: String, onDismiss
     Dialog(onDismissRequest = onDismiss) {
         Column(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                .background(if (colors.dark) Color(0xFF14141F) else Color(0xFFFAFBFE))
+                .background(if (colors.flat) colors.surf else if (colors.dark) Color(0xFF14141F) else Color(0xFFFAFBFE))
                 .border(1.dp, colors.border, RoundedCornerShape(28.dp)).padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -766,7 +769,7 @@ private fun WeightDialog(current: Double, onDismiss: () -> Unit, onSave: (Double
     Dialog(onDismissRequest = onDismiss) {
         Column(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                .background(if (colors.dark) Color(0xFF14141F) else Color(0xFFFAFBFE))
+                .background(if (colors.flat) colors.surf else if (colors.dark) Color(0xFF14141F) else Color(0xFFFAFBFE))
                 .border(1.dp, colors.border, RoundedCornerShape(28.dp)).padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -808,14 +811,14 @@ private fun HeatmapScreen(onBack: () -> Unit) {
     }
     Column(Modifier.fillMaxSize()) {
         QvTopBar(tr(R.string.move_heatmap), ac, onBack = onBack)
-        Row(Modifier.padding(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Pill(tr(R.string.move_heatmap_all), type == null, ac, { type = null })
             MoveType.entries.forEach { t -> Pill(t.displayName, t == type, ac, { type = t }) }
         }
         Spacer(Modifier.height(12.dp))
         HeatMap(
             routes, ac.a, colors.dark,
-            Modifier.fillMaxWidth().weight(1f).padding(horizontal = 18.dp).padding(bottom = 120.dp).clip(RoundedCornerShape(24.dp)),
+            Modifier.fillMaxWidth().weight(1f).padding(horizontal = 20.dp).padding(bottom = 120.dp).clip(RoundedCornerShape(24.dp)),
         )
     }
 }

@@ -1,5 +1,7 @@
 package com.kamboji.quiver.ui.move
 
+import com.kamboji.quiver.ui.components.QvIconButton
+import com.kamboji.quiver.ui.components.QvSegmented
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -130,24 +132,22 @@ fun ActivityScreen(onBack: () -> Unit, onOpen: (Long) -> Unit) {
 
     Column(Modifier.fillMaxSize()) {
         QvTopBar(tr(R.string.activity_title), ac, onBack = onBack)
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp).padding(bottom = 150.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Span.entries.forEach { s ->
-                    Pill(tr(when (s) { Span.Day -> R.string.activity_day; Span.Week -> R.string.activity_week; Span.Month -> R.string.activity_month }), s == span, ac, { span = s; anchor = today })
-                }
-            }
-            Spacer(Modifier.height(14.dp))
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 150.dp)) {
+            QvSegmented(
+                Span.entries.map { it to tr(when (it) { Span.Day -> R.string.activity_day; Span.Week -> R.string.activity_week; Span.Month -> R.string.activity_month }) },
+                span,
+            ) { span = it; anchor = today }
+            Spacer(Modifier.height(12.dp))
             Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null, Modifier.size(28.dp).clip(RoundedCornerShape(14.dp)).clickable { shift(-1) }, tint = colors.text)
+                    QvIconButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, { shift(-1) }, size = 36.dp, iconSize = 16.dp, background = Color.Transparent, contentDescription = "Previous")
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
-                        Text(tr(R.string.activity_steps_x, "%,d".format(total)), fontSize = 12.5.sp, color = colors.dim)
+                        Text(title, fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
+                        Text(tr(R.string.activity_steps_x, "%,d".format(total)), fontSize = 13.sp, fontWeight = FontWeight.Medium, fontFamily = Mono, color = colors.dim)
                     }
-                    Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowRight, null,
-                        Modifier.size(28.dp).clip(RoundedCornerShape(14.dp)).clickable(enabled = canNext) { shift(1) },
-                        tint = if (canNext) colors.text else colors.faint,
+                    QvIconButton(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight, { if (canNext) shift(1) }, size = 36.dp, iconSize = 16.dp,
+                        background = Color.Transparent, tint = if (canNext) colors.text else colors.faint, contentDescription = "Next",
                     )
                 }
                 Spacer(Modifier.height(14.dp))
@@ -160,8 +160,9 @@ fun ActivityScreen(onBack: () -> Unit, onOpen: (Long) -> Unit) {
                 fontSize = 12.sp, color = colors.dim, modifier = Modifier.padding(start = 2.dp).clickable { editGoals = true },
             )
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(16.dp))
             SectionLabel(tr(R.string.move_activities))
+            Spacer(Modifier.height(4.dp))
             if (inSpan.isEmpty()) Text(tr(R.string.activity_none), fontSize = 13.sp, color = colors.dim, modifier = Modifier.padding(top = 6.dp))
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 inSpan.forEach { m -> TimelineRow(m) { onOpen(m.id) } }
@@ -186,7 +187,7 @@ private fun BarChart(values: List<Long>, labels: List<String>, goal: Long?, colo
         Row(Modifier.weight(1f)) {
             Canvas(Modifier.weight(1f).fillMaxSize()) {
                 val slot = size.width / values.size
-                val bar = (slot * 0.55f).coerceAtMost(14.dp.toPx())
+                val bar = (slot * 0.7f).coerceAtMost(14.dp.toPx())
                 listOf(0f, 0.5f, 1f).forEach { f ->
                     drawLine(colors.border, Offset(0f, size.height * (1 - f)), Offset(size.width, size.height * (1 - f)), 1.dp.toPx())
                 }
@@ -195,7 +196,7 @@ private fun BarChart(values: List<Long>, labels: List<String>, goal: Long?, colo
                     val h = (v / top * size.height).coerceAtLeast(3.dp.toPx())
                     drawRoundRect(
                         if (goal != null && v >= goal) color else color.copy(alpha = if (goal == null) 1f else 0.5f),
-                        Offset(i * slot + (slot - bar) / 2, size.height - h), Size(bar, h), CornerRadius(bar / 2),
+                        Offset(i * slot + (slot - bar) / 2, size.height - h), Size(bar, h), CornerRadius(3.dp.toPx()),
                     )
                 }
                 goal?.let {
@@ -225,12 +226,12 @@ private fun TimelineRow(m: MoveEntity, onClick: () -> Unit) {
     val ac = Accents.Move
     val time = Instant.ofEpochMilli(m.startedAt).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("EEE · h:mm a"))
     Row(
-        Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).then(if (m.auto) Modifier else Modifier.clickable(onClick = onClick)).padding(12.dp),
+        Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(18.dp)).then(if (m.auto) Modifier else Modifier.clickable(onClick = onClick)).padding(12.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(Modifier.weight(1f)) {
-            Text(time, fontSize = 11.5.sp, color = colors.dim)
-            Text(MoveSummary.title(m.moveType, m.startedAt), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(time, fontSize = 12.sp, color = colors.dim)
+            Text(MoveSummary.title(m.moveType, m.startedAt), fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
             Text(
                 listOfNotNull(
                     MoveFormat.duration(m.movingMs),
@@ -238,12 +239,16 @@ private fun TimelineRow(m: MoveEntity, onClick: () -> Unit) {
                     m.steps.takeIf { it > 0 }?.let { tr(R.string.activity_n_steps, "%,d".format(it)) },
                     if (m.auto) tr(R.string.activity_auto) else null,
                 ).joinToString(" · "),
-                fontSize = 12.sp, fontFamily = Mono, color = colors.text,
+                fontSize = 12.5.sp, fontWeight = FontWeight.Medium, fontFamily = Mono, color = colors.text,
             )
         }
         if (!m.auto) RouteThumb(
-            MoveSummary.parsePreview(m.preview), ac.a,
-            Modifier.size(54.dp).clip(RoundedCornerShape(27.dp)).background(ac.a.copy(alpha = 0.10f)),
+            MoveSummary.parsePreview(m.preview), ac.txt(colors.dark),
+            Modifier.size(52.dp).clip(RoundedCornerShape(26.dp)).background(if (colors.flat) colors.surf2 else ac.a.copy(alpha = 0.10f)),
+        )
+        else Text(
+            tr(R.string.activity_auto).uppercase(), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = colors.dim,
+            modifier = Modifier.border(1.dp, colors.border, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp),
         )
     }
 }

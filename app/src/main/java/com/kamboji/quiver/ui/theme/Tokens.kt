@@ -252,6 +252,6 @@ fun QuiverTheme(
         LocalPalette provides palette,
         LocalAccent provides accent,
     ) {
-        MaterialTheme(colorScheme = material, content = content)
+        MaterialTheme(colorScheme = material, typography = QuiverTypography, content = content)
     }
 }

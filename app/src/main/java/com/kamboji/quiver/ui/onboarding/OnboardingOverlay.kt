@@ -193,7 +193,7 @@ private fun PrimaryButton(label: String, onClick: () -> Unit) {
             .background(Brush.linearGradient(listOf(AiA, AiB)))
             .clickable(onClick = onClick).padding(vertical = 15.dp),
         contentAlignment = Alignment.Center,
-    ) { Text(label, color = Color(0xFF06121A), fontSize = 15.sp, fontWeight = FontWeight.Bold) }
+    ) { Text(label, color = Quiver.accent.on, fontSize = 15.sp, fontWeight = FontWeight.Bold) }
 }
 
 @Composable

@@ -153,7 +153,7 @@
     <string name="calendar_task_deleted">Task deleted</string>
     <string name="calendar_task_reopened">Task reopened</string>
     <string name="calendar_task_title">Task title</string>
-    <string name="calendar_today">"  · Today"</string>
+    <string name="calendar_today">" · Today"</string>
     <string name="calendar_weekly">Weekly</string>
     <string name="call_1_hr">+1 hr</string>
     <string name="call_accept">Accept</string>
@@ -174,7 +174,10 @@
     <string name="currency_alert_me_when">Alert me when</string>
     <string name="currency_alerts">Alerts</string>
     <string name="currency_australian_dollar">Australian Dollar</string>
-    <string name="currency_base_1_x_x">Base: 1 %1$s %2$s</string>
+    <string name="currency_above">above</string>
+    <string name="currency_below">below</string>
+    <string name="currency_checked_every_few_hours">checked every few hours</string>
+    <string name="currency_base_1_x_x">Base: 1 %1$s</string>
     <string name="currency_british_pound">British Pound</string>
     <string name="currency_canadian_dollar">Canadian Dollar</string>
     <string name="currency_chinese_yuan">Chinese Yuan</string>
@@ -346,7 +349,7 @@
     <string name="notes_search_notes">Search notes</string>
     <string name="notes_start_writing_markdown_supported">Start writing… (Markdown supported)</string>
     <string name="notes_stop_dictation">Stop dictation</string>
-    <string name="notes_tap_new_note_to_jot">Tap “New note” to jot something down.</string>
+    <string name="notes_tap_new_note_to_jot">Tap + to jot something down.</string>
     <string name="notes_title">Title</string>
     <string name="notes_unpin">Unpin</string>
     <string name="share_add_as_task">Add as task</string>
@@ -391,6 +394,9 @@
     <string name="shots_files_are_kept_7_days">Files are kept 7 days before permanent deletion</string>
     <string name="shots_how_auto_clean_works">How auto-clean works</string>
     <string name="shots_in_trash">In trash</string>
+    <string name="shots_in_trash_restore_window">in trash · 7 days to restore</string>
+    <string name="shots_searchable_by_text">searchable by text</string>
+    <string name="shots_protection_on_title">Protection on</string>
     <string name="shots_index_older_screenshots">Index older screenshots</string>
     <string name="shots_indexing_older_screenshots_while_charging">Indexing older screenshots while charging</string>
     <string name="shots_monitoring_active">Monitoring active</string>
@@ -553,10 +559,10 @@
     <string name="move_best_efforts">Best efforts</string>
     <string name="move_personal_records">Personal records</string>
     <!-- A best effort that was a PR when set; %1$s the previous best time -->
-    <string name="move_pr_was_x">🏆 PR · was %1$s</string>
-    <string name="move_pr_first">🏆 First</string>
-    <string name="move_replay">▶ Replay</string>
-    <string name="move_replay_stop">Stop</string>
+    <string name="move_was_x">was %1$s</string>
+    <string name="move_pr_first">first time</string>
+    <string name="move_replay">Replay</string>
+    <string name="move_replay_stop">Pause replay</string>
     <string name="move_pace_colours">Pace colours</string>
     <!-- %1$s distance label, %2$s new time, %3$s old best -->
     <string name="move_replay_pr_x_y_z">🏆 New %1$s PR · %2$s (was %3$s)</string>
@@ -612,4 +618,8 @@
     <string name="move_pace_faster">faster</string>
     <string name="search_in_screenshots">In your screenshots</string>
     <string name="hub_notifications">Notifications</string>
+    <string name="shell_apps_sub">Everything in Quiver. Apps marked On home show on Home.</string>
+    <string name="shell_on_home">ON HOME</string>
+    <string name="search_filter_all">All</string>
+    <string name="search_ask_ai_about_x">Ask Quiver AI about “%1$s”</string>
 </resources>

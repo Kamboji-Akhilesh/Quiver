@@ -98,6 +98,8 @@ fun QuiverApp(
             }
 
             if (state.settingsOpen) SettingsScreen(state)
+            // Apps is a page of its own, so the dock stays over it.
+            if (state.launcherOpen) Launcher(state)
 
             // Dock — only on Home, so sub-screen sheets are never covered by it.
             AnimatedVisibility(
@@ -107,13 +109,12 @@ fun QuiverApp(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
-                    .padding(bottom = 8.dp),
+                    .padding(bottom = 12.dp),
             ) {
                 Dock(state)
             }
 
             // Overlays (each draws its own scrim / sheet, above the dock)
-            if (state.launcherOpen) Launcher(state)
             if (state.searchOpen) SearchOverlay(state)
             if (state.aiOpen) QuiverAiPanel(
                 initialInput = state.aiPrefill,

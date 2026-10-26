@@ -9,11 +9,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.kamboji.quiver.ui.theme.LocalQuiverColors
 import com.kamboji.quiver.ui.theme.Quiver
 import kotlinx.coroutines.launch
 
@@ -41,16 +43,19 @@ fun QuiverModalSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = if (colors.dark) Color(0xF012121C) else Color(0xF5FAFBFE),
+        containerColor = if (colors.flat) colors.surf else if (colors.dark) Color(0xF012121C) else Color(0xF5FAFBFE),
         contentColor = colors.text,
         scrimColor = Color(0x8C04040A),
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         dragHandle = {
-            Box(Modifier.padding(top = 14.dp, bottom = 4.dp)) {
+            Box(Modifier.padding(top = 10.dp, bottom = 4.dp)) {
                 Box(Modifier.size(width = 40.dp, height = 5.dp).clip(RoundedCornerShape(4.dp)).background(colors.border2))
             }
         },
     ) {
-        content(hide)
+        // Flat themes: the sheet is the raised surface, so fields and cards inside it sit recessed on the ground colour.
+        CompositionLocalProvider(LocalQuiverColors provides if (colors.flat) colors.copy(surf = colors.bg, surf2 = colors.bg) else colors) {
+            content(hide)
+        }
     }
 }

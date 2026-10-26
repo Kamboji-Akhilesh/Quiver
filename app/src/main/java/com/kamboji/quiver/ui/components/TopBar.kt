@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kamboji.quiver.ui.theme.Accent
@@ -18,8 +19,8 @@ import com.kamboji.quiver.ui.theme.Display
 import com.kamboji.quiver.ui.theme.Quiver
 
 /**
- * Per-app screen header: back chevron, a small "QUIVER" eyebrow tinted by the
- * app [accent], the screen [title], and an optional trailing action.
+ * Per-app screen header: back chevron, the screen [title], and an optional
+ * trailing action. [accent] is kept for callers; the header itself is neutral.
  */
 @Composable
 fun QvTopBar(
@@ -27,30 +28,27 @@ fun QvTopBar(
     accent: Accent,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     val colors = Quiver.colors
     Row(
-        modifier.padding(start = 18.dp, end = 18.dp, top = 6.dp, bottom = 14.dp),
+        modifier.padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         QvIconButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, onBack, contentDescription = "Back")
         Column(Modifier.weight(1f)) {
             Text(
-                "QUIVER",
-                color = accent.txt(colors.dark),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.5.sp,
-            )
-            Text(
                 title,
                 color = colors.text,
-                fontSize = 23.sp,
-                fontWeight = FontWeight.Bold,
+                fontSize = if (subtitle == null) 26.sp else 22.sp,
+                fontWeight = FontWeight.SemiBold,
                 fontFamily = Display,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
+            if (subtitle != null) Text(subtitle, color = colors.dim, fontSize = 12.sp, maxLines = 1)
         }
         trailing?.invoke()
     }
