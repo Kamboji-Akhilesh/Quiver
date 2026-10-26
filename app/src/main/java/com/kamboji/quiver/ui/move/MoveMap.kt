@@ -1,5 +1,8 @@
 package com.kamboji.quiver.ui.move
 
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.graphics.Brush
+import kotlin.math.log2
 import androidx.compose.runtime.key
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -91,17 +94,27 @@ private fun RouteMap(
     val dot = remember { Polygon(map).apply { fillPaint.color = android.graphics.Color.WHITE; outlinePaint.color = accent.toArgb(); outlinePaint.strokeWidth = 6f } }
     val camera = remember { FloatArray(2) } // [0] smoothed heading, [1] 1 while a flyover has run (to re-fit after)
 
-    Box(modifier.clipToBounds()) {
+    Box(modifier.clipToBounds().background(sky(dark))) {
         Box(
-            Modifier.fillMaxSize().graphicsLayer {
-                // Perspective tilt; scaled up so the far edge stays covered by map.
-                rotationX = tilt
-                cameraDistance = 7f * density
-                val grow = 1f + tilt / 55f * 0.7f
-                scaleX = grow
-                scaleY = grow
-                transformOrigin = TransformOrigin(0.5f, 0.6f)
-            },
+            Modifier
+                // During a flyover the map is laid out taller than the view (its centre 60%
+                // down) so, tilted back, the far side reaches the horizon instead of ending
+                // in a hard edge partway up a tall screen.
+                .layout { measurable, constraints ->
+                    val h = constraints.maxHeight
+                    val mapH = if (replaying) (h * MAP_STRETCH).toInt() else h
+                    val placeable = measurable.measure(constraints.copy(minHeight = mapH, maxHeight = mapH))
+                    layout(constraints.maxWidth, h) { placeable.place(0, (h * 0.6f - mapH / 2f).toInt()) }
+                }
+                .graphicsLayer {
+                    // Perspective tilt; widened a little so the receding sides stay covered.
+                    rotationX = tilt
+                    cameraDistance = 7f * density
+                    val grow = 1f + tilt / 55f * 0.35f
+                    scaleX = grow
+                    scaleY = grow
+                    transformOrigin = TransformOrigin(0.5f, 0.5f)
+                },
         ) {
             AndroidView({ map }, Modifier.fillMaxSize()) { m ->
                 val points = track.map { GeoPoint(it.lat, it.lon) }
@@ -128,7 +141,11 @@ private fun RouteMap(
                     if (camera[1] == 0f) {
                         camera[1] = 1f
                         camera[0] = bearing(points, i, 0f)
-                        m.controller.setZoom(minOf(m.maxZoomLevel, 17.0))
+                        // Frame about a third of the route (400 m - 3 km across), whatever the screen density.
+                        val routeM = points.zipWithNext { a, b -> a.distanceToAsDouble(b) }.sum()
+                        val wantAcross = (routeM / 3).coerceIn(400.0, 3_000.0)
+                        val across = metresPerPixel(m) * m.width
+                        if (across > 0) m.controller.setZoom((m.zoomLevelDouble + log2(across / wantAcross)).coerceAtMost(m.maxZoomLevel))
                     }
                     // Heading-up, eased so GPS wiggles don't spin the camera.
                     val target = bearing(points, i, camera[0])
@@ -136,10 +153,11 @@ private fun RouteMap(
                     camera[0] = (camera[0] + diff * 0.06f + 360f) % 360f
                     m.mapOrientation = -camera[0]
                     // ~20 px across whatever the zoom: metres per pixel at this latitude and zoom.
-                    val metresPerPx = 156_543.03 * kotlin.math.cos(Math.toRadians(head.latitude)) / Math.pow(2.0, m.zoomLevelDouble)
-                    dot.points = Polygon.pointsAsCircle(head, metresPerPx * 20)
+                    // ~11 dp across whatever the zoom or screen density.
+                    val metresPerPx = metresPerPixel(m)
+                    dot.points = Polygon.pointsAsCircle(head, metresPerPx * 5.5 * density)
                     // Look ahead: centre the camera in front of the runner, which sits them low on screen.
-                    m.controller.setCenter(head.destinationPoint(metresPerPx * m.height * 0.18, camera[0].toDouble()))
+                    m.controller.setCenter(head.destinationPoint(metresPerPx * m.height / MAP_STRETCH * 0.18, camera[0].toDouble()))
                 } else {
                     if (camera[1] == 1f) { // flyover over: back to the flat, north-up whole route
                         camera[1] = 0f
@@ -161,9 +179,22 @@ private fun RouteMap(
                 m.invalidate()
             }
         }
+        // Haze towards the horizon, like distance fog, so the far map fades into the sky.
+        if (tilt > 0f) Box(
+            Modifier.fillMaxSize().graphicsLayer { alpha = tilt / 55f }
+                .background(Brush.verticalGradient(0f to sky(dark), 0.32f to sky(dark).copy(alpha = 0f))),
+        )
         Attribution(showLabels)
     }
 }
+
+private const val MAP_STRETCH = 2.2f
+
+private fun sky(dark: Boolean) = if (dark) Color(0xFF15171C) else Color(0xFFE6ECF2)
+
+/** Metres one screen pixel covers right now (follows zoom, latitude and tiles scaled to screen density; not rotation). */
+private fun metresPerPixel(m: MapView): Double =
+    m.projection.metersToPixels(1f).let { if (it > 0) 1.0 / it else 0.0 }
 
 private fun lerp(a: GeoPoint, b: GeoPoint, f: Double) =
     GeoPoint(a.latitude + (b.latitude - a.latitude) * f, a.longitude + (b.longitude - a.longitude) * f)

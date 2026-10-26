@@ -641,4 +641,7 @@
     <string name="move_pace_chart_avg">avg %1$s</string>
     <string name="move_open_map">Open map full screen</string>
     <string name="move_place_names">Place names</string>
+    <string name="move_save_video">Save video</string>
+    <string name="move_video_saved">Replay saved to Movies/Quiver</string>
+    <string name="move_video_failed">Couldn\'t save the video</string>
 </resources>

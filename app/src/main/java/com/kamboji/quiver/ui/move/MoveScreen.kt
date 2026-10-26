@@ -1,5 +1,8 @@
 package com.kamboji.quiver.ui.move
 
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.ui.semantics.semantics
@@ -605,118 +608,104 @@ private fun DetailScreen(state: QuiverState, id: Long, onBack: () -> Unit) {
 private fun RouteWithReplay(move: MoveEntity, track: List<Fix>, prs: List<BestEfforts.Pr>) {
     val ac = Accents.Move
     val colors = Quiver.colors
-    var pace by remember { mutableStateOf(true) }
-    // Replay position as a fraction of the route's distance: advanced every frame and
-    // interpolated between fixes, so the head glides instead of hopping point to point.
-    var progress by remember { mutableStateOf<Float?>(null) }
-    var playing by remember { mutableStateOf(false) }
-    var banner by remember { mutableStateOf<String?>(null) }
-    val dist = remember(track) {
-        DoubleArray(track.size).also { d -> for (i in 1 until track.size) d[i] = d[i - 1] + TrackMath.distanceM(track[i - 1], track[i]) }
-    }
-    val total = dist.last()
-    // Fractional fix index for a fraction of the distance.
-    fun indexAt(f: Float): Float {
-        val target = f * total
-        val hi = dist.indexOfFirst { it >= target }.let { if (it < 0) dist.lastIndex else it }
-        if (hi == 0) return 0f
-        val lo = hi - 1
-        val span = dist[hi] - dist[lo]
-        return lo + if (span > 0) ((target - dist[lo]) / span).toFloat() else 1f
-    }
-    val at = progress?.let { indexAt(it) }
-    LaunchedEffect(playing) {
-        if (!playing) return@LaunchedEffect
-        // 8 s for a short walk, +2 s a km, at most 20 s.
-        val durationNs = ((8_000 + total / 1000 * 2_000).coerceAtMost(20_000.0) * 1_000_000).toLong()
-        var last = withFrameNanos { it }
-        var lastIdx = indexAt(progress ?: 0f).toInt()
-        while (true) {
-            val now = withFrameNanos { it }
-            val p = ((progress ?: 0f) + (now - last).toFloat() / durationNs).coerceAtMost(1f)
-            last = now
-            progress = p
-            val idx = indexAt(p).toInt()
-            if (idx > lastIdx) {
-                prs.firstOrNull { it.effort.endAt in (track[lastIdx].t + 1)..track[idx].t }?.let { pr ->
-                    banner = if (pr.previousMs != null) tr(R.string.move_replay_pr_x_y_z, BestEfforts.label(pr.effort.distanceM), MoveFormat.duration(pr.effort.ms), MoveFormat.duration(pr.previousMs))
-                    else tr(R.string.move_replay_first_x_y, BestEfforts.label(pr.effort.distanceM), MoveFormat.duration(pr.effort.ms))
-                }
-                lastIdx = idx
-            }
-            if (p >= 1f) break
-        }
-        delay(2_500)
-        playing = false
-        progress = null
-        banner = null
-    }
-    LaunchedEffect(banner) { if (banner != null) { delay(3_000); banner = null } }
-
+    val replay = rememberReplay(track, prs)
     var fullScreen by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(20.dp))) {
-        MoveMap(track, follow = false, accent = ac.a, dark = colors.dark, modifier = Modifier.fillMaxSize(), paceColours = pace, replayAt = at)
+        MoveMap(track, follow = false, accent = ac.a, dark = colors.dark, modifier = Modifier.fillMaxSize(), paceColours = true, replayAt = replay.at)
         // The small map doesn't take gestures (the page scrolls over it); a tap opens it full screen.
-        if (at == null) Box(
+        if (replay.at == null) Box(
             Modifier.fillMaxSize().clickable(remember { MutableInteractionSource() }, null) { fullScreen = true }
                 .semantics { contentDescription = tr(R.string.move_open_map) },
         )
-        at?.let { f ->
-            val i = f.toInt().coerceAtMost(track.lastIndex)
-            val j = minOf(i + 1, track.lastIndex)
-            val frac = f - i
-            val t = track[i].t + ((track[j].t - track[i].t) * frac).toLong()
-            Text(
-                "${MoveFormat.km(dist[i] + (dist[j] - dist[i]) * frac)} · ${MoveFormat.duration(t - track.first().t)}",
-                fontSize = 13.sp, fontFamily = Mono, color = Color.White, fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.TopStart).padding(10.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xD90F1012)).padding(horizontal = 10.dp, vertical = 5.dp),
-            )
-        }
-        banner?.let {
-            Text(
-                it, fontSize = 13.sp, color = ac.on, fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 44.dp).clip(RoundedCornerShape(12.dp))
-                    .background(Brush.linearGradient(listOf(ac.a, ac.b))).padding(horizontal = 12.dp, vertical = 7.dp),
-            )
-        }
+        ReplayOverlay(replay)
     }
-    if (fullScreen) FullMap(track, pace, onClose = { fullScreen = false })
+    if (fullScreen) FullMap(move, track, prs, onClose = { fullScreen = false })
     Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Pill(
-            when { playing -> tr(R.string.move_replay_stop); progress != null -> tr(R.string.move_replay_resume); else -> tr(R.string.move_replay) },
-            playing, ac, { if (!playing && progress == null) progress = 0f; playing = !playing },
-        )
+        ReplayButton(replay)
         Spacer(Modifier.weight(1f))
-        if (pace) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(tr(R.string.move_pace_slower), fontSize = 11.sp, color = colors.dim)
-            Box(Modifier.width(54.dp).height(8.dp).clip(RoundedCornerShape(4.dp)).background(Brush.horizontalGradient(listOf(ac.a.copy(alpha = 0.25f), ac.a))))
-            Text(tr(R.string.move_pace_faster), fontSize = 11.sp, color = colors.dim)
-        }
+        PaceLegend()
     }
 }
 
-/** The route on a full-screen map: pinch, pan, and switch place names on to zoom in further. */
 @Composable
-private fun FullMap(track: List<Fix>, pace: Boolean, onClose: () -> Unit) {
+private fun ReplayButton(replay: ReplayState) {
+    Pill(
+        when { replay.playing -> tr(R.string.move_replay_stop); replay.progress != null -> tr(R.string.move_replay_resume); else -> tr(R.string.move_replay) },
+        replay.playing, Accents.Move, { replay.toggle() },
+    )
+}
+
+@Composable
+private fun PaceLegend() {
+    val ac = Accents.Move
+    val colors = Quiver.colors
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(tr(R.string.move_pace_slower), fontSize = 11.sp, color = colors.dim)
+        Box(Modifier.width(54.dp).height(8.dp).clip(RoundedCornerShape(4.dp)).background(Brush.horizontalGradient(listOf(ac.a.copy(alpha = 0.25f), ac.a))))
+        Text(tr(R.string.move_pace_faster), fontSize = 11.sp, color = colors.dim)
+    }
+}
+
+/**
+ * The route on a full-screen map: pinch and pan, place names on to zoom in
+ * further, the flyover replay, and Save video — which plays the replay once
+ * with the controls hidden and records it to Movies/Quiver.
+ */
+@Composable
+private fun FullMap(move: MoveEntity, track: List<Fix>, prs: List<BestEfforts.Pr>, onClose: () -> Unit) {
     val ac = Accents.Move
     val colors = Quiver.colors
     val context = LocalContext.current
     var labels by remember { mutableStateOf(MovePrefs(context).mapLabels) }
-    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    val replay = rememberReplay(track, prs)
+    var recording by remember { mutableStateOf(false) }
+    Dialog(onDismissRequest = { if (!recording) onClose() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        val window = (LocalView.current.parent as? DialogWindowProvider)?.window
+        LaunchedEffect(recording) {
+            if (!recording || window == null) return@LaunchedEffect
+            replay.restart()
+            var endedAt = 0L
+            val title = MoveSummary.title(move.moveType, move.startedAt)
+            val uri = ReplayVideo.record(context, window, "Quiver ${title} ${java.time.LocalDate.now()}") {
+                // Keep a beat on the finished route before stopping.
+                if (replay.ended && endedAt == 0L) endedAt = System.currentTimeMillis()
+                endedAt != 0L && System.currentTimeMillis() - endedAt > 1_500 || !replay.playing && !replay.ended
+            }
+            recording = false
+            android.widget.Toast.makeText(
+                context,
+                if (uri != null) tr(R.string.move_video_saved) else tr(R.string.move_video_failed),
+                android.widget.Toast.LENGTH_LONG,
+            ).show()
+        }
         Box(Modifier.fillMaxSize().background(colors.bg)) {
-            MoveMap(track, follow = false, accent = ac.a, dark = colors.dark, modifier = Modifier.fillMaxSize(), paceColours = pace, labels = labels)
-            Row(
-                Modifier.fillMaxWidth().statusBarsPadding().padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                QvIconButton(Icons.Filled.Close, onClose, contentDescription = tr(R.string.calendar_close))
-                Spacer(Modifier.weight(1f))
+            MoveMap(track, follow = false, accent = ac.a, dark = colors.dark, modifier = Modifier.fillMaxSize(), paceColours = true, replayAt = replay.at, labels = labels)
+            ReplayOverlay(replay, top = if (recording) 16.dp else 76.dp)
+            // Controls stay out of the saved video.
+            if (!recording) {
                 Row(
-                    Modifier.height(40.dp).glass(colors, RoundedCornerShape(12.dp)).clickable { labels = !labels }.padding(start = 12.dp, end = 6.dp),
+                    Modifier.fillMaxWidth().statusBarsPadding().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    QvIconButton(Icons.Filled.Close, onClose, contentDescription = tr(R.string.calendar_close))
+                    Spacer(Modifier.weight(1f))
+                    Row(
+                        Modifier.height(40.dp).glass(colors, RoundedCornerShape(12.dp)).clickable { labels = !labels }.padding(start = 12.dp, end = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(tr(R.string.move_place_names), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = colors.text)
+                        QvToggle(labels, { labels = !labels }, ac)
+                    }
+                }
+                Row(
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(16.dp)
+                        .glass(colors, RoundedCornerShape(18.dp)).padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(tr(R.string.move_place_names), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = colors.text)
-                    QvToggle(labels, { labels = !labels }, ac)
+                    ReplayButton(replay)
+                    Pill(tr(R.string.move_save_video), false, ac, { replay.playing = false; replay.progress = null; recording = true })
+                    Spacer(Modifier.weight(1f))
+                    PaceLegend()
                 }
             }
         }
