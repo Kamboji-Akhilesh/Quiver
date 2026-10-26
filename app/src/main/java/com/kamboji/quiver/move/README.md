@@ -44,6 +44,10 @@ the phone's step chip exactly; calories are an estimate (every app's differs).
 **Calibrate on your phone:** record the same activity in Move and Strava at
 the same time, or upload Move's GPX to Strava and compare.
 
+## Backup
+Activities and their raw points are in the encrypted Hub backup (merged by type
++ start time on import). They're not in Android auto-backup: `move.db` grows
+with every recording and would eventually blow its 25 MB quota for the whole app.
+
 ## Not yet
-Activities aren't in the JSON backup or Android auto-backup yet (they live in
-`move.db`); export GPX to keep a copy. No home-screen widget yet.
+No home-screen widget yet.

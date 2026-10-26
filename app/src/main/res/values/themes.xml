@@ -1,6 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Base.Theme.ScreenshotCleaner" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Base.Theme.Quiver" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Primary colors -->
         <item name="colorPrimary">@color/md_theme_light_primary</item>
         <item name="colorOnPrimary">@color/md_theme_light_onPrimary</item>
@@ -40,11 +40,11 @@
         <item name="colorOutlineVariant">@color/md_theme_light_outlineVariant</item>
     </style>
 
-    <style name="Theme.ScreenshotCleaner" parent="Base.Theme.ScreenshotCleaner" />
+    <style name="Theme.Quiver" parent="Base.Theme.Quiver" />
 
     <!-- Share router: translucent window so its Compose scrim + option card
          float over the app the user shared from. -->
-    <style name="Theme.ScreenshotCleaner.Share" parent="Base.Theme.ScreenshotCleaner">
+    <style name="Theme.Quiver.Share" parent="Base.Theme.Quiver">
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:backgroundDimEnabled">false</item>
@@ -52,7 +52,7 @@
     </style>
 
     <!-- Dialog theme for popups -->
-    <style name="Theme.ScreenshotCleaner.Dialog" parent="Theme.Material3.DayNight.Dialog">
+    <style name="Theme.Quiver.Dialog" parent="Theme.Material3.DayNight.Dialog">
         <item name="colorPrimary">@color/md_theme_light_primary</item>
         <item name="colorOnPrimary">@color/md_theme_light_onPrimary</item>
         <item name="colorPrimaryContainer">@color/md_theme_light_primaryContainer</item>
@@ -65,11 +65,11 @@
         <item name="android:textColorSecondary">@color/md_theme_light_onSurfaceVariant</item>
         <item name="android:windowMinWidthMajor">90%</item>
         <item name="android:windowMinWidthMinor">90%</item>
-        <item name="materialAlertDialogTheme">@style/ThemeOverlay.ScreenshotCleaner.MaterialAlertDialog</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Quiver.MaterialAlertDialog</item>
     </style>
 
     <!-- Material Alert Dialog overlay -->
-    <style name="ThemeOverlay.ScreenshotCleaner.MaterialAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+    <style name="ThemeOverlay.Quiver.MaterialAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
         <item name="colorPrimary">@color/md_theme_light_primary</item>
         <item name="colorSurface">@color/md_theme_light_surface</item>
         <item name="colorOnSurface">@color/md_theme_light_onSurface</item>

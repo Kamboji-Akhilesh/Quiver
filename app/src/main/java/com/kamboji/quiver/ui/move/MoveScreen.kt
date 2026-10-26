@@ -569,6 +569,6 @@ private fun WeightDialog(current: Double, onDismiss: () -> Unit, onSave: (Double
     }
 }
 
-// Built per call: the pattern's locale must follow the app language, which can change.
+// Built per call so the pattern follows the phone's current locale.
 private fun formatDate(millis: Long): String =
     Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("EEE d MMM · h:mm a", java.util.Locale.getDefault()))

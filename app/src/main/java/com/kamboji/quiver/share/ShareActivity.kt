@@ -30,7 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.outlined.Payments
-import androidx.compose.material.icons.outlined.StickyNote2
+import androidx.compose.material.icons.automirrored.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -239,7 +239,7 @@ private fun ShareChooser(
                 Text(text, fontSize = 13.sp, color = colors.dim, lineHeight = 18.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.height(2.dp))
-            ShareOption(Icons.Outlined.StickyNote2, tr(R.string.share_save_as_note), tr(R.string.share_keep_the_text_in_notes), Accents.Notes, onNote)
+            ShareOption(Icons.AutoMirrored.Outlined.StickyNote2, tr(R.string.share_save_as_note), tr(R.string.share_keep_the_text_in_notes), Accents.Notes, onNote)
             ShareOption(Icons.Outlined.TaskAlt, tr(R.string.share_add_as_task), tr(R.string.share_reminder_on_your_calendar), Accents.Calendar, onTask)
             ShareOption(Icons.Outlined.Payments, tr(R.string.share_log_expense), tr(R.string.share_record_the_amount_in_expenses), Accents.Expenses, onExpense)
             ShareOption(Icons.Filled.AutoAwesome, tr(R.string.share_ask_quiver_ai), tr(R.string.share_hand_it_to_the_on), Accents.Hub, onAi)

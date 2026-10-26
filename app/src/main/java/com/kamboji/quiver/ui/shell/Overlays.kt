@@ -35,11 +35,11 @@ import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Payments
-import androidx.compose.material.icons.outlined.DirectionsRun
+import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
 import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.StickyNote2
+import androidx.compose.material.icons.automirrored.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -92,10 +92,10 @@ fun Launcher(state: QuiverState) {
         AppKey.Screenshots to Icons.Outlined.Image,
         AppKey.Currency to Icons.Outlined.SwapHoriz,
         AppKey.Calendar to Icons.Outlined.CalendarMonth,
-        AppKey.Notes to Icons.Outlined.StickyNote2,
+        AppKey.Notes to Icons.AutoMirrored.Outlined.StickyNote2,
         AppKey.Expenses to Icons.Outlined.Payments,
         AppKey.Focus to Icons.Outlined.SelfImprovement,
-        AppKey.Move to Icons.Outlined.DirectionsRun,
+        AppKey.Move to Icons.AutoMirrored.Outlined.DirectionsRun,
     )
     QuiverModalSheet(onDismiss = { state.launcherOpen = false }) { _ ->
         Column(
@@ -155,7 +155,7 @@ fun SearchOverlay(state: QuiverState) {
             SearchAction(tr(R.string.shell_clean_screenshots_now), Icons.Outlined.Image, AppKey.Screenshots, Accents.Screenshots),
             SearchAction(tr(R.string.shell_convert_100_usd_to_eur), Icons.Outlined.SwapHoriz, AppKey.Currency, Accents.Currency),
             SearchAction(tr(R.string.shell_add_a_new_event), Icons.Filled.Add, AppKey.Calendar, Accents.Calendar),
-            SearchAction(tr(R.string.shell_new_note), Icons.Outlined.StickyNote2, AppKey.Notes, Accents.Notes),
+            SearchAction(tr(R.string.shell_new_note), Icons.AutoMirrored.Outlined.StickyNote2, AppKey.Notes, Accents.Notes),
             SearchAction(tr(R.string.shell_add_an_expense), Icons.Outlined.Payments, AppKey.Expenses, Accents.Expenses),
             SearchAction(tr(R.string.shell_open_deletion_history), Icons.Outlined.History, AppKey.Screenshots, Accents.Screenshots, "history"),
         )

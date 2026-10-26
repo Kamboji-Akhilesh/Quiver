@@ -41,7 +41,7 @@ import androidx.compose.material.icons.outlined.CloudQueue
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.TrendingUp
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -451,7 +451,7 @@ private fun InfoTab(vm: CurrencyViewModel, ac: Accent) {
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         InfoCard(Icons.Outlined.CloudQueue, tr(R.string.currency_offline_first), tr(R.string.currency_rates_fetch_live_when_you), ac)
-        InfoCard(Icons.Outlined.TrendingUp, tr(R.string.currency_frankfurter_api), tr(R.string.currency_european_central_bank_reference_rates), ac)
+        InfoCard(Icons.AutoMirrored.Outlined.TrendingUp, tr(R.string.currency_frankfurter_api), tr(R.string.currency_european_central_bank_reference_rates), ac)
         InfoCard(Icons.Outlined.Schedule, tr(R.string.currency_last_updated), "$updated${if (cached?.isStale == true) tr(R.string.currency_showing_saved_copy) else ""}", ac)
     }
 }

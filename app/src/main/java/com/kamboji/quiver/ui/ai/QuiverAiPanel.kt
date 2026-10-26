@@ -43,7 +43,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material.icons.outlined.VolumeUp
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -315,7 +315,7 @@ private fun Bubble(msg: ChatMsg, onSpeak: () -> Unit) {
                 )
             }
             if (!msg.fromUser && !msg.streaming && msg.text.isNotBlank()) {
-                Icon(Icons.Outlined.VolumeUp, tr(R.string.ai_speak), Modifier.size(16.dp).padding(top = 4.dp).clickable(onClick = onSpeak), tint = colors.dim)
+                Icon(Icons.AutoMirrored.Outlined.VolumeUp, tr(R.string.ai_speak), Modifier.size(16.dp).padding(top = 4.dp).clickable(onClick = onSpeak), tint = colors.dim)
             }
         }
     }

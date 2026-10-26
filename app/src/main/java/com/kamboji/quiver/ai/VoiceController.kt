@@ -13,16 +13,16 @@ import java.util.Locale
 data class VoiceLang(val locale: Locale, val label: String, val code: String)
 
 val VoiceLanguages = listOf(
-    VoiceLang(Locale("en", "IN"), "English", "en-IN"),
-    VoiceLang(Locale("hi", "IN"), "हिन्दी", "hi-IN"),
-    VoiceLang(Locale("bn", "IN"), "বাংলা", "bn-IN"),
-    VoiceLang(Locale("ta", "IN"), "தமிழ்", "ta-IN"),
-    VoiceLang(Locale("te", "IN"), "తెలుగు", "te-IN"),
-    VoiceLang(Locale("mr", "IN"), "मराठी", "mr-IN"),
-    VoiceLang(Locale("gu", "IN"), "ગુજરાતી", "gu-IN"),
-    VoiceLang(Locale("kn", "IN"), "ಕನ್ನಡ", "kn-IN"),
-    VoiceLang(Locale("ml", "IN"), "മലയാളം", "ml-IN"),
-    VoiceLang(Locale("pa", "IN"), "ਪੰਜਾਬੀ", "pa-IN"),
+    VoiceLang(Locale.forLanguageTag("en-IN"), "English", "en-IN"),
+    VoiceLang(Locale.forLanguageTag("hi-IN"), "हिन्दी", "hi-IN"),
+    VoiceLang(Locale.forLanguageTag("bn-IN"), "বাংলা", "bn-IN"),
+    VoiceLang(Locale.forLanguageTag("ta-IN"), "தமிழ்", "ta-IN"),
+    VoiceLang(Locale.forLanguageTag("te-IN"), "తెలుగు", "te-IN"),
+    VoiceLang(Locale.forLanguageTag("mr-IN"), "मराठी", "mr-IN"),
+    VoiceLang(Locale.forLanguageTag("gu-IN"), "ગુજરાતી", "gu-IN"),
+    VoiceLang(Locale.forLanguageTag("kn-IN"), "ಕನ್ನಡ", "kn-IN"),
+    VoiceLang(Locale.forLanguageTag("ml-IN"), "മലയാളം", "ml-IN"),
+    VoiceLang(Locale.forLanguageTag("pa-IN"), "ਪੰਜਾਬੀ", "pa-IN"),
 )
 
 /** The phone's language if it's one we can dictate in, else English (India). */

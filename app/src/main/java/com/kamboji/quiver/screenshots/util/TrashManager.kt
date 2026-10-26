@@ -13,6 +13,7 @@ import java.io.File
 import java.io.FileOutputStream
 
 object TrashManager {
+    // Legacy name kept on purpose: files already trashed under it must stay restorable.
     private const val TRASH_FOLDER = "ScreenshotCleanerTrash"
     private const val TRASH_RETENTION_DAYS = 7L
 

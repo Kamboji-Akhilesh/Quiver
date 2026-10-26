@@ -38,6 +38,8 @@ import com.kamboji.quiver.ui.locale.tr
  * Without both grants the gate does nothing and Focus works the plain way.
  */
 object FocusGate {
+    // unsafeCheckOpNoThrow is the call that works across API 29–36; its replacements are newer than minSdk.
+    @Suppress("DEPRECATION")
     fun hasUsageAccess(context: Context): Boolean =
         context.getSystemService(AppOpsManager::class.java)
             .unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName) ==

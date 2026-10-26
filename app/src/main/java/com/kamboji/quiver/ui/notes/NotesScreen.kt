@@ -53,7 +53,7 @@ import androidx.compose.material.icons.outlined.CheckBox
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.StickyNote2
+import androidx.compose.material.icons.automirrored.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -184,7 +184,7 @@ private fun NotesList(state: QuiverState, vm: NotesViewModel, onNew: () -> Unit,
                 .clickable(onClick = onNew).padding(horizontal = 20.dp, vertical = 15.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Icon(Icons.Outlined.StickyNote2, null, Modifier.size(20.dp), tint = Color(0xFF1A1408))
+            Icon(Icons.AutoMirrored.Outlined.StickyNote2, null, Modifier.size(20.dp), tint = Color(0xFF1A1408))
             Text(tr(R.string.notes_new_note), color = Color(0xFF1A1408), fontWeight = FontWeight.Bold)
         }
 
@@ -238,7 +238,7 @@ private fun EmptyNotes(ac: com.kamboji.quiver.ui.theme.Accent) {
                 Modifier.size(88.dp).clip(RoundedCornerShape(30.dp)).background(ac.a.copy(alpha = 0.12f))
                     .border(1.dp, ac.a.copy(alpha = 0.25f), RoundedCornerShape(30.dp)),
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Outlined.StickyNote2, null, Modifier.size(40.dp), tint = ac.txt(colors.dark)) }
+            ) { Icon(Icons.AutoMirrored.Outlined.StickyNote2, null, Modifier.size(40.dp), tint = ac.txt(colors.dark)) }
             Spacer(Modifier.height(16.dp))
             Text(tr(R.string.notes_no_notes_yet), fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
             Text(tr(R.string.notes_tap_new_note_to_jot), fontSize = 13.5.sp, color = colors.dim)

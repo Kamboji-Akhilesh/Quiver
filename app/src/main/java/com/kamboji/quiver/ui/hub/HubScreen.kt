@@ -54,11 +54,11 @@ import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Payments
-import androidx.compose.material.icons.outlined.DirectionsRun
+import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
 import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.StickyNote2
+import androidx.compose.material.icons.automirrored.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Icon
@@ -125,10 +125,10 @@ private fun meta(app: AppKey): AppMeta = when (app) {
     AppKey.Screenshots -> AppMeta(tr(R.string.hub_clear_the_clutter), Icons.Outlined.Image)
     AppKey.Currency -> AppMeta(tr(R.string.hub_live_offline_rates), Icons.Outlined.SwapHoriz)
     AppKey.Calendar -> AppMeta(tr(R.string.hub_tasks_events_calls), Icons.Outlined.CalendarMonth)
-    AppKey.Notes -> AppMeta(tr(R.string.hub_quick_thoughts_lists), Icons.Outlined.StickyNote2)
+    AppKey.Notes -> AppMeta(tr(R.string.hub_quick_thoughts_lists), Icons.AutoMirrored.Outlined.StickyNote2)
     AppKey.Expenses -> AppMeta(tr(R.string.hub_where_money_goes), Icons.Outlined.Payments)
     AppKey.Focus -> AppMeta(tr(R.string.hub_block_shorts_reels), Icons.Outlined.SelfImprovement)
-    AppKey.Move -> AppMeta(tr(R.string.hub_run_walk_ride_hike), Icons.Outlined.DirectionsRun)
+    AppKey.Move -> AppMeta(tr(R.string.hub_run_walk_ride_hike), Icons.AutoMirrored.Outlined.DirectionsRun)
     AppKey.Hub -> AppMeta(tr(R.string.hub_your_apps), Icons.Filled.AutoAwesome)
 }
 
@@ -280,7 +280,7 @@ fun HubScreen(state: QuiverState) {
             QuickAction(stringResource(R.string.qa_clean), Icons.Outlined.Image, Accents.Screenshots) { state.go(AppKey.Screenshots) }
             QuickAction(stringResource(R.string.qa_convert), Icons.Outlined.SwapHoriz, Accents.Currency) { state.go(AppKey.Currency) }
             QuickAction(stringResource(R.string.qa_new_event), Icons.Filled.Add, Accents.Calendar) { state.go(AppKey.Calendar); state.calendarStartNew = true }
-            QuickAction(stringResource(R.string.qa_new_note), Icons.Outlined.StickyNote2, Accents.Notes) { state.go(AppKey.Notes); state.notesStartNew = true }
+            QuickAction(stringResource(R.string.qa_new_note), Icons.AutoMirrored.Outlined.StickyNote2, Accents.Notes) { state.go(AppKey.Notes); state.notesStartNew = true }
             QuickAction(stringResource(R.string.qa_add_expense), Icons.Outlined.Payments, Accents.Expenses) { state.go(AppKey.Expenses); state.expensesStartNew = true }
             QuickAction(stringResource(R.string.qa_ask_ai), Icons.Filled.AutoAwesome, Accents.Hub) { state.closeOverlays(); state.aiOpen = true }
         }
@@ -416,7 +416,7 @@ private fun buildHubActivity(
     }
     notes.sortedByDescending { it.updatedAtMillis }.take(3).forEach {
         val name = it.title.trim().ifBlank { it.body.trim().lineSequence().firstOrNull()?.take(30) ?: tr(R.string.hub_untitled_note) }
-        add(HubActivity(Icons.Outlined.StickyNote2, tr(R.string.hub_edited_x, name), AppKey.Notes, it.updatedAtMillis))
+        add(HubActivity(Icons.AutoMirrored.Outlined.StickyNote2, tr(R.string.hub_edited_x, name), AppKey.Notes, it.updatedAtMillis))
     }
 }.sortedByDescending { it.ts }.take(3)
 
