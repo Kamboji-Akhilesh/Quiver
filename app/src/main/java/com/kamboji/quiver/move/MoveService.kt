@@ -1,5 +1,8 @@
 package com.kamboji.quiver.move
 
+import com.kamboji.quiver.ui.locale.displayName
+
+import com.kamboji.quiver.ui.locale.tr
 import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
@@ -131,7 +134,7 @@ class MoveService : Service(), SensorEventListener {
     private fun start(type: MoveType) {
         if (move != null) return
         ensureChannel()
-        startForeground(NOTIF_ID, notification(type, "Waiting for GPS…"), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+        startForeground(NOTIF_ID, notification(type, tr(R.string.movesvc_waiting_for_gps)), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
         val now = System.currentTimeMillis()
         val entity = MoveEntity(type = type.name, startedAt = now)
         move = entity.copy(id = runBlocking(Dispatchers.IO) { dao.insert(entity) })
@@ -234,8 +237,8 @@ class MoveService : Service(), SensorEventListener {
         val now = SystemClock.elapsedRealtime()
         if (forceNotify || now - lastNotifyAt > NOTIFY_EVERY_MS) {
             lastNotifyAt = now
-            val text = if (paused) "Paused · ${MoveFormat.km(f.distanceM)}"
-            else "${MoveFormat.km(f.distanceM)} · ${MoveFormat.duration(f.movingMs)} moving"
+            val text = if (paused) tr(R.string.movesvc_paused_x, MoveFormat.km(f.distanceM))
+            else tr(R.string.movesvc_x_x_moving, MoveFormat.km(f.distanceM), MoveFormat.duration(f.movingMs))
             getSystemService(NotificationManager::class.java).notify(NOTIF_ID, notification(m.moveType, text))
         }
     }
@@ -268,7 +271,7 @@ class MoveService : Service(), SensorEventListener {
 
     private fun ensureChannel() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(
-            NotificationChannel(CHANNEL, "Activity recording", NotificationManager.IMPORTANCE_LOW),
+            NotificationChannel(CHANNEL, tr(R.string.movesvc_activity_recording), NotificationManager.IMPORTANCE_LOW),
         )
     }
 
@@ -281,13 +284,13 @@ class MoveService : Service(), SensorEventListener {
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setGroup(CHANNEL) // never let Android bundle Quiver's notifications — see ExpenseCapture
-            .setContentTitle("Recording ${type.label.lowercase()}")
+            .setContentTitle(tr(R.string.movesvc_recording_x, type.displayName.lowercase()))
             .setContentText(text)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(open)
-            .addAction(if (paused) action("Resume", MoveRecorder.ACTION_RESUME, 1) else action("Pause", MoveRecorder.ACTION_PAUSE, 1))
-            .addAction(action("Finish", MoveRecorder.ACTION_FINISH, 2))
+            .addAction(if (paused) action(tr(R.string.movesvc_resume), MoveRecorder.ACTION_RESUME, 1) else action(tr(R.string.movesvc_pause), MoveRecorder.ACTION_PAUSE, 1))
+            .addAction(action(tr(R.string.movesvc_finish), MoveRecorder.ACTION_FINISH, 2))
             .build()
     }
 
@@ -328,7 +331,7 @@ class MovePrefs(context: Context) {
 
 /** Display helpers shared by the notification and the screens. */
 object MoveFormat {
-    fun km(m: Double): String = "%.2f km".format(java.util.Locale.ROOT, m / 1000)
+    fun km(m: Double): String = tr(R.string.unit_km, "%.2f".format(java.util.Locale.ROOT, m / 1000))
 
     fun duration(ms: Long): String {
         val s = ms / 1000
@@ -336,9 +339,10 @@ object MoveFormat {
     }
 
     /** "5:42 /km" */
-    fun pace(secPerKm: Long?): String = secPerKm?.let { "%d:%02d /km".format(it / 60, it % 60) } ?: "– /km"
+    fun pace(secPerKm: Long?): String =
+        secPerKm?.let { tr(R.string.unit_pace, "%d:%02d".format(it / 60, it % 60)) } ?: tr(R.string.unit_pace_none)
 
-    fun speed(kmh: Double): String = "%.1f km/h".format(java.util.Locale.ROOT, kmh)
+    fun speed(kmh: Double): String = tr(R.string.unit_kmh, "%.1f".format(java.util.Locale.ROOT, kmh))
 
     /** Rides read in speed, everything else in pace — like Strava. */
     fun rate(type: MoveType, distanceM: Double, movingMs: Long): String =

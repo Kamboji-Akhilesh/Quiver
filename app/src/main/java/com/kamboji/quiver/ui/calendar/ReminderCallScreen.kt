@@ -1,5 +1,8 @@
 package com.kamboji.quiver.ui.calendar
 
+import com.kamboji.quiver.R
+
+import com.kamboji.quiver.ui.locale.tr
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -80,7 +83,7 @@ fun ReminderCallScreen(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 Icon(Icons.Outlined.CalendarMonth, null, Modifier.size(16.dp), tint = Color.White)
-                Text("QUIVER REMINDER", color = Color(0xB3FFFFFF), fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                Text(tr(R.string.call_quiver_reminder), color = Color(0xB3FFFFFF), fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
             }
 
             Spacer(Modifier.height(40.dp))
@@ -99,15 +102,15 @@ fun ReminderCallScreen(
 
             Spacer(Modifier.height(28.dp))
             Text(
-                if (accepted) title else "Incoming reminder",
+                if (accepted) title else tr(R.string.call_incoming_reminder),
                 color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = Display,
                 textAlign = TextAlign.Center,
             )
             Text(
                 when {
-                    !accepted -> if (isTask) "Task reminder" else "Event reminder"
-                    speakerOn -> "Reading your reminder aloud…"
-                    else -> "Speaker off"
+                    !accepted -> if (isTask) tr(R.string.call_task_reminder) else tr(R.string.call_event_reminder)
+                    speakerOn -> tr(R.string.call_reading_your_reminder_aloud)
+                    else -> tr(R.string.call_speaker_off)
                 },
                 color = Color(0xB3FFFFFF), fontSize = 15.sp, modifier = Modifier.padding(top = 6.dp),
             )
@@ -117,13 +120,13 @@ fun ReminderCallScreen(
                 if (speakerOn) Waveform() else Spacer(Modifier.height(56.dp))
                 Spacer(Modifier.height(18.dp))
                 PillButton(
-                    if (speakerOn) "Speaker on" else "Speaker off",
+                    if (speakerOn) tr(R.string.call_speaker_on) else tr(R.string.call_speaker_off),
                     Color(0x14FFFFFF), Color.White, Modifier.fillMaxWidth(0.6f),
                 ) { speakerOn = !speakerOn; onToggleSpeaker() }
                 Spacer(Modifier.height(14.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     listOf(10, 30, 60).forEach { m ->
-                        PillButton(if (m < 60) "+$m min" else "+1 hr", Color(0x1A7DD3FC), Color(0xFF7DD3FC), Modifier.weight(1f)) { onSnooze(m) }
+                        PillButton(if (m < 60) tr(R.string.call_x_min, m) else tr(R.string.call_1_hr), Color(0x1A7DD3FC), Color(0xFF7DD3FC), Modifier.weight(1f)) { onSnooze(m) }
                     }
                 }
             }
@@ -132,15 +135,15 @@ fun ReminderCallScreen(
 
             if (!accepted) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.Bottom) {
-                    CallButton(Icons.Filled.CallEnd, Color(0xFFFB7185), "Decline", onDismiss)
-                    CallButton(Icons.Filled.Phone, Color(0xFF34D399), "Accept") { accepted = true; onAccept() }
+                    CallButton(Icons.Filled.CallEnd, Color(0xFFFB7185), tr(R.string.call_decline), onDismiss)
+                    CallButton(Icons.Filled.Phone, Color(0xFF34D399), tr(R.string.call_accept)) { accepted = true; onAccept() }
                 }
             } else {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.Bottom) {
-                    CallButton(Icons.Filled.Mic, Color(0xFF8B5CF6), "Reschedule", onVoice)
-                    if (isTask) CallButton(Icons.Filled.Check, Color(0xFF34D399), "Done", onMarkDone)
-                    CallButton(Icons.Filled.Snooze, Color(0xFFF59E0B), "Snooze 10m") { onSnooze(10) }
-                    CallButton(Icons.Filled.CallEnd, Color(0xFFFB7185), "Dismiss", onDismiss)
+                    CallButton(Icons.Filled.Mic, Color(0xFF8B5CF6), tr(R.string.call_reschedule), onVoice)
+                    if (isTask) CallButton(Icons.Filled.Check, Color(0xFF34D399), tr(R.string.call_done), onMarkDone)
+                    CallButton(Icons.Filled.Snooze, Color(0xFFF59E0B), tr(R.string.call_snooze_10m)) { onSnooze(10) }
+                    CallButton(Icons.Filled.CallEnd, Color(0xFFFB7185), tr(R.string.call_dismiss), onDismiss)
                 }
             }
         }

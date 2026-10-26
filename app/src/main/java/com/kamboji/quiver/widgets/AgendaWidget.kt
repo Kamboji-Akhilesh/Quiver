@@ -1,5 +1,7 @@
 package com.kamboji.quiver.widgets
 
+import com.kamboji.quiver.ui.locale.tr
+
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
@@ -39,7 +41,6 @@ import com.kamboji.quiver.R
 import com.kamboji.quiver.calendar.alert.AlertScheduler
 import com.kamboji.quiver.calendar.data.CalendarEntry
 import com.kamboji.quiver.calendar.data.CalendarStore
-import com.kamboji.quiver.ui.locale.AppLocale
 import com.kamboji.quiver.ui.shell.QuiverActivity
 import com.kamboji.quiver.ui.shell.ShellCommand
 import com.kamboji.quiver.ui.theme.AppKey
@@ -89,15 +90,12 @@ class AgendaWidget : GlanceAppWidget() {
                     .thenByDescending { it.allDay }
                     .thenBy { localMinutes(it.startMillis) },
             )
-        // Widgets run outside an Activity, so they don't inherit the locale-wrapped
-        // base context — resolve strings and the date in the chosen app language.
-        val localized = AppLocale.localized(context)
-        provideContent { Agenda(context, localized, today, items) }
+        provideContent { Agenda(context, today, items) }
     }
 
     @Composable
-    private fun Agenda(context: Context, localized: Context, today: LocalDate, items: List<CalendarEntry>) {
-        val locale = AppLocale.locale(context)
+    private fun Agenda(context: Context, today: LocalDate, items: List<CalendarEntry>) {
+        val locale = Locale.getDefault()
         Column(
             GlanceModifier.fillMaxSize().background(WidgetBg).cornerRadius(24.dp)
                 .padding(14.dp)
@@ -105,7 +103,7 @@ class AgendaWidget : GlanceAppWidget() {
         ) {
             Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    localized.getString(R.string.widget_today).uppercase(locale),
+                    context.getString(R.string.widget_today).uppercase(locale),
                     style = TextStyle(color = WidgetSky, fontSize = 11.sp, fontWeight = FontWeight.Bold),
                 )
                 Spacer(GlanceModifier.width(8.dp))
@@ -118,7 +116,7 @@ class AgendaWidget : GlanceAppWidget() {
 
             if (items.isEmpty()) {
                 Text(
-                    localized.getString(R.string.widget_nothing_scheduled),
+                    context.getString(R.string.widget_nothing_scheduled),
                     style = TextStyle(color = WidgetDim, fontSize = 13.sp),
                     modifier = GlanceModifier.padding(vertical = 10.dp),
                 )
@@ -126,7 +124,7 @@ class AgendaWidget : GlanceAppWidget() {
                 items.take(5).forEach { e -> EntryRow(e) }
                 if (items.size > 5) {
                     Text(
-                        localized.getString(R.string.widget_more, items.size - 5),
+                        context.getString(R.string.widget_more, items.size - 5),
                         style = TextStyle(color = WidgetDim, fontSize = 11.sp),
                         modifier = GlanceModifier.padding(top = 2.dp),
                     )
@@ -164,7 +162,7 @@ class AgendaWidget : GlanceAppWidget() {
                 )
             }
             Text(
-                if (e.allDay) "all-day"
+                if (e.allDay) tr(R.string.common_all_day)
                 else Instant.ofEpochMilli(e.startMillis).atZone(ZoneId.systemDefault()).toLocalTime().format(TIME_FMT),
                 style = TextStyle(color = if (e.isTask) WidgetAmber else WidgetSky, fontSize = 11.sp, fontWeight = FontWeight.Bold),
             )

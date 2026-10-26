@@ -1,5 +1,10 @@
 package com.kamboji.quiver.screenshots.ui
 
+import com.kamboji.quiver.ui.locale.displayName
+
+import com.kamboji.quiver.R
+
+import com.kamboji.quiver.ui.locale.tr
 import android.app.NotificationManager
 import android.net.Uri
 import android.os.Bundle
@@ -78,7 +83,7 @@ class EditDelayActivity : ComponentActivity() {
                 QuiverModalSheet(onDismiss = { finish() }) { hide ->
                     DelayPicker(
                         onPick = { rescheduleDelete(workId, notificationId, uri, it); hide() },
-                        onInvalid = { Toast.makeText(this, "Enter a number of minutes", Toast.LENGTH_SHORT).show() },
+                        onInvalid = { Toast.makeText(this, tr(R.string.delay_enter_a_number_of_minutes), Toast.LENGTH_SHORT).show() },
                     )
                 }
             }
@@ -103,7 +108,7 @@ class EditDelayActivity : ComponentActivity() {
         // Show a new notification with updated time
         ScreenshotNotification.showUpdatedNotification(this, uri, newWorkId, newDelay)
 
-        Toast.makeText(this, "Will delete in ${newDelay.describe()}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, tr(R.string.delay_will_delete_in_x, newDelay.displayName), Toast.LENGTH_SHORT).show()
     }
 }
 
@@ -117,17 +122,17 @@ private fun DelayPicker(onPick: (DeleteDelay) -> Unit, onInvalid: () -> Unit) {
         Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 30.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text("Delete screenshot after…", fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+        Text(tr(R.string.delay_delete_screenshot_after), fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            DELAY_PRESETS.forEach { (label, d) -> Pill(label, false, ac, { onPick(d) }) }
+            DELAY_PRESETS.forEach { d -> Pill(d.displayName, false, ac, { onPick(d) }) }
         }
-        Text("Or a custom time", fontSize = 13.sp, color = colors.dim)
+        Text(tr(R.string.delay_or_a_custom_time), fontSize = 13.sp, color = colors.dim)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Box(
                 Modifier.weight(1f).clip(RoundedCornerShape(100.dp)).background(colors.surf)
                     .border(1.dp, colors.border, RoundedCornerShape(100.dp)).padding(horizontal = 16.dp, vertical = 12.dp),
             ) {
-                if (minutes.isEmpty()) Text("Minutes", color = colors.faint, fontSize = 14.sp)
+                if (minutes.isEmpty()) Text(tr(R.string.delay_minutes), color = colors.faint, fontSize = 14.sp)
                 BasicTextField(
                     minutes, { new -> minutes = new.filter(Char::isDigit).take(5) }, singleLine = true,
                     textStyle = TextStyle(color = colors.text, fontSize = 14.sp),
@@ -143,7 +148,7 @@ private fun DelayPicker(onPick: (DeleteDelay) -> Unit, onInvalid: () -> Unit) {
                         if (m != null && m > 0) onPick(DeleteDelay(m, DelayUnit.MINUTES)) else onInvalid()
                     }
                     .padding(horizontal = 22.dp, vertical = 12.dp),
-            ) { Text("Set", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
+            ) { Text(tr(R.string.delay_set), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
         }
     }
 }

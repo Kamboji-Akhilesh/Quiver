@@ -183,8 +183,8 @@ is isolated in `appfunctions/QuiverAppFunctions.kt`.
 
 - **Voice notes**  ✅ — mic button in the note editor toolbar reuses the
   existing `VoiceController` (platform STT, nothing recorded); the transcript
-  inserts at the cursor. Dictation language follows the chosen UI language
-  (`AppLang.voiceLang()`).
+  inserts at the cursor. Dictation language follows the phone's language
+  (`deviceVoiceLang()`).
 - **Currency rate alerts**  ✅ — `RateAlert` model + store + pure
   `RateAlertLogic` (crossing/direction, unit-tested). `RateAlertWorker`
   (periodic ~6h, network-constrained) checks each alert via
@@ -194,7 +194,10 @@ is isolated in `appfunctions/QuiverAppFunctions.kt`.
   live rate) with the full training sync — SPEC_TEXT / STEP_LABELS / validator /
   6-language `rate_alert` scenario + weight / eval cases; dataset regenerated
   (2519 rows) and `validate_dataset.py` passes.
-- **UI localization**  ◑ scoped to **infra + key screens** (deliberate; the rest
+- **UI localization**  ✖ removed 2026-10-26 — the app is English-only now
+  (picker, `AppLocale` and `values-{hi,bn,ta,te,mr}` deleted). The AI assistant
+  and voice still understand all six languages. History kept below.
+  Originally ◑ scoped to **infra + key screens** (deliberate; the rest
   is incremental so it never blocked phases 1–6):
   - Infra: `ui/locale/AppLocale` per-app locale via a `Configuration` wrap in
     `attachBaseContext` (works on ComponentActivity, all API levels; chosen over

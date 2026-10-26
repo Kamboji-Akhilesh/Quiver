@@ -1,5 +1,6 @@
 package com.kamboji.quiver.screenshots.worker
 
+import com.kamboji.quiver.ui.locale.tr
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -139,7 +140,7 @@ class DeleteWorker(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "Screenshot Deletion",
+                tr(R.string.delworker_screenshot_deletion),
                 NotificationManager.IMPORTANCE_LOW
             )
             notificationManager.createNotificationChannel(channel)
@@ -162,8 +163,8 @@ class DeleteWorker(
         }.apply {
             setSmallIcon(R.drawable.ic_delete)
             setGroup(channelId) // never let Android bundle Quiver's notifications — see ExpenseCapture
-            setContentTitle("Screenshot deleted")
-            setContentText("Tap to undo (kept for 7 days)")
+            setContentTitle(tr(R.string.delworker_screenshot_deleted))
+            setContentText(tr(R.string.delworker_tap_to_undo_kept_for))
             setContentIntent(historyPendingIntent)
             setAutoCancel(true)
             setColor(applicationContext.getColor(R.color.md_theme_light_primary))
@@ -179,10 +180,10 @@ class DeleteWorker(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "Screenshot Deletion",
+                tr(R.string.delworker_screenshot_deletion),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Notifications for screenshot deletion confirmation"
+                description = tr(R.string.delworker_notifications_for_screenshot_deletion_confirmation)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
             notificationManager.createNotificationChannel(channel)
@@ -196,8 +197,8 @@ class DeleteWorker(
         }.apply {
             setSmallIcon(R.drawable.ic_delete)
             setGroup(channelId) // never let Android bundle Quiver's notifications — see ExpenseCapture
-            setContentTitle("Delete Screenshot?")
-            setContentText("Tap to confirm screenshot deletion")
+            setContentTitle(tr(R.string.delworker_delete_screenshot))
+            setContentText(tr(R.string.delworker_tap_to_confirm_screenshot_deletion))
             setAutoCancel(true)
             setContentIntent(pendingIntent)
             setColor(applicationContext.getColor(R.color.md_theme_light_primary))

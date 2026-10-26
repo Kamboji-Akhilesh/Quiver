@@ -1,5 +1,6 @@
 package com.kamboji.quiver.ai.agent
 
+import com.kamboji.quiver.ui.locale.tr
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -31,14 +32,14 @@ class AiAgentService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val text = intent?.getStringExtra(EXTRA_TEXT)?.trim().orEmpty()
         ensureChannel()
-        startForeground(NOTIF_ID, buildNotification("Quiver AI", "Working on your request…", ongoing = true))
+        startForeground(NOTIF_ID, buildNotification(tr(R.string.agentsvc_quiver_ai), tr(R.string.agentsvc_working_on_your_request), ongoing = true))
 
         if (text.isEmpty()) { finishUp(); return START_NOT_STICKY }
 
         val modelPath = ModelManager(this).installedFile()?.absolutePath
         if (modelPath == null) {
-            AgentBus.error("Set up an AI model first (open Quiver AI).")
-            notify("Quiver AI", "No AI model installed yet.", ongoing = false)
+            AgentBus.error(tr(R.string.agentsvc_set_up_an_ai_model))
+            notify(tr(R.string.agentsvc_quiver_ai), tr(R.string.agentsvc_no_ai_model_installed_yet), ongoing = false)
             finishUp()
             return START_NOT_STICKY
         }
@@ -50,15 +51,15 @@ class AiAgentService : Service() {
                     text,
                     progress = { status ->
                         AgentBus.status(status)
-                        notify("Quiver AI", status, ongoing = true)
+                        notify(tr(R.string.agentsvc_quiver_ai), status, ongoing = true)
                     },
                     log = { line -> AgentBus.log(line) },
                 )
                 AgentBus.done(result.reply)
-                notify("Quiver AI", result.reply.lineSequence().firstOrNull() ?: "Done.", ongoing = false)
+                notify(tr(R.string.agentsvc_quiver_ai), result.reply.lineSequence().firstOrNull() ?: tr(R.string.agentsvc_done), ongoing = false)
             } catch (e: Exception) {
-                AgentBus.error("Sorry — that didn't work (${e.message}).")
-                notify("Quiver AI", "Couldn't finish that request.", ongoing = false)
+                AgentBus.error(tr(R.string.agentsvc_sorry_that_didn_t_work, e.message ?: e.javaClass.simpleName))
+                notify(tr(R.string.agentsvc_quiver_ai), tr(R.string.agentsvc_couldn_t_finish_that_request), ongoing = false)
             } finally {
                 finishUp()
             }
@@ -94,7 +95,7 @@ class AiAgentService : Service() {
 
     private fun ensureChannel() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(
-            NotificationChannel(CHANNEL, "Quiver AI tasks", NotificationManager.IMPORTANCE_LOW),
+            NotificationChannel(CHANNEL, tr(R.string.agentsvc_quiver_ai_tasks), NotificationManager.IMPORTANCE_LOW),
         )
     }
 

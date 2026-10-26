@@ -1,5 +1,9 @@
 package com.kamboji.quiver.move
 
+import com.kamboji.quiver.ui.locale.displayName
+import com.kamboji.quiver.ui.locale.tr
+import com.kamboji.quiver.R
+
 import com.kamboji.quiver.move.data.MoveEntity
 import com.kamboji.quiver.move.data.PointEntity
 
@@ -56,11 +60,11 @@ object MoveSummary {
     fun title(type: MoveType, startedAt: Long): String {
         val hour = java.time.Instant.ofEpochMilli(startedAt).atZone(java.time.ZoneId.systemDefault()).hour
         val part = when (hour) {
-            in 5..11 -> "Morning"
-            in 12..16 -> "Afternoon"
-            in 17..20 -> "Evening"
-            else -> "Night"
+            in 5..11 -> R.string.move_title_morning
+            in 12..16 -> R.string.move_title_afternoon
+            in 17..20 -> R.string.move_title_evening
+            else -> R.string.move_title_night
         }
-        return "$part ${type.label}"
+        return tr(part, type.displayName)
     }
 }

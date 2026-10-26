@@ -1,5 +1,6 @@
 package com.kamboji.quiver.currency.worker
 
+import com.kamboji.quiver.ui.locale.tr
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -63,7 +64,7 @@ class RateAlertWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(
     private fun notify(alert: RateAlert, rate: Double) {
         val nm = applicationContext.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
-            NotificationChannel(CHANNEL, "Rate alerts", NotificationManager.IMPORTANCE_HIGH),
+            NotificationChannel(CHANNEL, tr(R.string.ratealert_rate_alerts), NotificationManager.IMPORTANCE_HIGH),
         )
         val open = Intent(applicationContext, QuiverActivity::class.java)
             .setAction(ShellCommand.ACTION_OPEN)
@@ -73,11 +74,11 @@ class RateAlertWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(
             applicationContext, alert.id.toInt(), open,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        val dir = if (alert.above) "rose past" else "fell below"
+        val dir = if (alert.above) tr(R.string.ratealert_rose_past) else tr(R.string.ratealert_fell_below)
         val n = Notification.Builder(applicationContext, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("1 ${alert.from} $dir ${trim(alert.threshold)} ${alert.to}")
-            .setContentText("Now ${trim(rate)} ${alert.to}")
+            .setContentText(tr(R.string.ratealert_now_x_x, trim(rate), alert.to))
             .setContentIntent(pi)
             .setAutoCancel(true)
             .setGroup(CHANNEL) // never let Android bundle Quiver's notifications — see ExpenseCapture

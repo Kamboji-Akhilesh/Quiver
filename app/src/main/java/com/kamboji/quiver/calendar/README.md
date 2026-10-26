@@ -52,9 +52,8 @@ silenced by the ringer.
 
 > **Known gap:** the "when" vocabulary is **English-only** (`tomorrow`, `friday`,
 > `6pm`, `evening`), and the digit class is ASCII-only, so Indic day-words and
-> numerals aren't recognised — the line just becomes the title. The localized
-> placeholder strings therefore show a *code-mixed* example (translated title +
-> English tokens), which is what actually parses. `QuickAddParserTest` pins both
+> numerals aren't recognised — the line just becomes the title. Code-mixed
+> input (Indic title + English tokens) is what actually parses. `QuickAddParserTest` pins both
 > behaviours. Teaching the parser the other five languages would let those
 > examples be translated in full. (The AI agent has no such limit — it understands
 > all six languages and resolves the date itself.)

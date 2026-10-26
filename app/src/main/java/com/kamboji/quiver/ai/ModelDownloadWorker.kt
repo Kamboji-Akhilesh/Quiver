@@ -1,5 +1,6 @@
 package com.kamboji.quiver.ai
 
+import com.kamboji.quiver.ui.locale.tr
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -67,14 +68,14 @@ class ModelDownloadWorker(appContext: Context, params: WorkerParameters) :
                         Log.w("ModelDownload", "Gated model HTTP ${resp.code}: accept the licence on HuggingFace and set HF_TOKEN in local.properties / CI.")
                         return@withContext fail(
                             if (BuildConfig.HF_TOKEN.isBlank()) {
-                                "This copy of Quiver can't download the AI model — it was built without download access. Everything else works normally."
+                                tr(R.string.modeldl_this_copy_of_quiver_can)
                             } else {
-                                "The AI model download was refused (HTTP ${resp.code}). Everything else works normally; try an updated build."
+                                tr(R.string.modeldl_the_ai_model_download_was, resp.code)
                             },
                         )
                     }
                     resp.code in 400..499 ->
-                        return@withContext fail("Download failed (HTTP ${resp.code}). The model URL may have moved — update the app.")
+                        return@withContext fail(tr(R.string.modeldl_download_failed_http_x_the, resp.code))
                     else -> return@withContext Result.retry()
                 }
                 val body = resp.body ?: return@withContext Result.retry()
@@ -105,7 +106,7 @@ class ModelDownloadWorker(appContext: Context, params: WorkerParameters) :
         } catch (e: Exception) {
             // Keep the .part — the next attempt resumes from where this one died.
             if (runAttemptCount < MAX_ATTEMPTS) Result.retry()
-            else fail("Download kept failing (${e.message ?: "network error"}). Try again on a stable connection.")
+            else fail("Download kept failing (${e.message ?: tr(R.string.modeldl_network_error)}). Try again on a stable connection.")
         }
     }
 
@@ -119,7 +120,7 @@ class ModelDownloadWorker(appContext: Context, params: WorkerParameters) :
     private fun foregroundInfo(pct: Int): ForegroundInfo {
         val nm = applicationContext.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
-            NotificationChannel(CHANNEL, "AI model download", NotificationManager.IMPORTANCE_LOW),
+            NotificationChannel(CHANNEL, tr(R.string.modeldl_ai_model_download), NotificationManager.IMPORTANCE_LOW),
         )
         val n = buildNotification(pct)
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -133,8 +134,8 @@ class ModelDownloadWorker(appContext: Context, params: WorkerParameters) :
         Notification.Builder(applicationContext, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setGroup(CHANNEL) // never let Android bundle Quiver's notifications — see ExpenseCapture
-            .setContentTitle("Installing ${AiModel.DISPLAY_NAME}")
-            .setContentText("$pct% of ${AiModel.SIZE_LABEL}")
+            .setContentTitle(tr(R.string.modeldl_installing_x, AiModel.DISPLAY_NAME))
+            .setContentText(tr(R.string.modeldl_x_of_x, pct, AiModel.SIZE_LABEL))
             .setProgress(100, pct, false)
             .setOngoing(true)
             .setOnlyAlertOnce(true)

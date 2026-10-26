@@ -1,5 +1,6 @@
 package com.kamboji.quiver.ui.notes
 
+import com.kamboji.quiver.ui.locale.tr
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
@@ -83,7 +84,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kamboji.quiver.ai.VoiceController
-import com.kamboji.quiver.ui.locale.AppLocale
+import com.kamboji.quiver.ai.deviceVoiceLang
 import com.kamboji.quiver.notes.NotesViewModel
 import com.kamboji.quiver.notes.data.Note
 import com.kamboji.quiver.ui.components.QuiverModalSheet
@@ -146,7 +147,7 @@ private fun NotesList(state: QuiverState, vm: NotesViewModel, onNew: () -> Unit,
             ) {
                 Icon(Icons.Outlined.Search, null, Modifier.size(18.dp), tint = colors.dim)
                 Box(Modifier.weight(1f)) {
-                    if (query.isEmpty()) Text("Search notes", color = colors.dim, fontSize = 14.sp)
+                    if (query.isEmpty()) Text(tr(R.string.notes_search_notes), color = colors.dim, fontSize = 14.sp)
                     BasicTextField(query, { query = it }, textStyle = TextStyle(color = colors.text, fontSize = 14.sp), cursorBrush = SolidColor(ac.a), singleLine = true, modifier = Modifier.fillMaxWidth())
                 }
             }
@@ -155,7 +156,7 @@ private fun NotesList(state: QuiverState, vm: NotesViewModel, onNew: () -> Unit,
             when {
                 notes.isEmpty() -> EmptyNotes(ac)
                 filtered.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No matching notes", color = colors.dim)
+                    Text(tr(R.string.notes_no_matching_notes), color = colors.dim)
                 }
                 else -> LazyVerticalStaggeredGrid(
                     columns = StaggeredGridCells.Fixed(2),
@@ -165,11 +166,11 @@ private fun NotesList(state: QuiverState, vm: NotesViewModel, onNew: () -> Unit,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     if (pinned.isNotEmpty()) {
-                        item(span = StaggeredGridItemSpan.FullLine) { SectionLabel("Pinned") }
+                        item(span = StaggeredGridItemSpan.FullLine) { SectionLabel(tr(R.string.notes_pinned)) }
                         items(pinned, key = { it.id }) { NoteCard(it, { onOpen(it.id) }, { actionsFor = it }) }
                     }
                     if (others.isNotEmpty()) {
-                        if (pinned.isNotEmpty()) item(span = StaggeredGridItemSpan.FullLine) { SectionLabel("Others") }
+                        if (pinned.isNotEmpty()) item(span = StaggeredGridItemSpan.FullLine) { SectionLabel(tr(R.string.notes_others)) }
                         items(others, key = { it.id }) { NoteCard(it, { onOpen(it.id) }, { actionsFor = it }) }
                     }
                 }
@@ -184,7 +185,7 @@ private fun NotesList(state: QuiverState, vm: NotesViewModel, onNew: () -> Unit,
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Icon(Icons.Outlined.StickyNote2, null, Modifier.size(20.dp), tint = Color(0xFF1A1408))
-            Text("New note", color = Color(0xFF1A1408), fontWeight = FontWeight.Bold)
+            Text(tr(R.string.notes_new_note), color = Color(0xFF1A1408), fontWeight = FontWeight.Bold)
         }
 
         actionsFor?.let { note ->
@@ -195,7 +196,7 @@ private fun NotesList(state: QuiverState, vm: NotesViewModel, onNew: () -> Unit,
                 onColor = { vm.setColor(note.id, it) },
                 onDelete = {
                     vm.delete(note.id)
-                    state.toast("Note deleted", ToastKind.Error)
+                    state.toast(tr(R.string.notes_note_deleted), ToastKind.Error)
                 },
             )
         }
@@ -239,8 +240,8 @@ private fun EmptyNotes(ac: com.kamboji.quiver.ui.theme.Accent) {
                 contentAlignment = Alignment.Center,
             ) { Icon(Icons.Outlined.StickyNote2, null, Modifier.size(40.dp), tint = ac.txt(colors.dark)) }
             Spacer(Modifier.height(16.dp))
-            Text("No notes yet", fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-            Text("Tap “New note” to jot something down.", fontSize = 13.5.sp, color = colors.dim)
+            Text(tr(R.string.notes_no_notes_yet), fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+            Text(tr(R.string.notes_tap_new_note_to_jot), fontSize = 13.5.sp, color = colors.dim)
         }
     }
 }
@@ -256,7 +257,7 @@ private fun NoteActionsSheet(
     val colors = Quiver.colors
     QuiverModalSheet(onDismiss) { hide ->
         Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            ActionRow(if (note.pinned) Icons.Outlined.PushPin else Icons.Filled.PushPin, if (note.pinned) "Unpin" else "Pin to top") { onPin(); hide() }
+            ActionRow(if (note.pinned) Icons.Outlined.PushPin else Icons.Filled.PushPin, if (note.pinned) tr(R.string.notes_unpin) else tr(R.string.notes_pin_to_top)) { onPin(); hide() }
             // colour swatches
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 NotePalette.colors.forEachIndexed { i, c ->
@@ -269,7 +270,7 @@ private fun NoteActionsSheet(
                     ) { if (sel) Icon(Icons.Filled.Check, null, Modifier.size(18.dp), tint = Color.White) }
                 }
             }
-            ActionRow(Icons.Filled.DeleteOutline, "Delete", tint = Color(0xFFFB7185)) { onDelete(); hide() }
+            ActionRow(Icons.Filled.DeleteOutline, tr(R.string.notes_delete), tint = Color(0xFFFB7185)) { onDelete(); hide() }
         }
     }
 }
@@ -312,7 +313,7 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
     fun startDictation() {
         listening = true
         voice.startListening(
-            AppLocale.current(context).voiceLang(),
+            deviceVoiceLang(),
             onPartial = {},
             onResult = { text -> if (text.isNotBlank()) bodyValue = insertAtCursor(bodyValue, text); listening = false },
             onError = { listening = false },
@@ -349,19 +350,19 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
                 Modifier.fillMaxWidth().padding(start = 8.dp, end = 12.dp, top = 6.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                QvIconButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, { close() }, contentDescription = "Back", tint = fg)
+                QvIconButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, { close() }, contentDescription = tr(R.string.notes_back), tint = fg)
                 Spacer(Modifier.weight(1f))
                 Box(
                     Modifier.size(42.dp).clip(CircleShape).clickable { preview = !preview },
                     contentAlignment = Alignment.Center,
-                ) { Icon(if (preview) Icons.Outlined.Edit else Icons.Outlined.Visibility, "Preview", Modifier.size(21.dp), tint = fg) }
+                ) { Icon(if (preview) Icons.Outlined.Edit else Icons.Outlined.Visibility, tr(R.string.notes_preview), Modifier.size(21.dp), tint = fg) }
                 Box(
                     Modifier.size(42.dp).clip(CircleShape).clickable {
                         pinned = !pinned
                         savedId?.let { vm.togglePin(it) }
                     },
                     contentAlignment = Alignment.Center,
-                ) { Icon(if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin, "Pin", Modifier.size(21.dp), tint = if (pinned) nc.accent else fg) }
+                ) { Icon(if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin, tr(R.string.notes_pin), Modifier.size(21.dp), tint = if (pinned) nc.accent else fg) }
                 Box(
                     Modifier.size(42.dp).clip(CircleShape).clickable {
                         discarded = true
@@ -369,7 +370,7 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
                         onClose()
                     },
                     contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Filled.DeleteOutline, "Delete", Modifier.size(21.dp), tint = fg) }
+                ) { Icon(Icons.Filled.DeleteOutline, tr(R.string.notes_delete), Modifier.size(21.dp), tint = fg) }
             }
             Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
                 if (preview) {
@@ -381,16 +382,16 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
                             onToggleCheckbox = { bodyValue = toggleCheckboxLine(bodyValue, it) },
                         )
                     } else {
-                        Text("Nothing to preview yet.", color = fg.copy(alpha = 0.4f), fontSize = 16.sp)
+                        Text(tr(R.string.notes_nothing_to_preview_yet), color = fg.copy(alpha = 0.4f), fontSize = 16.sp)
                     }
                 } else {
                     Box(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                        if (title.isEmpty()) Text("Title", color = fg.copy(alpha = 0.4f), fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        if (title.isEmpty()) Text(tr(R.string.notes_title), color = fg.copy(alpha = 0.4f), fontSize = 24.sp, fontWeight = FontWeight.Bold)
                         BasicTextField(title, { title = it }, textStyle = TextStyle(color = fg, fontSize = 24.sp, fontWeight = FontWeight.Bold, lineHeight = 30.sp), cursorBrush = SolidColor(nc.accent), modifier = Modifier.fillMaxWidth().focusRequester(titleFocus))
                     }
                     Spacer(Modifier.height(12.dp))
                     Box(Modifier.fillMaxWidth()) {
-                        if (body.isEmpty()) Text("Start writing… (Markdown supported)", color = fg.copy(alpha = 0.4f), fontSize = 16.sp)
+                        if (body.isEmpty()) Text(tr(R.string.notes_start_writing_markdown_supported), color = fg.copy(alpha = 0.4f), fontSize = 16.sp)
                         BasicTextField(
                             bodyValue,
                             { bodyValue = continueList(bodyValue, it) ?: it },
@@ -420,7 +421,7 @@ private fun NoteEditor(vm: NotesViewModel, id: Long?, onClose: () -> Unit) {
                     ) {
                         Icon(
                             if (listening) Icons.Filled.Stop else Icons.Filled.Mic,
-                            if (listening) "Stop dictation" else "Dictate",
+                            if (listening) tr(R.string.notes_stop_dictation) else tr(R.string.notes_dictate),
                             Modifier.size(20.dp),
                             tint = if (listening) Color.White else fg,
                         )

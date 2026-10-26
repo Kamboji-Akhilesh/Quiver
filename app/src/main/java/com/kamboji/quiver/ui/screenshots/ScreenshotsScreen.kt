@@ -1,5 +1,8 @@
 package com.kamboji.quiver.ui.screenshots
 
+import com.kamboji.quiver.ui.locale.displayName
+
+import com.kamboji.quiver.ui.locale.tr
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.runtime.produceState
@@ -97,8 +100,6 @@ import java.util.Date
 import java.util.Locale
 
 
-private fun labelFor(d: DeleteDelay): String =
-    DELAY_PRESETS.firstOrNull { it.second == d }?.first ?: d.describe()
 
 /** Routes between the screenshots home and its history / search sub-screens. */
 @Composable
@@ -132,7 +133,7 @@ private fun HomeScreen(state: QuiverState) {
         } else {
             context.stopService(intent)
         }
-        state.toast(if (on) "Monitoring resumed" else "Monitoring paused", if (on) ToastKind.Success else ToastKind.Info)
+        state.toast(if (on) tr(R.string.shots_monitoring_resumed) else tr(R.string.shots_monitoring_paused), if (on) ToastKind.Success else ToastKind.Info)
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 140.dp)) {
@@ -157,18 +158,18 @@ private fun HomeScreen(state: QuiverState) {
                             contentAlignment = Alignment.Center,
                         ) { androidx.compose.material3.Icon(Icons.Outlined.Shield, null, Modifier.size(28.dp), tint = ac.txt(colors.dark)) }
                         Column {
-                            Text(if (enabled) "PROTECTION ON" else "PAUSED", color = ac.txt(colors.dark), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
-                            Text(if (enabled) "Monitoring active" else "Not monitoring", fontSize = 17.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-                            Text(if (enabled) "New screenshots auto-clean" else "Tap to resume", fontSize = 12.5.sp, color = colors.dim)
+                            Text(if (enabled) tr(R.string.shots_protection_on) else tr(R.string.shots_paused), color = ac.txt(colors.dark), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+                            Text(if (enabled) tr(R.string.shots_monitoring_active) else tr(R.string.shots_not_monitoring), fontSize = 17.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+                            Text(if (enabled) tr(R.string.shots_new_screenshots_auto_clean) else tr(R.string.shots_tap_to_resume), fontSize = 12.5.sp, color = colors.dim)
                         }
                     }
                     QvToggle(enabled, { setService(!enabled) }, ac)
                 }
                 Spacer(Modifier.height(18.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatTile("${history.size}", "In trash", ac, Modifier.weight(1f))
-                    StatTile(labelFor(delay), "Auto-delete", ac, Modifier.weight(1f))
-                    StatTile("7 days", "Retention", ac, Modifier.weight(1f))
+                    StatTile("${history.size}", tr(R.string.shots_in_trash), ac, Modifier.weight(1f))
+                    StatTile(delay.displayName, tr(R.string.shots_auto_delete), ac, Modifier.weight(1f))
+                    StatTile(tr(R.string.shots_7_days), tr(R.string.shots_retention), ac, Modifier.weight(1f))
                 }
             }
 
@@ -182,21 +183,21 @@ private fun HomeScreen(state: QuiverState) {
                     androidx.compose.material3.Icon(Icons.Outlined.Notifications, null, Modifier.size(20.dp), tint = ac.txt(colors.dark))
                 }
                 Column(Modifier.weight(1f)) {
-                    Text("How auto-clean works", fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                    Text("New screenshots are moved to trash after the delay below.", fontSize = 12.sp, color = colors.dim)
+                    Text(tr(R.string.shots_how_auto_clean_works), fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                    Text(tr(R.string.shots_new_screenshots_are_moved_to), fontSize = 12.sp, color = colors.dim)
                 }
             }
 
             Spacer(Modifier.height(16.dp))
-            SectionLabel("Auto-delete after")
+            SectionLabel(tr(R.string.shots_auto_delete_after))
             Spacer(Modifier.height(4.dp))
             Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp)) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(9.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    DELAY_PRESETS.forEach { (label, d) ->
-                        Pill(label, delay == d, ac, {
+                    DELAY_PRESETS.forEach { d ->
+                        Pill(d.displayName, delay == d, ac, {
                             delay = d
                             SettingsManager.saveDelay(context, d)
-                            state.toast("Auto-delete set to $label", ToastKind.Success)
+                            state.toast(tr(R.string.shots_auto_delete_set_to_x, d.displayName), ToastKind.Success)
                         })
                     }
                 }
@@ -213,9 +214,9 @@ private fun HomeScreen(state: QuiverState) {
                     androidx.compose.material3.Icon(Icons.Outlined.Search, null, Modifier.size(22.dp), tint = ac.txt(colors.dark))
                 }
                 Column(Modifier.weight(1f)) {
-                    Text("Search screenshots", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                    Text(tr(R.string.shots_search_screenshots), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
                     Text(
-                        if (indexedCount == 0) "Text is read on-device as you capture" else "$indexedCount searchable by their text",
+                        if (indexedCount == 0) tr(R.string.shots_text_is_read_on_device) else tr(R.string.shots_x_searchable_by_their_text, indexedCount),
                         fontSize = 12.5.sp, color = colors.dim,
                     )
                 }
@@ -227,7 +228,7 @@ private fun HomeScreen(state: QuiverState) {
             Row(
                 Modifier.fillMaxWidth().glass(colors).clickable {
                     OcrBackfillWorker.enqueue(context)
-                    state.toast("Indexing older screenshots while charging", ToastKind.Info)
+                    state.toast(tr(R.string.shots_indexing_older_screenshots_while_charging), ToastKind.Info)
                 }.padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
@@ -235,8 +236,8 @@ private fun HomeScreen(state: QuiverState) {
                     androidx.compose.material3.Icon(Icons.Outlined.Bolt, null, Modifier.size(22.dp), tint = ac.txt(colors.dark))
                 }
                 Column(Modifier.weight(1f)) {
-                    Text("Index older screenshots", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                    Text("Reads existing shots for search — runs while charging", fontSize = 12.5.sp, color = colors.dim)
+                    Text(tr(R.string.shots_index_older_screenshots), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                    Text(tr(R.string.shots_reads_existing_shots_for_search), fontSize = 12.5.sp, color = colors.dim)
                 }
                 androidx.compose.material3.Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(20.dp), tint = colors.dim)
             }
@@ -251,8 +252,8 @@ private fun HomeScreen(state: QuiverState) {
                     androidx.compose.material3.Icon(Icons.Outlined.History, null, Modifier.size(22.dp), tint = ac.txt(colors.dark))
                 }
                 Column(Modifier.weight(1f)) {
-                    Text("Deletion history", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                    Text("${history.size} in trash · restorable for 7 days", fontSize = 12.5.sp, color = colors.dim)
+                    Text(tr(R.string.shots_deletion_history), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                    Text(tr(R.string.shots_x_in_trash_restorable_for, history.size), fontSize = 12.5.sp, color = colors.dim)
                 }
                 androidx.compose.material3.Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(20.dp), tint = colors.dim)
             }
@@ -285,7 +286,7 @@ private fun HistoryScreen(state: QuiverState) {
     var preview by remember { mutableStateOf<HistoryItem?>(null) }
 
     Column(Modifier.fillMaxSize()) {
-        QvTopBar("Deletion history", ac, onBack = { state.screenshotsScreen = "home" })
+        QvTopBar(tr(R.string.shots_deletion_history), ac, onBack = { state.screenshotsScreen = "home" })
         LazyColumn(
             Modifier.fillMaxSize().padding(horizontal = 18.dp),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 140.dp),
@@ -298,7 +299,7 @@ private fun HistoryScreen(state: QuiverState) {
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     androidx.compose.material3.Icon(Icons.Outlined.Info, null, Modifier.size(18.dp), tint = ac.txt(colors.dark))
-                    Text("Files are kept 7 days before permanent deletion", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = ac.txt(colors.dark))
+                    Text(tr(R.string.shots_files_are_kept_7_days), fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = ac.txt(colors.dark))
                 }
             }
             if (history.isEmpty()) {
@@ -310,8 +311,8 @@ private fun HistoryScreen(state: QuiverState) {
                             contentAlignment = Alignment.Center,
                         ) { androidx.compose.material3.Icon(Icons.Outlined.Shield, null, Modifier.size(40.dp), tint = ac.txt(colors.dark)) }
                         Spacer(Modifier.height(20.dp))
-                        Text("Trash is empty", fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-                        Text("Cleaned screenshots appear here for 7 days.", fontSize = 13.5.sp, color = colors.dim)
+                        Text(tr(R.string.shots_trash_is_empty), fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+                        Text(tr(R.string.shots_cleaned_screenshots_appear_here_for), fontSize = 13.5.sp, color = colors.dim)
                     }
                 }
             } else {
@@ -324,14 +325,14 @@ private fun HistoryScreen(state: QuiverState) {
                                 TrashManager.restoreFromTrash(context, item)
                                 dao.delete(item)
                             }
-                            state.toast("Screenshot restored", ToastKind.Success)
+                            state.toast(tr(R.string.shots_screenshot_restored), ToastKind.Success)
                         },
                         onDelete = {
                             scope.launch {
                                 TrashManager.permanentlyDelete(context, item)
                                 dao.delete(item)
                             }
-                            state.toast("Permanently deleted", ToastKind.Error)
+                            state.toast(tr(R.string.shots_permanently_deleted), ToastKind.Error)
                         },
                     )
                 }
@@ -368,7 +369,7 @@ private fun TrashPreview(item: HistoryItem, onDismiss: () -> Unit) {
             if (image != null) {
                 Image(image, item.fileName, Modifier.fillMaxSize().padding(16.dp), contentScale = ContentScale.Fit)
             } else {
-                Text("Preview unavailable", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
+                Text(tr(R.string.shots_preview_unavailable), color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
             }
         }
     }
@@ -399,11 +400,11 @@ private fun TrashRow(
         }
         Column(Modifier.weight(1f)) {
             Text(item.fileName, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text, maxLines = 1)
-            Text("Deleted ${formatWhen(item.deletedAt)}", fontSize = 12.sp, color = colors.dim)
+            Text(tr(R.string.shots_deleted_x, formatWhen(item.deletedAt)), fontSize = 12.sp, color = colors.dim)
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ActionChip("Restore", Icons.Outlined.Restore, ac.a, ac.txt(colors.dark), ac.a.copy(alpha = 0.14f), onRestore)
-                ActionChip("Delete", Icons.Filled.DeleteOutline, Color(0xFFFB7185), Color(0xFFFB7185), Color(0x1FFB7185), onDelete)
+                ActionChip(tr(R.string.shots_restore), Icons.Outlined.Restore, ac.a, ac.txt(colors.dark), ac.a.copy(alpha = 0.14f), onRestore)
+                ActionChip(tr(R.string.shots_delete), Icons.Filled.DeleteOutline, Color(0xFFFB7185), Color(0xFFFB7185), Color(0x1FFB7185), onDelete)
             }
         }
     }
@@ -453,7 +454,7 @@ private fun SearchScreen(state: QuiverState) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        QvTopBar("Search screenshots", ac, onBack = { state.screenshotsScreen = "home" })
+        QvTopBar(tr(R.string.shots_search_screenshots), ac, onBack = { state.screenshotsScreen = "home" })
         Column(Modifier.padding(horizontal = 18.dp)) {
             // search field
             Row(
@@ -462,7 +463,7 @@ private fun SearchScreen(state: QuiverState) {
             ) {
                 androidx.compose.material3.Icon(Icons.Outlined.Search, null, Modifier.size(19.dp), tint = colors.dim)
                 Box(Modifier.weight(1f)) {
-                    if (query.isEmpty()) Text("wifi password, OTP, address…", color = colors.dim, fontSize = 14.5.sp)
+                    if (query.isEmpty()) Text(tr(R.string.shots_wifi_password_otp_address), color = colors.dim, fontSize = 14.5.sp)
                     BasicTextField(
                         query, { query = it }, singleLine = true,
                         textStyle = TextStyle(color = colors.text, fontSize = 14.5.sp),
@@ -474,9 +475,9 @@ private fun SearchScreen(state: QuiverState) {
         }
 
         if (query.isBlank()) {
-            SearchHint(ac, "Search the text inside your screenshots", "Everything is read on your phone — nothing is uploaded.")
+            SearchHint(ac, tr(R.string.shots_search_the_text_inside_your), tr(R.string.shots_everything_is_read_on_your))
         } else if (results.isEmpty()) {
-            SearchHint(ac, "No matches", "Try different words, or index older screenshots from the Screenshots home.")
+            SearchHint(ac, tr(R.string.shots_no_matches), tr(R.string.shots_try_different_words_or_index))
         } else {
             LazyColumn(
                 Modifier.fillMaxSize().padding(horizontal = 18.dp),
@@ -539,6 +540,6 @@ private fun openImage(context: android.content.Context, match: ScreenshotMatch, 
         )
         true
     }.getOrDefault(false)
-    if (!opened) state.toast("That screenshot is no longer on your phone — its text is still saved", ToastKind.Info)
+    if (!opened) state.toast(tr(R.string.shots_that_screenshot_is_no_longer), ToastKind.Info)
 }
 

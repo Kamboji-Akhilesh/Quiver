@@ -1,5 +1,8 @@
 package com.kamboji.quiver.ui.shell
 
+import com.kamboji.quiver.R
+
+import com.kamboji.quiver.ui.locale.tr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -99,8 +102,8 @@ fun Launcher(state: QuiverState) {
             Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 30.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("Your apps", fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text, modifier = Modifier.fillMaxWidth())
-            Text("Jump straight into any mini-app", fontSize = 13.sp, color = colors.dim, modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 18.dp))
+            Text(tr(R.string.shell_your_apps), fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text, modifier = Modifier.fillMaxWidth())
+            Text(tr(R.string.shell_jump_straight_into_any_mini), fontSize = 13.sp, color = colors.dim, modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 18.dp))
             // 3 per row
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items.chunked(3).forEach { row ->
@@ -111,7 +114,7 @@ fun Launcher(state: QuiverState) {
                 }
             }
             Spacer(Modifier.height(18.dp))
-            Text("More coming soon", color = colors.faint, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
+            Text(tr(R.string.shell_more_coming_soon), color = colors.faint, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -149,12 +152,12 @@ fun SearchOverlay(state: QuiverState) {
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     val actions = remember {
         listOf(
-            SearchAction("Clean screenshots now", Icons.Outlined.Image, AppKey.Screenshots, Accents.Screenshots),
-            SearchAction("Convert 100 USD to EUR", Icons.Outlined.SwapHoriz, AppKey.Currency, Accents.Currency),
-            SearchAction("Add a new event", Icons.Filled.Add, AppKey.Calendar, Accents.Calendar),
-            SearchAction("New note", Icons.Outlined.StickyNote2, AppKey.Notes, Accents.Notes),
-            SearchAction("Add an expense", Icons.Outlined.Payments, AppKey.Expenses, Accents.Expenses),
-            SearchAction("Open deletion history", Icons.Outlined.History, AppKey.Screenshots, Accents.Screenshots, "history"),
+            SearchAction(tr(R.string.shell_clean_screenshots_now), Icons.Outlined.Image, AppKey.Screenshots, Accents.Screenshots),
+            SearchAction(tr(R.string.shell_convert_100_usd_to_eur), Icons.Outlined.SwapHoriz, AppKey.Currency, Accents.Currency),
+            SearchAction(tr(R.string.shell_add_a_new_event), Icons.Filled.Add, AppKey.Calendar, Accents.Calendar),
+            SearchAction(tr(R.string.shell_new_note), Icons.Outlined.StickyNote2, AppKey.Notes, Accents.Notes),
+            SearchAction(tr(R.string.shell_add_an_expense), Icons.Outlined.Payments, AppKey.Expenses, Accents.Expenses),
+            SearchAction(tr(R.string.shell_open_deletion_history), Icons.Outlined.History, AppKey.Screenshots, Accents.Screenshots, "history"),
         )
     }
     val filtered = actions.filter { query.isBlank() || it.label.contains(query, ignoreCase = true) }
@@ -178,7 +181,7 @@ fun SearchOverlay(state: QuiverState) {
             ) {
                 Icon(Icons.Outlined.Search, null, Modifier.size(19.dp), tint = Accents.Hub.txt(colors.dark))
                 Box(Modifier.weight(1f)) {
-                    if (query.isEmpty()) Text("Search apps, actions, rates…", color = colors.dim, fontSize = 15.5.sp)
+                    if (query.isEmpty()) Text(tr(R.string.shell_search_apps_actions_rates), color = colors.dim, fontSize = 15.5.sp)
                     BasicTextField(
                         query, { query = it },
                         textStyle = TextStyle(color = colors.text, fontSize = 15.5.sp),
@@ -188,10 +191,10 @@ fun SearchOverlay(state: QuiverState) {
                     )
                 }
             }
-            Text("Cancel", color = colors.dim, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { state.searchOpen = false })
+            Text(tr(R.string.shell_cancel), color = colors.dim, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { state.searchOpen = false })
         }
         Column(Modifier.padding(horizontal = 18.dp)) {
-            SectionLabel(if (query.isBlank()) "Quick actions" else "Actions")
+            SectionLabel(if (query.isBlank()) tr(R.string.shell_quick_actions) else tr(R.string.shell_actions))
             Spacer(Modifier.height(8.dp))
             filtered.forEach { a ->
                 Row(
@@ -221,8 +224,8 @@ fun SearchOverlay(state: QuiverState) {
                     Icon(Icons.Filled.AutoAwesome, null, Modifier.size(21.dp), tint = Color.White)
                 }
                 Column(Modifier.weight(1f)) {
-                    Text(if (query.isBlank()) "Ask Quiver AI" else "“$query”", fontSize = 14.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                    Text("Let AI handle it across your apps", fontSize = 12.5.sp, color = colors.dim)
+                    Text(if (query.isBlank()) tr(R.string.shell_ask_quiver_ai) else "“$query”", fontSize = 14.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                    Text(tr(R.string.shell_let_ai_handle_it_across), fontSize = 12.5.sp, color = colors.dim)
                 }
             }
         }

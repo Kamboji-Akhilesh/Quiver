@@ -1,5 +1,8 @@
 package com.kamboji.quiver.ui.focus
 
+import com.kamboji.quiver.ui.locale.trPlural
+
+import com.kamboji.quiver.ui.locale.tr
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.background
@@ -83,7 +86,7 @@ fun FocusScreen(state: QuiverState) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box(Modifier.size(9.dp).clip(CircleShape).background(if (serviceOn) ac.a else colors.faint))
                         Text(
-                            if (serviceOn) "Blocking is on" else "Blocking is off",
+                            if (serviceOn) tr(R.string.focus_blocking_is_on) else tr(R.string.focus_blocking_is_off),
                             fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold,
                             color = if (serviceOn) ac.txt(colors.dark) else colors.dim,
                         )
@@ -91,7 +94,7 @@ fun FocusScreen(state: QuiverState) {
                     Spacer(Modifier.height(10.dp))
                     Text("$today", fontSize = 34.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
                     Text(
-                        "${if (today == 1) "feed" else "feeds"} blocked today · $total all time",
+                        tr(R.string.focus_all_time, trPlural(R.plurals.focus_feeds_blocked_today, today), total),
                         fontSize = 12.5.sp, color = colors.dim,
                     )
                 }
@@ -102,7 +105,7 @@ fun FocusScreen(state: QuiverState) {
                 }
 
                 Spacer(Modifier.height(18.dp))
-                SectionLabel("Block")
+                SectionLabel(tr(R.string.focus_block))
                 Column(Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp))) {
                     FocusTarget.entries.forEachIndexed { i, t ->
                         Row(
@@ -121,14 +124,14 @@ fun FocusScreen(state: QuiverState) {
                 }
 
                 Spacer(Modifier.height(18.dp))
-                SectionLabel("When blocked")
+                SectionLabel(tr(R.string.focus_when_blocked))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Pill("Go back", !closeApp, ac, { closeApp = false; prefs.closeApp = false })
-                    Pill("Close the app", closeApp, ac, { closeApp = true; prefs.closeApp = true })
+                    Pill(tr(R.string.focus_go_back), !closeApp, ac, { closeApp = false; prefs.closeApp = false })
+                    Pill(tr(R.string.focus_close_the_app), closeApp, ac, { closeApp = true; prefs.closeApp = true })
                 }
                 Text(
-                    if (closeApp) "Sends you to the home screen — the app is left entirely."
-                    else "Presses Back — you stay in the app, just out of the feed.",
+                    if (closeApp) tr(R.string.focus_sends_you_to_the_home)
+                    else tr(R.string.focus_presses_back_you_stay_in),
                     fontSize = 12.sp, color = colors.dim, modifier = Modifier.padding(top = 8.dp, start = 2.dp),
                 )
 
@@ -139,7 +142,7 @@ fun FocusScreen(state: QuiverState) {
                 ) {
                     Icon(Icons.Outlined.Lock, null, Modifier.size(16.dp).padding(top = 2.dp), tint = colors.faint)
                     Text(
-                        "Android only lets Quiver see YouTube and Instagram. Quiver checks which screen is open, never reads what's on it, and only keeps the counts above. Nothing leaves this phone.",
+                        tr(R.string.focus_android_only_lets_quiver_see),
                         fontSize = 12.sp, color = colors.faint, lineHeight = 16.sp,
                     )
                 }
@@ -147,9 +150,9 @@ fun FocusScreen(state: QuiverState) {
         }
 
         if (showEnable) EnableAccessDialog(
-            title = "Allow accessibility access",
-            body = "Quiver needs accessibility access to notice when Shorts or Reels open and press Back for you. It only receives events from YouTube and Instagram.",
-            step = "In settings, open “Quiver Focus” and turn it ON.",
+            title = tr(R.string.focus_allow_accessibility_access),
+            body = tr(R.string.focus_quiver_needs_accessibility_access_to),
+            step = tr(R.string.focus_in_settings_open_quiver_focus),
             accent = ac,
             onOpenSettings = { runCatching { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) } },
             onDismiss = { showEnable = false },
@@ -172,9 +175,9 @@ private fun EnableCard(onEnable: () -> Unit) {
             Icon(Icons.Outlined.SelfImprovement, null, Modifier.size(20.dp), tint = ac.txt(colors.dark))
         }
         Column(Modifier.weight(1f)) {
-            Text("Turn on Shorts & Reels blocking", fontSize = 13.5.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-            Text("One-time accessibility permission — works on this phone only.", fontSize = 11.5.sp, color = colors.dim, lineHeight = 15.sp)
+            Text(tr(R.string.focus_turn_on_shorts_reels_blocking), fontSize = 13.5.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+            Text(tr(R.string.focus_one_time_accessibility_permission_works), fontSize = 11.5.sp, color = colors.dim, lineHeight = 15.sp)
         }
-        Text("Enable", color = ac.txt(colors.dark), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(tr(R.string.focus_enable), color = ac.txt(colors.dark), fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }
 }

@@ -1,5 +1,15 @@
 package com.kamboji.quiver.ui.calendar
 
+import com.kamboji.quiver.ui.locale.trPlural
+
+import com.kamboji.quiver.ui.locale.displayName
+import com.kamboji.quiver.ui.locale.shortName
+import com.kamboji.quiver.ui.locale.repeatSummary
+import com.kamboji.quiver.ui.locale.repeatUnitCount
+import com.kamboji.quiver.ui.locale.shortDate
+import com.kamboji.quiver.ui.locale.monthName
+
+import com.kamboji.quiver.ui.locale.tr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -118,7 +128,7 @@ private val TIME_HM = DateTimeFormatter.ofPattern("h:mm")
 private val TIME_AMPM = DateTimeFormatter.ofPattern("a")
 
 private fun timeLabel(e: CalendarEntry): String =
-    if (e.allDay) "all-day"
+    if (e.allDay) tr(R.string.common_all_day)
     else Instant.ofEpochMilli(e.startMillis).atZone(ZoneId.systemDefault())
         .toLocalTime().format(TIME_12H)
 
@@ -162,8 +172,6 @@ fun CalendarScreen(state: QuiverState) {
         val d = localDate(start)
         selected = d
         month = YearMonth.from(d)
-        // Locale.getDefault() is set by AppLocale.wrap, so the month name follows
-        // the chosen app language rather than being an English enum name.
         val whenLabel = Instant.ofEpochMilli(start).atZone(ZoneId.systemDefault())
             .format(DateTimeFormatter.ofPattern("MMM d, h:mm a", Locale.getDefault()))
         val added = if (type == EntryType.TASK) R.string.quick_add_added_task else R.string.quick_add_added_event
@@ -227,7 +235,7 @@ fun CalendarScreen(state: QuiverState) {
                 Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                         Row {
-                            Text(month.month.name.lowercase().replaceFirstChar { it.uppercase() } + " ", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+                            Text(monthName(month.month) + " ", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
                             Text("${month.year}", fontSize = 19.sp, fontWeight = FontWeight.Medium, fontFamily = Display, color = colors.dim)
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -249,10 +257,10 @@ fun CalendarScreen(state: QuiverState) {
                 Spacer(Modifier.height(16.dp))
                 Row(Modifier.fillMaxWidth().padding(horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                     Row {
-                        Text("${selected.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)} ${selected.dayOfMonth}", fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-                        if (selected == today) Text("  · Today", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = ac.txt(colors.dark))
+                        Text(shortDate(selected), fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+                        if (selected == today) Text(tr(R.string.calendar_today), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = ac.txt(colors.dark))
                     }
-                    Text("${dayItems.size} ${if (dayItems.size == 1) "item" else "items"}", fontSize = 12.5.sp, color = colors.dim)
+                    Text(trPlural(R.plurals.count_items, dayItems.size), fontSize = 12.5.sp, color = colors.dim)
                 }
                 Spacer(Modifier.height(12.dp))
 
@@ -268,7 +276,7 @@ fun CalendarScreen(state: QuiverState) {
                                 // The checkbox toggles a task's done state.
                                 onToggle = {
                                     vm.toggleDone(e.id)
-                                    state.toast(if (!e.done) "Task completed ✓" else "Task reopened", if (!e.done) ToastKind.Success else ToastKind.Info)
+                                    state.toast(if (!e.done) tr(R.string.calendar_task_completed) else tr(R.string.calendar_task_reopened), if (!e.done) ToastKind.Success else ToastKind.Info)
                                 },
                             )
                         }
@@ -280,27 +288,27 @@ fun CalendarScreen(state: QuiverState) {
         when (val s = sheet) {
             is CalSheet.New -> NewEventSheet(
                 selected, ac, onDismiss = { sheet = null },
-                onInvalid = { state.toast("Enter a title first", ToastKind.Info) },
+                onInvalid = { state.toast(tr(R.string.calendar_enter_a_title_first), ToastKind.Info) },
             ) { draft ->
                 vm.upsert(draft)
                 val d = localDate(draft.startMillis)
-                state.toast("Added to ${d.month.name.lowercase().replaceFirstChar { c -> c.uppercase() }.take(3)} ${d.dayOfMonth}", ToastKind.Success)
+                state.toast(tr(R.string.calendar_added_to_x, shortDate(d)), ToastKind.Success)
             }
             is CalSheet.View -> EventViewSheet(
                 s.entry, ac, onDismiss = { sheet = null },
                 onEdit = { sheet = CalSheet.Edit(s.entry) },
                 onToggleDone = {
                     vm.toggleDone(s.entry.id)
-                    state.toast(if (!s.entry.done) "Task completed ✓" else "Task reopened", if (!s.entry.done) ToastKind.Success else ToastKind.Info)
+                    state.toast(if (!s.entry.done) tr(R.string.calendar_task_completed) else tr(R.string.calendar_task_reopened), if (!s.entry.done) ToastKind.Success else ToastKind.Info)
                 },
-                onDelete = { vm.delete(s.entry.id); state.toast(if (s.entry.isTask) "Task deleted" else "Event deleted", ToastKind.Error) },
+                onDelete = { vm.delete(s.entry.id); state.toast(if (s.entry.isTask) tr(R.string.calendar_task_deleted) else tr(R.string.calendar_event_deleted), ToastKind.Error) },
             )
             is CalSheet.Edit -> NewEventSheet(
                 selected, ac, editing = s.entry, onDismiss = { sheet = null },
-                onInvalid = { state.toast("Enter a title first", ToastKind.Info) },
+                onInvalid = { state.toast(tr(R.string.calendar_enter_a_title_first), ToastKind.Info) },
             ) { draft ->
                 vm.upsert(draft)
-                state.toast("Saved", ToastKind.Success)
+                state.toast(tr(R.string.calendar_saved), ToastKind.Success)
             }
             null -> Unit
         }
@@ -376,15 +384,15 @@ private fun EventRow(e: CalendarEntry, ac: Accent, onClick: () -> Unit, onToggle
     val colors = Quiver.colors
     val col = if (e.alertStyle == AlertStyle.CALL) CallPink else if (e.isTask) TaskAmber else ac.a
     val subtitle = when {
-        e.isTask && e.done -> "Completed"
+        e.isTask && e.done -> tr(R.string.calendar_completed)
         else -> buildList {
-            if (e.repeats) add(e.repeatLabel())
+            if (e.repeats) add(e.repeatSummary)
             when (e.alertStyle) {
-                AlertStyle.CALL -> add("Call reminder")
-                AlertStyle.NOTIFICATION -> add("Notification")
+                AlertStyle.CALL -> add(tr(R.string.calendar_call_reminder))
+                AlertStyle.NOTIFICATION -> add(tr(R.string.calendar_notification))
                 AlertStyle.NONE -> {}
             }
-        }.joinToString(" · ").ifEmpty { if (e.isTask) "Tap to complete" else "Event" }
+        }.joinToString(" · ").ifEmpty { if (e.isTask) tr(R.string.calendar_tap_to_complete) else tr(R.string.calendar_event) }
     }
     val lt = if (e.allDay) null else Instant.ofEpochMilli(e.startMillis).atZone(ZoneId.systemDefault()).toLocalTime()
     Row(
@@ -393,8 +401,8 @@ private fun EventRow(e: CalendarEntry, ac: Accent, onClick: () -> Unit, onToggle
     ) {
         Box(Modifier.width(4.dp).height(40.dp).clip(RoundedCornerShape(4.dp)).background(col))
         Column(Modifier.width(54.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(if (lt == null) "All" else lt.format(TIME_HM), fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text, maxLines = 1)
-            Text(if (lt == null) "day" else lt.format(TIME_AMPM), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = colors.faint, letterSpacing = 0.5.sp, maxLines = 1)
+            Text(if (lt == null) tr(R.string.calendar_allday_top) else lt.format(TIME_HM), fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text, maxLines = 1)
+            Text(if (lt == null) tr(R.string.calendar_allday_bottom) else lt.format(TIME_AMPM), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = colors.faint, letterSpacing = 0.5.sp, maxLines = 1)
         }
         if (e.isTask) {
             Box(
@@ -426,8 +434,8 @@ private fun EmptyAgenda(ac: Accent) {
             contentAlignment = Alignment.Center,
         ) { Icon(Icons.Outlined.CalendarMonth, null, Modifier.size(40.dp), tint = ac.txt(colors.dark)) }
         Spacer(Modifier.height(16.dp))
-        Text("Nothing scheduled", fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-        Text("Tap + to add an event or task for this day.", fontSize = 13.5.sp, color = colors.dim)
+        Text(tr(R.string.calendar_nothing_scheduled), fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+        Text(tr(R.string.calendar_tap_to_add_an_event), fontSize = 13.5.sp, color = colors.dim)
     }
 }
 
@@ -473,7 +481,14 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, editing: CalendarEntry? = 
 
     // Shared keyboard-safe composer panel (see QuiverComposerSheet for why).
     QuiverComposerSheet(
-        title = "${if (isEdit) "Edit" else "New"} ${if (type == EntryType.TASK) "task" else "event"}",
+        title = tr(
+                    when {
+                        isEdit && type == EntryType.TASK -> R.string.calendar_edit_task
+                        isEdit -> R.string.calendar_edit_event
+                        type == EntryType.TASK -> R.string.calendar_new_task
+                        else -> R.string.calendar_new_event
+                    },
+                ),
         onDismiss = onDismiss,
         footer = {
             // add (pinned outside the scroll so it's always visible)
@@ -501,47 +516,47 @@ private fun NewEventSheet(day: LocalDate, ac: Accent, editing: CalendarEntry? = 
                     }
                     .padding(vertical = 15.dp),
                 contentAlignment = Alignment.Center,
-            ) { Text(if (isEdit) "Save changes" else if (type == EntryType.TASK) "Add task" else "Add event", color = Color(0xFF06121A), fontSize = 15.sp, fontWeight = FontWeight.Bold) }
+            ) { Text(if (isEdit) tr(R.string.calendar_save_changes) else if (type == EntryType.TASK) tr(R.string.calendar_add_task) else tr(R.string.calendar_add_event), color = Color(0xFF06121A), fontSize = 15.sp, fontWeight = FontWeight.Bold) }
         },
     ) {
             // title
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 15.dp),
             ) {
-                if (title.isEmpty()) Text(if (type == EntryType.TASK) "Task title" else "Event title", color = colors.dim, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold)
+                if (title.isEmpty()) Text(if (type == EntryType.TASK) tr(R.string.calendar_task_title) else tr(R.string.calendar_event_title), color = colors.dim, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold)
                 BasicTextField(title, { title = it }, textStyle = TextStyle(color = colors.text, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold), cursorBrush = SolidColor(ac.a), singleLine = true, modifier = Modifier.fillMaxWidth())
             }
             // type (Event / Task)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SelectChip("Event", type == EntryType.EVENT, ac, Modifier.weight(1f)) { type = EntryType.EVENT }
-                SelectChip("Task", type == EntryType.TASK, ac, Modifier.weight(1f)) { type = EntryType.TASK }
+                SelectChip(tr(R.string.calendar_event), type == EntryType.EVENT, ac, Modifier.weight(1f)) { type = EntryType.EVENT }
+                SelectChip(tr(R.string.calendar_task), type == EntryType.TASK, ac, Modifier.weight(1f)) { type = EntryType.TASK }
             }
             // date + time
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                InfoChip(Icons.Outlined.CalendarMonth, "${date.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)} ${date.dayOfMonth}", ac, Modifier.weight(1f)) { showDate = true }
+                InfoChip(Icons.Outlined.CalendarMonth, shortDate(date), ac, Modifier.weight(1f)) { showDate = true }
                 InfoChip(Icons.Outlined.Schedule, fmt12(hour, minute), ac, Modifier.weight(1f)) { showTime = true }
             }
             // alert style
-            FieldLabel("Alert")
+            FieldLabel(tr(R.string.calendar_alert))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SelectChip("None", alert == AlertStyle.NONE, ac, Modifier.weight(1f)) { alert = AlertStyle.NONE }
-                SelectChip("Notify", alert == AlertStyle.NOTIFICATION, ac, Modifier.weight(1f)) { alert = AlertStyle.NOTIFICATION }
-                SelectChip("Call", alert == AlertStyle.CALL, ac, Modifier.weight(1f)) { alert = AlertStyle.CALL }
+                SelectChip(tr(R.string.calendar_none), alert == AlertStyle.NONE, ac, Modifier.weight(1f)) { alert = AlertStyle.NONE }
+                SelectChip(tr(R.string.calendar_notify), alert == AlertStyle.NOTIFICATION, ac, Modifier.weight(1f)) { alert = AlertStyle.NOTIFICATION }
+                SelectChip(tr(R.string.calendar_call), alert == AlertStyle.CALL, ac, Modifier.weight(1f)) { alert = AlertStyle.CALL }
             }
             // lead time
             if (alert != AlertStyle.NONE) {
-                FieldLabel("Remind")
+                FieldLabel(tr(R.string.calendar_remind))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AlertLead.entries.forEach { l -> Pill(l.label.replace(" before", ""), lead == l, ac, { lead = l }) }
+                    AlertLead.entries.forEach { l -> Pill(l.shortName, lead == l, ac, { lead = l }) }
                 }
             }
             // repeat
-            FieldLabel("Repeat")
+            FieldLabel(tr(R.string.calendar_repeat))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Pill("Never", repeatUnit == RepeatUnit.NONE, ac, { repeatUnit = RepeatUnit.NONE })
-                Pill("Daily", repeatUnit == RepeatUnit.DAILY, ac, { repeatUnit = RepeatUnit.DAILY })
-                Pill("Weekly", repeatUnit == RepeatUnit.WEEKLY, ac, { repeatUnit = RepeatUnit.WEEKLY })
-                Pill("Monthly", repeatUnit == RepeatUnit.MONTHLY, ac, { repeatUnit = RepeatUnit.MONTHLY })
+                Pill(tr(R.string.calendar_never), repeatUnit == RepeatUnit.NONE, ac, { repeatUnit = RepeatUnit.NONE })
+                Pill(tr(R.string.calendar_daily), repeatUnit == RepeatUnit.DAILY, ac, { repeatUnit = RepeatUnit.DAILY })
+                Pill(tr(R.string.calendar_weekly), repeatUnit == RepeatUnit.WEEKLY, ac, { repeatUnit = RepeatUnit.WEEKLY })
+                Pill(tr(R.string.calendar_monthly), repeatUnit == RepeatUnit.MONTHLY, ac, { repeatUnit = RepeatUnit.MONTHLY })
             }
             if (repeatUnit != RepeatUnit.NONE) {
                 IntervalStepper(
@@ -602,10 +617,10 @@ private fun IntervalStepper(value: Int, unit: RepeatUnit, ac: Accent, onMinus: (
         Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(14.dp)).padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text("Every", color = colors.dim, fontSize = 14.sp)
+        Text(tr(R.string.calendar_every), color = colors.dim, fontSize = 14.sp)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             StepperButton("−", ac, onMinus)
-            Text("$value ${unit.label}${if (value > 1) "s" else ""}", color = colors.text, fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = Mono)
+            Text(repeatUnitCount(unit, value), color = colors.text, fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = Mono)
             StepperButton("+", ac, onPlus)
         }
     }
@@ -630,12 +645,12 @@ private fun EventViewSheet(e: CalendarEntry, ac: Accent, onDismiss: () -> Unit, 
                     Icon(Icons.Outlined.Schedule, null, Modifier.size(21.dp), tint = ac.txt(colors.dark))
                 }
                 Column {
-                    Text("${localDate(e.startMillis).month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)} ${localDate(e.startMillis).dayOfMonth} · ${timeLabel(e)}", fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
+                    Text("${shortDate(localDate(e.startMillis))} · ${timeLabel(e)}", fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
                     Text(
                         buildString {
-                            append(if (e.isTask) "Task" else "Event")
-                            if (e.repeats) append(" · ${e.repeatLabel()}")
-                            append(if (e.alertStyle == AlertStyle.NONE) " · No reminder" else " · ${e.alertStyle.label} ${e.alertLead.label.lowercase()}")
+                            append(if (e.isTask) tr(R.string.calendar_task) else tr(R.string.calendar_event))
+                            if (e.repeats) append(" · ${e.repeatSummary}")
+                            append(if (e.alertStyle == AlertStyle.NONE) tr(R.string.calendar_no_reminder) else " · ${e.alertStyle.displayName} ${e.alertLead.displayName.lowercase()}")
                         },
                         fontSize = 12.5.sp, color = colors.dim,
                     )
@@ -651,20 +666,20 @@ private fun EventViewSheet(e: CalendarEntry, ac: Accent, onDismiss: () -> Unit, 
                     contentAlignment = Alignment.Center,
                 ) {
                     val doneColor = if (e.done) colors.text else if (colors.dark) TaskAmber else Color(0xFF7A5A00)
-                    Text(if (e.done) "Mark as not done" else "Mark as done", color = doneColor, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
+                    Text(if (e.done) tr(R.string.calendar_mark_as_not_done) else tr(R.string.calendar_mark_as_done), color = doneColor, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
                 }
             }
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(listOf(ac.a, ac.b)))
                     .clickable { onEdit() }.padding(vertical = 14.dp),
                 contentAlignment = Alignment.Center,
-            ) { Text("Edit", color = Color(0xFF06121A), fontSize = 14.5.sp, fontWeight = FontWeight.Bold) }
+            ) { Text(tr(R.string.calendar_edit), color = Color(0xFF06121A), fontSize = 14.5.sp, fontWeight = FontWeight.Bold) }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(14.dp)).clickable { hide() }.padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
-                    Text("Close", color = colors.text, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
+                    Text(tr(R.string.calendar_close), color = colors.text, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
                 }
                 Box(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(CallPink.copy(alpha = 0.12f)).border(1.dp, CallPink.copy(alpha = 0.4f), RoundedCornerShape(14.dp)).clickable { onDelete(); hide() }.padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
-                    Text("Delete", color = CallPink, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
+                    Text(tr(R.string.calendar_delete), color = CallPink, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

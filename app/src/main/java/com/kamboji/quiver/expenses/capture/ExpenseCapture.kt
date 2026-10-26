@@ -1,5 +1,8 @@
 package com.kamboji.quiver.expenses.capture
 
+import com.kamboji.quiver.ui.locale.displayName
+
+import com.kamboji.quiver.ui.locale.tr
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -27,7 +30,7 @@ object ExpenseCapture {
             id = store.nextId(),
             amountPaise = p.amountPaise,
             category = ExpenseCategory.parse(p.payee),
-            note = p.payee.ifBlank { "UPI payment" },
+            note = p.payee.ifBlank { tr(R.string.capture_upi_payment) },
             atMillis = atMillis,
             auto = true,
             needsReview = true,
@@ -40,13 +43,13 @@ object ExpenseCapture {
     private fun notifyCaptured(context: Context, e: Expense) {
         val nm = context.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
-            NotificationChannel(CHANNEL, "Auto-tracked expenses", NotificationManager.IMPORTANCE_LOW),
+            NotificationChannel(CHANNEL, tr(R.string.capture_auto_tracked_expenses), NotificationManager.IMPORTANCE_LOW),
         )
         val pi = PendingIntent.getActivity(context, 0, openShellIntent(context, AppKey.Expenses), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val n = Notification.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Logged ${ExpenseMath.formatPaise(e.amountPaise)} · ${e.category.label}")
-            .setContentText("${e.note} — tap to review in Expenses")
+            .setContentTitle(tr(R.string.capture_logged_x_x, ExpenseMath.formatPaise(e.amountPaise), e.category.displayName))
+            .setContentText(tr(R.string.capture_x_tap_to_review_in, e.note))
             .setAutoCancel(true)
             .setContentIntent(pi)
             // Every Quiver notification sets its own group: ungrouped ones get auto-bundled by

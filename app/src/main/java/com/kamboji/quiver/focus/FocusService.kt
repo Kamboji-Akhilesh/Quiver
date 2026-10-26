@@ -1,5 +1,8 @@
 package com.kamboji.quiver.focus
 
+import com.kamboji.quiver.R
+
+import com.kamboji.quiver.ui.locale.tr
 import android.accessibilityservice.AccessibilityService
 import android.os.Handler
 import android.os.Looper
@@ -45,7 +48,7 @@ class FocusService : AccessibilityService() {
         if (action == FocusPolicy.Action.None) return
         if (FocusPolicy.isNewBlock(now, lastActionAt, lastAction)) {
             prefs.recordBlock()
-            Toast.makeText(this, "${target.label} blocked by Quiver", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, tr(R.string.focussvc_x_blocked_by_quiver, target.label), Toast.LENGTH_SHORT).show()
         }
         performGlobalAction(if (action == FocusPolicy.Action.Home) GLOBAL_ACTION_HOME else GLOBAL_ACTION_BACK)
         lastActionAt = now

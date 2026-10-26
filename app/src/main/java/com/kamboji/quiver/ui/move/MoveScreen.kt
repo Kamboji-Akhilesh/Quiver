@@ -1,5 +1,10 @@
 package com.kamboji.quiver.ui.move
 
+import com.kamboji.quiver.ui.locale.trPlural
+
+import com.kamboji.quiver.ui.locale.displayName
+
+import com.kamboji.quiver.ui.locale.tr
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.BackHandler
@@ -97,7 +102,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 
-private val DATE_FMT = DateTimeFormatter.ofPattern("EEE d MMM · h:mm a")
 
 /** Monday 00:00 this week, local time — the hub tile and "This week" both use it. */
 fun startOfWeekMillis(): Long =
@@ -145,7 +149,7 @@ private fun HomeScreen(state: QuiverState, onOpen: (Long) -> Unit) {
 
     val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
         if (granted[Manifest.permission.ACCESS_FINE_LOCATION] == true) MoveRecorder.start(context, type)
-        else state.toast("Precise location is needed to record", ToastKind.Info)
+        else state.toast(tr(R.string.move_precise_location_is_needed_to), ToastKind.Info)
     }
     fun start() {
         permissions.launch(
@@ -169,7 +173,7 @@ private fun HomeScreen(state: QuiverState, onOpen: (Long) -> Unit) {
             // Start card
             Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MoveType.entries.forEach { t -> Pill(t.label, t == type, ac, { type = t }) }
+                    MoveType.entries.forEach { t -> Pill(t.displayName, t == type, ac, { type = t }) }
                 }
                 Box(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(100.dp))
@@ -179,32 +183,32 @@ private fun HomeScreen(state: QuiverState, onOpen: (Long) -> Unit) {
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.Filled.PlayArrow, null, Modifier.size(22.dp), tint = Color.White)
-                        Text("Start ${type.label.lowercase()}", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(tr(R.string.move_start_x, type.displayName.lowercase()), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
                 Text(
-                    "Recorded on this phone only — routes never leave it. The map is fetched from OpenStreetMap while you look at it.",
+                    tr(R.string.move_recorded_on_this_phone_only),
                     fontSize = 11.5.sp, color = colors.faint, lineHeight = 15.sp,
                 )
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionLabel("This week")
+            SectionLabel(tr(R.string.move_this_week))
             Row(Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).padding(16.dp)) {
-                Stat("%.1f km".format(week.sumOf { it.distanceM } / 1000), "distance", Modifier.weight(1f))
-                Stat("${week.size}", if (week.size == 1) "activity" else "activities", Modifier.weight(1f))
-                Stat(MoveFormat.duration(week.sumOf { it.movingMs }), "moving", Modifier.weight(1f))
+                Stat(tr(R.string.unit_km, "%.1f".format(week.sumOf { it.distanceM } / 1000)), tr(R.string.move_stat_distance), Modifier.weight(1f))
+                Stat("${week.size}", trPlural(R.plurals.move_stat_activities, week.size), Modifier.weight(1f))
+                Stat(MoveFormat.duration(week.sumOf { it.movingMs }), tr(R.string.move_stat_moving), Modifier.weight(1f))
             }
             Text(
-                "Calories use ${"%.0f".format(weight)} kg · change",
+                tr(R.string.move_calories_use_x, "%.0f".format(weight)),
                 fontSize = 12.sp, color = colors.dim,
                 modifier = Modifier.padding(top = 8.dp, start = 2.dp).clickable { weightDialog = true },
             )
 
             Spacer(Modifier.height(18.dp))
-            SectionLabel("Activities")
+            SectionLabel(tr(R.string.move_activities))
             if (moves.isEmpty()) {
-                Text("No activities yet — pick a type and start.", fontSize = 13.sp, color = colors.dim, modifier = Modifier.padding(top = 6.dp))
+                Text(tr(R.string.move_no_activities_yet_pick_a), fontSize = 13.sp, color = colors.dim, modifier = Modifier.padding(top = 6.dp))
             }
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 moves.forEach { m -> ActivityRow(m) { onOpen(m.id) } }
@@ -254,7 +258,7 @@ private fun LiveScreen(state: QuiverState, live: MoveRecorder.Live) {
     LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1000) } }
 
     Column(Modifier.fillMaxSize()) {
-        QvTopBar("Recording ${live.type.label.lowercase()}", ac, onBack = { state.go(AppKey.Hub) }, trailing = { GpsBadge(live.accuracyM) })
+        QvTopBar(tr(R.string.move_recording_x, live.type.displayName.lowercase()), ac, onBack = { state.go(AppKey.Hub) }, trailing = { GpsBadge(live.accuracyM) })
         MoveMap(
             live.track, follow = true, accent = ac.a, dark = colors.dark,
             modifier = Modifier.fillMaxWidth().height(260.dp).padding(horizontal = 18.dp).clip(RoundedCornerShape(24.dp)),
@@ -264,23 +268,23 @@ private fun LiveScreen(state: QuiverState, live: MoveRecorder.Live) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text("%.2f".format(live.distanceM / 1000), fontSize = 64.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
-            Text("kilometres", fontSize = 13.sp, color = colors.dim)
+            Text(tr(R.string.move_kilometres), fontSize = 13.sp, color = colors.dim)
             Spacer(Modifier.height(18.dp))
             Row(Modifier.fillMaxWidth()) {
-                Stat(MoveFormat.duration(live.movingMs), "moving time", Modifier.weight(1f))
+                Stat(MoveFormat.duration(live.movingMs), tr(R.string.move_moving_time), Modifier.weight(1f))
                 Stat(
                     if (live.type == MoveType.Ride) MoveFormat.speed((live.speedMps ?: 0.0) * 3.6)
                     else MoveFormat.pace(live.speedMps?.takeIf { it >= live.type.pauseSpeedMps }?.let { (1000 / it).toLong() }),
-                    if (live.type == MoveType.Ride) "speed" else "current pace",
+                    if (live.type == MoveType.Ride) tr(R.string.move_stat_speed) else tr(R.string.move_current_pace),
                     Modifier.weight(1f),
                 )
             }
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth()) {
-                Stat(MoveFormat.rate(live.type, live.distanceM, live.movingMs), if (live.type == MoveType.Ride) "avg speed" else "avg pace", Modifier.weight(1f))
-                Stat("%.0f m".format(live.elevationGainM), "climb", Modifier.weight(1f))
-                if (live.type.countsSteps) Stat("${live.steps}", "steps", Modifier.weight(1f))
-                else Stat(MoveFormat.duration(now - live.startedAt), "elapsed", Modifier.weight(1f))
+                Stat(MoveFormat.rate(live.type, live.distanceM, live.movingMs), if (live.type == MoveType.Ride) tr(R.string.move_avg_speed) else tr(R.string.move_avg_pace), Modifier.weight(1f))
+                Stat(tr(R.string.unit_m, "%.0f".format(live.elevationGainM)), tr(R.string.move_stat_climb), Modifier.weight(1f))
+                if (live.type.countsSteps) Stat("${live.steps}", tr(R.string.move_stat_steps), Modifier.weight(1f))
+                else Stat(MoveFormat.duration(now - live.startedAt), tr(R.string.move_stat_elapsed), Modifier.weight(1f))
             }
         }
         Spacer(Modifier.weight(1f))
@@ -290,18 +294,18 @@ private fun LiveScreen(state: QuiverState, live: MoveRecorder.Live) {
         ) {
             RoundButton(
                 if (live.paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                if (live.paused) "Resume" else "Pause", ac.a,
+                if (live.paused) tr(R.string.move_resume) else tr(R.string.move_pause), ac.a,
             ) { if (live.paused) MoveRecorder.resume(context) else MoveRecorder.pause(context) }
-            RoundButton(Icons.Filled.Stop, "Finish", Color(0xFFFB7185)) { MoveRecorder.finish(context) }
+            RoundButton(Icons.Filled.Stop, tr(R.string.move_finish), Color(0xFFFB7185)) { MoveRecorder.finish(context) }
         }
         Text(
-            "Discard", fontSize = 12.sp, color = colors.faint,
+            tr(R.string.move_discard), fontSize = 12.sp, color = colors.faint,
             modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 20.dp).clickable { confirmDiscard = true },
         )
     }
 
     if (confirmDiscard) ConfirmDialog(
-        "Discard this ${live.type.label.lowercase()}?", "It won't be saved.", "Discard",
+        tr(R.string.move_discard_this_x, live.type.displayName.lowercase()), tr(R.string.move_it_won_t_be_saved), tr(R.string.move_discard),
         onDismiss = { confirmDiscard = false },
     ) { confirmDiscard = false; MoveRecorder.discard(context) }
 }
@@ -310,10 +314,10 @@ private fun LiveScreen(state: QuiverState, live: MoveRecorder.Live) {
 private fun GpsBadge(accuracyM: Float?) {
     val colors = Quiver.colors
     val (label, color) = when {
-        accuracyM == null -> "Finding GPS…" to colors.faint
-        accuracyM <= 10f -> "GPS ±${accuracyM.toInt()} m" to Color(0xFF34D399)
-        accuracyM <= TrackTuning.MAX_ACCURACY_M -> "GPS ±${accuracyM.toInt()} m" to Color(0xFFFBBF24)
-        else -> "Weak GPS" to Color(0xFFFB7185)
+        accuracyM == null -> tr(R.string.move_finding_gps) to colors.faint
+        accuracyM <= 10f -> tr(R.string.move_gps_x_m, accuracyM.toInt()) to Color(0xFF34D399)
+        accuracyM <= TrackTuning.MAX_ACCURACY_M -> tr(R.string.move_gps_x_m, accuracyM.toInt()) to Color(0xFFFBBF24)
+        else -> tr(R.string.move_weak_gps) to Color(0xFFFB7185)
     }
     Row(
         Modifier.clip(RoundedCornerShape(100.dp)).background(color.copy(alpha = 0.15f)).padding(horizontal = 10.dp, vertical = 6.dp),
@@ -353,8 +357,8 @@ private fun DetailScreen(state: QuiverState, id: Long, onBack: () -> Unit) {
             val raw = points.map { it.toFix() }.filter { it.accM <= TrackTuning.MAX_ACCURACY_M }
             runCatching {
                 context.contentResolver.openOutputStream(uri)!!.use { it.write(Gpx.write(title, type, raw).toByteArray()) }
-            }.onSuccess { withContext(Dispatchers.Main) { state.toast("GPX saved") } }
-                .onFailure { withContext(Dispatchers.Main) { state.toast("Export failed", ToastKind.Error) } }
+            }.onSuccess { withContext(Dispatchers.Main) { state.toast(tr(R.string.move_gpx_saved)) } }
+                .onFailure { withContext(Dispatchers.Main) { state.toast(tr(R.string.move_export_failed), ToastKind.Error) } }
         }
     }
 
@@ -371,48 +375,48 @@ private fun DetailScreen(state: QuiverState, id: Long, onBack: () -> Unit) {
             }
             Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(Modifier.fillMaxWidth()) {
-                    Stat(MoveFormat.km(move.distanceM), "distance", Modifier.weight(1f))
-                    Stat(MoveFormat.duration(move.movingMs), "moving time", Modifier.weight(1f))
-                    Stat(MoveFormat.rate(type, move.distanceM, move.movingMs), if (type == MoveType.Ride) "avg speed" else "avg pace", Modifier.weight(1f))
+                    Stat(MoveFormat.km(move.distanceM), tr(R.string.move_stat_distance), Modifier.weight(1f))
+                    Stat(MoveFormat.duration(move.movingMs), tr(R.string.move_moving_time), Modifier.weight(1f))
+                    Stat(MoveFormat.rate(type, move.distanceM, move.movingMs), if (type == MoveType.Ride) tr(R.string.move_avg_speed) else tr(R.string.move_avg_pace), Modifier.weight(1f))
                 }
                 Row(Modifier.fillMaxWidth()) {
-                    Stat("%.0f m".format(move.elevationGainM), "climb", Modifier.weight(1f))
-                    Stat(MoveFormat.duration(move.elapsedMs), "elapsed", Modifier.weight(1f))
-                    Stat(if (move.steps > 0) "${move.steps}" else "${move.calories}", if (move.steps > 0) "steps" else "kcal", Modifier.weight(1f))
+                    Stat(tr(R.string.unit_m, "%.0f".format(move.elevationGainM)), tr(R.string.move_stat_climb), Modifier.weight(1f))
+                    Stat(MoveFormat.duration(move.elapsedMs), tr(R.string.move_stat_elapsed), Modifier.weight(1f))
+                    Stat(if (move.steps > 0) "${move.steps}" else "${move.calories}", if (move.steps > 0) tr(R.string.move_stat_steps) else tr(R.string.move_stat_kcal), Modifier.weight(1f))
                 }
-                if (move.steps > 0) Text("≈ ${move.calories} kcal", fontSize = 12.sp, color = colors.dim)
+                if (move.steps > 0) Text(tr(R.string.move_x_kcal, move.calories), fontSize = 12.sp, color = colors.dim)
             }
 
             if (move.splits.isNotEmpty()) {
                 Spacer(Modifier.height(18.dp))
-                SectionLabel("Splits")
+                SectionLabel(tr(R.string.move_splits))
                 Splits(move.splits, type)
             }
 
             val profile = remember(track) { elevationProfile(track) }
             if (profile.size > 2) {
                 Spacer(Modifier.height(18.dp))
-                SectionLabel("Elevation")
+                SectionLabel(tr(R.string.move_elevation))
                 ElevationChart(profile, ac.a, Modifier.fillMaxWidth().height(110.dp).glass(colors, RoundedCornerShape(20.dp)).padding(12.dp))
             }
 
             Spacer(Modifier.height(18.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Pill("Export GPX", false, ac, { exporter.launch("${title.replace(' ', '-')}-${LocalDate.now()}.gpx") })
-                Pill("Delete", false, Accents.Expenses, { confirmDelete = true })
+                Pill(tr(R.string.move_export_gpx), false, ac, { exporter.launch("${title.replace(' ', '-')}-${LocalDate.now()}.gpx") })
+                Pill(tr(R.string.move_delete), false, Accents.Expenses, { confirmDelete = true })
             }
             Text(
-                "GPX opens in Strava, Google Earth or any map app — uploading it to Strava is the fairest way to compare numbers.",
+                tr(R.string.move_gpx_opens_in_strava_google),
                 fontSize = 11.5.sp, color = colors.faint, lineHeight = 15.sp, modifier = Modifier.padding(top = 10.dp),
             )
         }
     }
 
-    if (confirmDelete) ConfirmDialog("Delete this activity?", "Its route and stats are removed from this phone.", "Delete", onDismiss = { confirmDelete = false }) {
+    if (confirmDelete) ConfirmDialog(tr(R.string.move_delete_this_activity), tr(R.string.move_its_route_and_stats_are), tr(R.string.move_delete), onDismiss = { confirmDelete = false }) {
         confirmDelete = false
         scope.launch {
             withContext(Dispatchers.IO) { dao.delete(id) }
-            state.toast("Activity deleted", ToastKind.Error)
+            state.toast(tr(R.string.move_activity_deleted), ToastKind.Error)
             onBack()
         }
     }
@@ -527,7 +531,7 @@ private fun ConfirmDialog(title: String, body: String, action: String, onDismiss
             Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
             Text(body, fontSize = 13.sp, color = colors.dim)
             Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Pill("Cancel", false, Accents.Move, onDismiss, Modifier.weight(1f))
+                Pill(tr(R.string.move_cancel), false, Accents.Move, onDismiss, Modifier.weight(1f))
                 Pill(action, true, Accents.Expenses, onConfirm, Modifier.weight(1f))
             }
         }
@@ -545,8 +549,8 @@ private fun WeightDialog(current: Double, onDismiss: () -> Unit, onSave: (Double
                 .border(1.dp, colors.border, RoundedCornerShape(28.dp)).padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Your weight", fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-            Text("Only used to estimate calories. Stays on this phone.", fontSize = 13.sp, color = colors.dim)
+            Text(tr(R.string.move_your_weight), fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+            Text(tr(R.string.move_only_used_to_estimate_calories), fontSize = 13.sp, color = colors.dim)
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(100.dp)).background(colors.surf)
                     .border(1.dp, colors.border, RoundedCornerShape(100.dp)).padding(horizontal = 16.dp, vertical = 12.dp),
@@ -556,13 +560,15 @@ private fun WeightDialog(current: Double, onDismiss: () -> Unit, onSave: (Double
                     textStyle = TextStyle(color = colors.text, fontSize = 15.sp), cursorBrush = SolidColor(Accents.Move.a),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth(),
                 )
-                Text("kg", fontSize = 15.sp, color = colors.dim, modifier = Modifier.align(Alignment.CenterEnd))
+                Text(tr(R.string.unit_kg), fontSize = 15.sp, color = colors.dim, modifier = Modifier.align(Alignment.CenterEnd))
             }
-            Pill("Save", true, Accents.Move, {
+            Pill(tr(R.string.move_save), true, Accents.Move, {
                 text.toDoubleOrNull()?.takeIf { it in 25.0..300.0 }?.let(onSave)
             }, Modifier.fillMaxWidth())
         }
     }
 }
 
-private fun formatDate(millis: Long): String = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(DATE_FMT)
+// Built per call: the pattern's locale must follow the app language, which can change.
+private fun formatDate(millis: Long): String =
+    Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("EEE d MMM · h:mm a", java.util.Locale.getDefault()))

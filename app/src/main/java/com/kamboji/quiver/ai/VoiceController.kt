@@ -25,6 +25,10 @@ val VoiceLanguages = listOf(
     VoiceLang(Locale("pa", "IN"), "ਪੰਜਾਬੀ", "pa-IN"),
 )
 
+/** The phone's language if it's one we can dictate in, else English (India). */
+fun deviceVoiceLang(): VoiceLang =
+    VoiceLanguages.firstOrNull { it.locale.language == Locale.getDefault().language } ?: VoiceLanguages.first()
+
 /**
  * Text-to-speech and speech-to-text in the selected (often Indian) language,
  * using only the platform engines. Nothing is recorded or persisted; transcripts
