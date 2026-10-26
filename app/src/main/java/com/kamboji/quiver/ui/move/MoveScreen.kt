@@ -1,5 +1,12 @@
 package com.kamboji.quiver.ui.move
 
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material.icons.filled.Close
+import com.kamboji.quiver.ui.components.QvIconButton
 import androidx.compose.foundation.layout.fillMaxHeight
 import com.kamboji.quiver.move.PaceColours
 import com.kamboji.quiver.ui.locale.trPlural
@@ -646,8 +653,14 @@ private fun RouteWithReplay(move: MoveEntity, track: List<Fix>, prs: List<BestEf
     }
     LaunchedEffect(banner) { if (banner != null) { delay(3_000); banner = null } }
 
+    var fullScreen by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(20.dp))) {
         MoveMap(track, follow = false, accent = ac.a, dark = colors.dark, modifier = Modifier.fillMaxSize(), paceColours = pace, replayAt = at)
+        // The small map doesn't take gestures (the page scrolls over it); a tap opens it full screen.
+        if (at == null) Box(
+            Modifier.fillMaxSize().clickable(remember { MutableInteractionSource() }, null) { fullScreen = true }
+                .semantics { contentDescription = tr(R.string.move_open_map) },
+        )
         at?.let { f ->
             val i = f.toInt().coerceAtMost(track.lastIndex)
             val j = minOf(i + 1, track.lastIndex)
@@ -667,6 +680,7 @@ private fun RouteWithReplay(move: MoveEntity, track: List<Fix>, prs: List<BestEf
             )
         }
     }
+    if (fullScreen) FullMap(track, pace, onClose = { fullScreen = false })
     Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         Pill(
             when { playing -> tr(R.string.move_replay_stop); progress != null -> tr(R.string.move_replay_resume); else -> tr(R.string.move_replay) },
@@ -677,6 +691,34 @@ private fun RouteWithReplay(move: MoveEntity, track: List<Fix>, prs: List<BestEf
             Text(tr(R.string.move_pace_slower), fontSize = 11.sp, color = colors.dim)
             Box(Modifier.width(54.dp).height(8.dp).clip(RoundedCornerShape(4.dp)).background(Brush.horizontalGradient(listOf(ac.a.copy(alpha = 0.25f), ac.a))))
             Text(tr(R.string.move_pace_faster), fontSize = 11.sp, color = colors.dim)
+        }
+    }
+}
+
+/** The route on a full-screen map: pinch, pan, and switch place names on to zoom in further. */
+@Composable
+private fun FullMap(track: List<Fix>, pace: Boolean, onClose: () -> Unit) {
+    val ac = Accents.Move
+    val colors = Quiver.colors
+    val context = LocalContext.current
+    var labels by remember { mutableStateOf(MovePrefs(context).mapLabels) }
+    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(Modifier.fillMaxSize().background(colors.bg)) {
+            MoveMap(track, follow = false, accent = ac.a, dark = colors.dark, modifier = Modifier.fillMaxSize(), paceColours = pace, labels = labels)
+            Row(
+                Modifier.fillMaxWidth().statusBarsPadding().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                QvIconButton(Icons.Filled.Close, onClose, contentDescription = tr(R.string.calendar_close))
+                Spacer(Modifier.weight(1f))
+                Row(
+                    Modifier.height(40.dp).glass(colors, RoundedCornerShape(12.dp)).clickable { labels = !labels }.padding(start = 12.dp, end = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(tr(R.string.move_place_names), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = colors.text)
+                    QvToggle(labels, { labels = !labels }, ac)
+                }
+            }
         }
     }
 }

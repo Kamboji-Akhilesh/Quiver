@@ -639,4 +639,6 @@
     <string name="move_pace_chart">Pace</string>
     <string name="move_speed_chart">Speed</string>
     <string name="move_pace_chart_avg">avg %1$s</string>
+    <string name="move_open_map">Open map full screen</string>
+    <string name="move_place_names">Place names</string>
 </resources>

@@ -1,5 +1,6 @@
 package com.kamboji.quiver.ui.move
 
+import androidx.compose.runtime.key
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.getValue
@@ -60,8 +61,27 @@ fun MoveMap(
     modifier: Modifier = Modifier,
     paceColours: Boolean = false,
     replayAt: Float? = null,
+    /** Overrides Settings › Show place names on maps (the full-screen map's own switch). */
+    labels: Boolean? = null,
 ) {
-    val map = rememberOsmMap(dark)
+    val context = LocalContext.current
+    val showLabels = labels ?: remember { MovePrefs(context).mapLabels }
+    // A different tile set is a different map view, so switching labels rebuilds it.
+    key(showLabels) { RouteMap(track, follow, accent, dark, modifier, paceColours, replayAt, showLabels) }
+}
+
+@Composable
+private fun RouteMap(
+    track: List<Fix>,
+    follow: Boolean,
+    accent: Color,
+    dark: Boolean,
+    modifier: Modifier,
+    paceColours: Boolean,
+    replayAt: Float?,
+    showLabels: Boolean,
+) {
+    val map = rememberOsmMap(dark, showLabels)
     val replaying = replayAt != null
     val tilt by animateFloatAsState(if (replaying) 55f else 0f, tween(900), label = "tilt")
     val density = LocalDensity.current.density
@@ -141,7 +161,7 @@ fun MoveMap(
                 m.invalidate()
             }
         }
-        Attribution()
+        Attribution(showLabels)
     }
 }
 
@@ -163,7 +183,9 @@ private fun bearing(points: List<GeoPoint>, i: Int, fallback: Float): Float {
  */
 @Composable
 fun HeatMap(routes: List<List<Pair<Double, Double>>>, accent: Color, dark: Boolean, modifier: Modifier = Modifier) {
-    val map = rememberOsmMap(dark)
+    val context = LocalContext.current
+    val labels = remember { MovePrefs(context).mapLabels }
+    val map = rememberOsmMap(dark, labels)
     Box(modifier) {
         AndroidView({ map }) { m ->
             if (m.tag == routes) return@AndroidView
@@ -182,7 +204,7 @@ fun HeatMap(routes: List<List<Pair<Double, Double>>>, accent: Color, dark: Boole
             if (flat.size > 1) fit(m, flat)
             m.invalidate()
         }
-        Attribution()
+        Attribution(labels)
     }
 }
 
@@ -202,14 +224,13 @@ private fun fit(m: MapView, points: List<GeoPoint>) {
     val cLat = (n + s) / 2
     val cLon = (e + w) / 2
     val box = BoundingBox(cLat + halfLat, cLon + halfLon, cLat - halfLat, cLon - halfLon)
-    if (m.width > 0) m.post { m.zoomToBoundingBox(box, false) }
+    if (m.width > 0 && m.height > 0) m.post { m.zoomToBoundingBox(box, false) }
     else m.addOnFirstLayoutListener { _, _, _, _, _ -> m.zoomToBoundingBox(box, false) }
 }
 
 @Composable
-private fun rememberOsmMap(dark: Boolean): MapView {
+private fun rememberOsmMap(dark: Boolean, labels: Boolean): MapView {
     val context = LocalContext.current
-    val labels = remember { MovePrefs(context).mapLabels }
     remember {
         Configuration.getInstance().apply {
             // OSM's tile policy requires an identifying user agent.
@@ -229,6 +250,8 @@ private fun rememberOsmMap(dark: Boolean): MapView {
                 maxZoomLevel = 16.0
             }
             setMultiTouchControls(true)
+            // Tiles at screen density: map text stays readable instead of shrinking to pixel size.
+            isTilesScaledToDpi = true
             zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
             controller.setZoom(16.5)
             onResume()
@@ -239,10 +262,8 @@ private fun rememberOsmMap(dark: Boolean): MapView {
 }
 
 @Composable
-private fun androidx.compose.foundation.layout.BoxScope.Attribution() {
+private fun androidx.compose.foundation.layout.BoxScope.Attribution(labels: Boolean) {
     // Required by the OpenStreetMap (and Esri) terms.
-    val context = LocalContext.current
-    val labels = remember { MovePrefs(context).mapLabels }
     Text(
         if (labels) "© OpenStreetMap contributors" else "Esri · © OpenStreetMap contributors",
         fontSize = 9.sp, color = Color.White,
