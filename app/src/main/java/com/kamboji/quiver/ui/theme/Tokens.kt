@@ -130,6 +130,9 @@ data class Accent(
     val tint: Color = a,
 ) {
     fun txt(dark: Boolean): Color = if (dark) a else deep
+
+    /** An app-identity icon: the app's own colour in flat palettes; unchanged ([txt]) in Glass. */
+    fun iconColor(dark: Boolean): Color = if (tint != a) tint else txt(dark)
 }
 
 /** The original per-app accents, used by Glass. */

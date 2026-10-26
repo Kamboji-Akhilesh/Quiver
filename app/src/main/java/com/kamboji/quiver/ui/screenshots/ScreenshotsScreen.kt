@@ -1,6 +1,7 @@
 package com.kamboji.quiver.ui.screenshots
 
 import com.kamboji.quiver.ui.locale.displayName
+import androidx.compose.material.icons.filled.Close
 
 import com.kamboji.quiver.ui.locale.tr
 import android.graphics.BitmapFactory
@@ -192,13 +193,28 @@ private fun HomeScreen(state: QuiverState) {
             SectionLabel(tr(R.string.shots_auto_delete_after))
             Spacer(Modifier.height(4.dp))
             Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp)) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(9.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    DELAY_PRESETS.forEach { d ->
-                        Pill(d.displayName, delay == d, ac, {
-                            delay = d
-                            SettingsManager.saveDelay(context, d)
-                            state.toast(tr(R.string.shots_auto_delete_set_to_x, d.displayName), ToastKind.Success)
-                        })
+                // Equal columns that fill the card (a wrapping row left a ragged gap at the end).
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DELAY_PRESETS.chunked(3).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            row.forEach { d ->
+                                val on = delay == d
+                                Box(
+                                    Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(12.dp))
+                                        .background(if (on) ac.a.copy(alpha = 0.14f) else colors.surf2)
+                                        .border(1.dp, if (on) ac.a else colors.border, RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            delay = d
+                                            SettingsManager.saveDelay(context, d)
+                                            state.toast(tr(R.string.shots_auto_delete_set_to_x, d.displayName), ToastKind.Success)
+                                        },
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(d.displayName, fontSize = 13.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Medium, color = if (on) ac.txt(colors.dark) else colors.text, maxLines = 1)
+                                }
+                            }
+                            repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                        }
                     }
                 }
             }
@@ -216,7 +232,7 @@ private fun HomeScreen(state: QuiverState) {
                 Column(Modifier.weight(1f)) {
                     Text(tr(R.string.shots_search_screenshots), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
                     Text(
-                        if (indexedCount == 0) tr(R.string.shots_text_is_read_on_device) else tr(R.string.shots_x_searchable_by_their_text, indexedCount),
+                        if (indexedCount == 0) tr(R.string.shots_search_the_text_inside_your) else tr(R.string.shots_x_searchable_by_their_text, indexedCount),
                         fontSize = 12.5.sp, color = colors.dim,
                     )
                 }
@@ -284,6 +300,8 @@ private fun HistoryScreen(state: QuiverState) {
     val dao = remember { AppDatabase.getDatabase(context).historyDao() }
     val history by remember { dao.getAllHistory() }.collectAsState(emptyList())
     var preview by remember { mutableStateOf<HistoryItem?>(null) }
+    // The list's restore/delete for each item, so the preview can run the same ones.
+    val previewActions = remember { mutableMapOf<Long, Pair<() -> Unit, () -> Unit>>() }
 
     Column(Modifier.fillMaxSize()) {
         QvTopBar(tr(R.string.shots_deletion_history), ac, onBack = { state.screenshotsScreen = "home" })
@@ -317,10 +335,28 @@ private fun HistoryScreen(state: QuiverState) {
                 }
             } else {
                 items(history, key = { it.id }) { item ->
+                    val restore = {
+                        preview = null
+                        scope.launch {
+                            TrashManager.restoreFromTrash(context, item)
+                            dao.delete(item)
+                        }
+                        state.toast(tr(R.string.shots_screenshot_restored), ToastKind.Success)
+                    }
+                    val delete = {
+                        preview = null
+                        scope.launch {
+                            TrashManager.permanentlyDelete(context, item)
+                            dao.delete(item)
+                        }
+                        state.toast(tr(R.string.shots_permanently_deleted), ToastKind.Error)
+                    }
+                    previewActions[item.id] = restore to delete
                     TrashRow(
                         item, ac,
                         onPreview = { preview = item },
                         onRestore = {
+                            preview = null
                             scope.launch {
                                 TrashManager.restoreFromTrash(context, item)
                                 dao.delete(item)
@@ -328,6 +364,7 @@ private fun HistoryScreen(state: QuiverState) {
                             state.toast(tr(R.string.shots_screenshot_restored), ToastKind.Success)
                         },
                         onDelete = {
+                            preview = null
                             scope.launch {
                                 TrashManager.permanentlyDelete(context, item)
                                 dao.delete(item)
@@ -339,7 +376,10 @@ private fun HistoryScreen(state: QuiverState) {
             }
         }
     }
-    preview?.let { TrashPreview(it) { preview = null } }
+    preview?.let { item ->
+        val (restore, delete) = previewActions[item.id] ?: return@let
+        TrashPreview(item, ac, onRestore = { restore() }, onDelete = { delete() }) { preview = null }
+    }
 }
 
 /** Decodes a trash file near [maxPx] on its short side — screenshots are big, rows are small. */
@@ -357,19 +397,38 @@ private fun loadTrashBitmap(path: String?, maxPx: Int): ImageBitmap? {
 private fun rememberTrashBitmap(path: String?, maxPx: Int): ImageBitmap? =
     produceState<ImageBitmap?>(null, path) { value = withContext(Dispatchers.IO) { loadTrashBitmap(path, maxPx) } }.value
 
-/** Full-screen look at a trashed screenshot before restoring or deleting it. */
+/** Full-screen look at a trashed screenshot, with Restore / Delete forever right there. */
 @Composable
-private fun TrashPreview(item: HistoryItem, onDismiss: () -> Unit) {
+private fun TrashPreview(item: HistoryItem, ac: com.kamboji.quiver.ui.theme.Accent, onRestore: () -> Unit, onDelete: () -> Unit, onDismiss: () -> Unit) {
     val image = rememberTrashBitmap(item.trashPath, 1080)
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(
-            Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.92f)).clickable(onClick = onDismiss),
-            contentAlignment = Alignment.Center,
+        Column(
+            Modifier.fillMaxSize().background(Color(0xF20A0B0C)).padding(horizontal = 18.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            if (image != null) {
-                Image(image, item.fileName, Modifier.fillMaxSize().padding(16.dp), contentScale = ContentScale.Fit)
-            } else {
-                Text(tr(R.string.shots_preview_unavailable), color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(
+                    Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Color(0x1FFFFFFF)).clickable(onClick = onDismiss),
+                    contentAlignment = Alignment.Center,
+                ) { androidx.compose.material3.Icon(Icons.Filled.Close, tr(R.string.calendar_close), Modifier.size(18.dp), tint = Color.White) }
+                Column(Modifier.weight(1f)) {
+                    Text(item.fileName, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
+                    Text(tr(R.string.shots_deleted_x, formatWhen(item.deletedAt)), fontSize = 12.sp, color = Color(0xB3FFFFFF))
+                }
+            }
+            Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                if (image != null) Image(image, item.fileName, Modifier.fillMaxSize().clip(RoundedCornerShape(18.dp)), contentScale = ContentScale.Fit)
+                else Text(tr(R.string.shots_preview_unavailable), color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(
+                    Modifier.weight(1f).height(52.dp).clip(RoundedCornerShape(14.dp)).border(1.dp, Color(0x66FB7185), RoundedCornerShape(14.dp)).clickable(onClick = onDelete),
+                    contentAlignment = Alignment.Center,
+                ) { Text(tr(R.string.shots_delete_forever), color = Color(0xFFFB7185), fontSize = 14.sp, fontWeight = FontWeight.SemiBold) }
+                Box(
+                    Modifier.weight(1f).height(52.dp).clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(listOf(ac.a, ac.b))).clickable(onClick = onRestore),
+                    contentAlignment = Alignment.Center,
+                ) { Text(tr(R.string.shots_restore), color = ac.on, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
             }
         }
     }
@@ -531,7 +590,7 @@ private fun ResultRow(match: ScreenshotMatch, ac: com.kamboji.quiver.ui.theme.Ac
 }
 
 /** Opens the matched screenshot in the system viewer; toasts if the file is gone. */
-private fun openImage(context: android.content.Context, match: ScreenshotMatch, state: QuiverState) {
+internal fun openImage(context: android.content.Context, match: ScreenshotMatch, state: QuiverState) {
     val opened = runCatching {
         context.startActivity(
             Intent(Intent.ACTION_VIEW)

@@ -121,9 +121,12 @@ fun FocusScreen(state: QuiverState) {
                 SectionLabel(tr(R.string.screen_time_today))
                 ScreenTimeCard(focused)
 
-                Spacer(Modifier.height(18.dp))
-                SectionLabel(tr(R.string.focus_bank_safe))
-                BankSafeCard(focused)
+                // Once bank-safe mode is set up there's nothing to do here; Settings shows its state.
+                if (!gateReady) {
+                    Spacer(Modifier.height(18.dp))
+                    SectionLabel(tr(R.string.focus_bank_safe))
+                    BankSafeCard(focused)
+                }
 
                 Spacer(Modifier.height(18.dp))
                 SectionLabel(tr(R.string.focus_block))
@@ -143,6 +146,10 @@ fun FocusScreen(state: QuiverState) {
                         if (i < FocusTarget.entries.lastIndex) Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
                     }
                 }
+
+                Spacer(Modifier.height(18.dp))
+                SectionLabel(tr(R.string.focus_allowance))
+                AllowanceCard(prefs, focused)
 
                 Spacer(Modifier.height(18.dp))
                 SectionLabel(tr(R.string.focus_when_blocked))
@@ -292,5 +299,45 @@ private fun ScreenTimeCard(focused: Boolean) {
             }
         }
         if (list.isEmpty()) Text(tr(R.string.screen_time_none), fontSize = 12.5.sp, color = colors.dim)
+    }
+}
+
+/** Let the feeds play for a few minutes a day, then block. */
+@Composable
+private fun AllowanceCard(prefs: FocusPrefs, focused: Boolean) {
+    val colors = Quiver.colors
+    val ac = Accents.Focus
+    var minutes by remember { mutableStateOf(prefs.allowanceMin) }
+    val used = remember(focused) { prefs.feedMsToday() / 60_000 }
+    Column(Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(0, 5, 10, 15).forEach { m ->
+                val on = minutes == m
+                Box(
+                    Modifier.weight(1f).height(42.dp).clip(RoundedCornerShape(11.dp))
+                        .background(if (on) ac.a.copy(alpha = 0.14f) else colors.surf2)
+                        .border(1.dp, if (on) ac.a else colors.border, RoundedCornerShape(11.dp))
+                        .clickable { minutes = m; prefs.allowanceMin = m },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        if (m == 0) tr(R.string.focus_allowance_off) else tr(R.string.focus_allowance_x, m),
+                        fontSize = 13.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Medium,
+                        color = if (on) ac.txt(colors.dark) else colors.text,
+                    )
+                }
+            }
+        }
+        if (minutes == 0) {
+            Text(tr(R.string.focus_allowance_off_why), fontSize = 12.5.sp, color = colors.dim, lineHeight = 17.sp)
+        } else {
+            Row {
+                Text(tr(R.string.focus_allowance_why), Modifier.weight(1f), fontSize = 12.5.sp, color = colors.dim)
+                Text(tr(R.string.focus_allowance_used_x_y, minOf(used, minutes.toLong()), minutes), fontSize = 12.5.sp, fontFamily = Mono, color = colors.text)
+            }
+            Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(colors.border)) {
+                Box(Modifier.fillMaxWidth((used.toFloat() / minutes).coerceIn(0f, 1f)).height(6.dp).clip(RoundedCornerShape(3.dp)).background(ac.a))
+            }
+        }
     }
 }

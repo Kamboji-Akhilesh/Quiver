@@ -196,10 +196,6 @@ private fun HomeScreen(state: QuiverState, onActivity: () -> Unit, onHeatmap: ()
                         Text(tr(R.string.move_start_x, type.displayName.lowercase()), color = ac.on, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
-                Text(
-                    tr(R.string.move_recorded_on_this_phone_only),
-                    fontSize = 11.5.sp, color = colors.faint, lineHeight = 15.sp,
-                )
             }
 
             Spacer(Modifier.height(18.dp))
@@ -455,10 +451,10 @@ private fun LiveScreen(state: QuiverState, live: MoveRecorder.Live) {
 @Composable
 private fun GpsBadge(accuracyM: Float?) {
     val colors = Quiver.colors
+    // Only speak up when it matters: a good fix needs no badge.
     val (label, color) = when {
         accuracyM == null -> tr(R.string.move_finding_gps) to colors.faint
-        accuracyM <= 10f -> tr(R.string.move_gps_x_m, accuracyM.toInt()) to Color(0xFF34D399)
-        accuracyM <= TrackTuning.MAX_ACCURACY_M -> tr(R.string.move_gps_x_m, accuracyM.toInt()) to Color(0xFFFBBF24)
+        accuracyM <= TrackTuning.MAX_ACCURACY_M -> return
         else -> tr(R.string.move_weak_gps) to Color(0xFFFB7185)
     }
     Row(
@@ -639,6 +635,11 @@ private fun RouteWithReplay(move: MoveEntity, track: List<Fix>, prs: List<BestEf
     Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Pill(if (playing) tr(R.string.move_replay_stop) else tr(R.string.move_replay), playing, ac, { at = if (playing) null else 0 })
         Pill(tr(R.string.move_pace_colours), pace, ac, { pace = !pace })
+        if (pace) Row(Modifier.align(Alignment.CenterVertically), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(tr(R.string.move_pace_slower), fontSize = 11.sp, color = colors.dim)
+            Box(Modifier.width(44.dp).height(8.dp).clip(RoundedCornerShape(4.dp)).background(Brush.horizontalGradient(listOf(ac.a.copy(alpha = 0.25f), ac.a))))
+            Text(tr(R.string.move_pace_faster), fontSize = 11.sp, color = colors.dim)
+        }
     }
 }
 

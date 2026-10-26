@@ -1,6 +1,9 @@
 package com.kamboji.quiver.ui.hub
 
 import android.net.Uri
+import androidx.compose.foundation.layout.fillMaxSize
+import com.kamboji.quiver.move.steps.Steps
+import androidx.compose.material.icons.outlined.Edit
 import java.time.format.DateTimeFormatter
 import java.time.LocalTime
 import com.kamboji.quiver.ui.components.QvTimePickerDialog
@@ -208,26 +211,19 @@ fun HubScreen(state: QuiverState) {
         ) {
             Column {
                 Text(stringResource(greetingRes()), color = colors.dim, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                Row {
-                    Text(tr(R.string.hub_your), fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-                    Text(
-                        tr(R.string.hub_quiver),
-                        fontSize = 30.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = Display,
-                        style = TextStyle(brush = Brush.linearGradient(listOf(Accents.Hub.a, Accents.Hub.b))),
-                    )
-                }
+                Text(
+                    tr(R.string.hub_quiver),
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Display,
+                    // Glass keeps its gradient wordmark; flat themes use plain text.
+                    style = if (colors.flat) TextStyle(color = colors.text) else TextStyle(brush = Brush.linearGradient(listOf(Accents.Hub.a, Accents.Hub.b))),
+                )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                HeaderIcon(Icons.Outlined.Settings) { state.settingsOpen = true }
                 val caughtUp = stringResource(R.string.hub_caught_up)
-                HeaderIcon(Icons.Outlined.Notifications) { state.toast(caughtUp, ToastKind.Info) }
-                Box(
-                    Modifier.size(44.dp).clip(CircleShape)
-                        .background(Brush.linearGradient(listOf(Accents.Hub.a, Accents.Hub.b))),
-                    contentAlignment = Alignment.Center,
-                ) { Text("Q", color = Accents.Hub.on, fontWeight = FontWeight.Bold, fontSize = 16.sp, fontFamily = Display) }
+                HeaderIcon(Icons.Outlined.Notifications, tr(R.string.hub_notifications)) { state.toast(caughtUp, ToastKind.Info) }
+                HeaderIcon(Icons.Outlined.Settings, tr(R.string.settings_title)) { state.settingsOpen = true }
             }
         }
 
@@ -250,11 +246,10 @@ fun HubScreen(state: QuiverState) {
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
                 .background(
-                    Brush.linearGradient(
-                        listOf(Accents.Hub.a.copy(alpha = if (colors.dark) 0.22f else 0.18f), Accents.Hub.b.copy(alpha = 0.14f)),
-                    ),
+                    if (colors.flat) SolidColor(colors.surf)
+                    else Brush.linearGradient(listOf(Accents.Hub.a.copy(alpha = if (colors.dark) 0.22f else 0.18f), Accents.Hub.b.copy(alpha = 0.14f))),
                 )
-                .border(1.dp, Accents.Hub.a.copy(alpha = 0.4f), RoundedCornerShape(24.dp))
+                .border(1.dp, if (colors.flat) colors.border else Accents.Hub.a.copy(alpha = 0.4f), RoundedCornerShape(24.dp))
                 .clickable { bannerAction() }
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -283,23 +278,26 @@ fun HubScreen(state: QuiverState) {
             QuickAction(stringResource(R.string.qa_new_event), Icons.Filled.Add, Accents.Calendar) { state.go(AppKey.Calendar); state.calendarStartNew = true }
             QuickAction(stringResource(R.string.qa_new_note), Icons.AutoMirrored.Outlined.StickyNote2, Accents.Notes) { state.go(AppKey.Notes); state.notesStartNew = true }
             QuickAction(stringResource(R.string.qa_add_expense), Icons.Outlined.Payments, Accents.Expenses) { state.go(AppKey.Expenses); state.expensesStartNew = true }
+            QuickAction(tr(R.string.qa_start_run), Icons.AutoMirrored.Outlined.DirectionsRun, Accents.Move) { state.go(AppKey.Move) }
+            QuickAction(tr(R.string.qa_screen_time), Icons.Outlined.SelfImprovement, Accents.Focus) { state.go(AppKey.Focus) }
             QuickAction(stringResource(R.string.qa_ask_ai), Icons.Filled.AutoAwesome, Accents.Hub) { state.closeOverlays(); state.aiOpen = true }
         }
 
         // ---- mini apps ----
         Spacer(Modifier.height(22.dp))
         SectionLabel(stringResource(R.string.section_mini_apps)) {
-            Row(
-                Modifier.clip(RoundedCornerShape(100.dp))
-                    .background(if (state.editMode) Accents.Hub.glow.copy(alpha = 0.15f) else colors.surf)
-                    .border(1.dp, if (state.editMode) Accents.Hub.glow.copy(alpha = 0.5f) else colors.border, RoundedCornerShape(100.dp))
-                    .clickable { state.editMode = !state.editMode }
-                    .padding(horizontal = 13.dp, vertical = 7.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            Box(
+                Modifier.size(38.dp).clip(RoundedCornerShape(12.dp))
+                    .background(if (state.editMode) Accents.Hub.a else colors.surf)
+                    .border(1.dp, if (state.editMode) Accents.Hub.a else colors.border, RoundedCornerShape(12.dp))
+                    .clickable { state.editMode = !state.editMode },
+                contentAlignment = Alignment.Center,
             ) {
-                Icon(if (state.editMode) Icons.Filled.Check else Icons.Outlined.Tune, null, Modifier.size(15.dp), tint = if (state.editMode) Accents.Hub.txt(colors.dark) else colors.dim)
-                Text(if (state.editMode) tr(R.string.hub_done) else tr(R.string.hub_customize), color = if (state.editMode) Accents.Hub.txt(colors.dark) else colors.dim, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                Icon(
+                    if (state.editMode) Icons.Filled.Check else Icons.Outlined.Edit,
+                    if (state.editMode) tr(R.string.hub_done) else tr(R.string.hub_customize),
+                    Modifier.size(17.dp), tint = if (state.editMode) Accents.Hub.on else colors.text,
+                )
             }
         }
         if (state.editMode) {
@@ -310,7 +308,7 @@ fun HubScreen(state: QuiverState) {
 
         val order = dashApps.sortedByDescending { state.pinned[it] == true }
         BentoGrid(
-            state, order, monitoring, todayCount, curRate, curVm.to, notesCount, monthSpend, hubPrefs,
+            state, order, monitoring, trash.size, todayCount, curRate, curVm.to, notesCount, monthSpend, hubPrefs,
             onAddApp = { showAddPicker = true },
             onRemoveApp = { app ->
                 dashApps.remove(app)
@@ -614,13 +612,13 @@ private fun DataRow(icon: ImageVector, title: String, detail: String, divider: B
 }
 
 @Composable
-private fun HeaderIcon(icon: ImageVector, onClick: () -> Unit) {
+private fun HeaderIcon(icon: ImageVector, label: String, onClick: () -> Unit) {
     val colors = Quiver.colors
     Box(
         Modifier.size(44.dp).clip(CircleShape).background(colors.surf)
             .border(1.dp, colors.border, CircleShape).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
-    ) { Icon(icon, null, Modifier.size(21.dp), tint = colors.text) }
+    ) { Icon(icon, label, Modifier.size(21.dp), tint = colors.text) }
 }
 
 @Composable
@@ -631,13 +629,13 @@ private fun QuickAction(label: String, icon: ImageVector, accent: Accent, onClic
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Icon(icon, null, Modifier.size(17.dp), tint = accent.txt(colors.dark))
+        Icon(icon, null, Modifier.size(17.dp), tint = accent.iconColor(colors.dark))
         Text(label, color = colors.text, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, fontFamily = Body)
     }
 }
 
 @Composable
-private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boolean, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int, monthSpend: String, hubPrefs: HubPrefs, onAddApp: () -> Unit, onRemoveApp: (AppKey) -> Unit) {
+private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boolean, trashCount: Int, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int, monthSpend: String, hubPrefs: HubPrefs, onAddApp: () -> Unit, onRemoveApp: (AppKey) -> Unit) {
     val colors = Quiver.colors
     val rows = packTiles(order) { state.pinned[it] == true }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -645,7 +643,7 @@ private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boole
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { app ->
                     val big = state.pinned[app] == true
-                    BentoTile(state, app, big, monitoring, todayCount, curRate, curTo, notesCount, monthSpend, hubPrefs, { onRemoveApp(app) }, Modifier.weight(1f))
+                    BentoTile(state, app, big, monitoring, trashCount, todayCount, curRate, curTo, notesCount, monthSpend, hubPrefs, { onRemoveApp(app) }, Modifier.weight(1f))
                 }
                 if (row.size == 1 && state.pinned[row[0]] != true) Spacer(Modifier.weight(1f))
             }
@@ -688,6 +686,7 @@ private fun BentoTile(
     app: AppKey,
     big: Boolean,
     monitoring: Boolean,
+    trashCount: Int,
     todayCount: Int,
     curRate: Double?,
     curTo: String,
@@ -702,24 +701,35 @@ private fun BentoTile(
     val m = meta(app)
     Box(
         modifier
-            .height(if (big) 184.dp else 178.dp)
-            .clip(RoundedCornerShape(28.dp))
+            .height(124.dp)
+            .clip(RoundedCornerShape(22.dp))
             .background(
-                Brush.linearGradient(
+                if (colors.flat) SolidColor(colors.surf)
+                else Brush.linearGradient(
                     listOf(
                         ac.a.copy(alpha = if (colors.dark) 0.22f else 0.18f),
                         ac.b.copy(alpha = if (colors.dark) 0.10f else 0.07f),
                     ),
                 ),
             )
-            .border(1.dp, ac.a.copy(alpha = if (colors.dark) 0.28f else 0.32f), RoundedCornerShape(28.dp))
+            .border(1.dp, if (colors.flat) colors.border else ac.a.copy(alpha = if (colors.dark) 0.28f else 0.32f), RoundedCornerShape(22.dp))
             .clickable { if (state.editMode) togglePin(state, app, hubPrefs) else state.go(app) }
-            .padding(18.dp),
+            .padding(14.dp),
     ) {
-        Icon(
-            m.icon, null, tint = ac.a.copy(alpha = 0.14f),
-            modifier = Modifier.align(Alignment.BottomEnd).size(if (big) 110.dp else 96.dp),
-        )
+        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(
+                    Modifier.size(34.dp).clip(RoundedCornerShape(10.dp))
+                        .background(ac.iconColor(colors.dark).copy(alpha = if (colors.dark) 0.16f else 0.12f)),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(m.icon, null, Modifier.size(18.dp), tint = ac.iconColor(colors.dark)) }
+                Text(
+                    stringResource(app.titleRes), fontSize = 15.5.sp, fontWeight = FontWeight.Bold, fontFamily = Display,
+                    color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+                )
+            }
+            TileSummary(app, ac, monitoring, trashCount, todayCount, curRate, curTo, notesCount, monthSpend)
+        }
         if (state.editMode) {
             Row(Modifier.align(Alignment.TopEnd), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Box(
@@ -733,22 +743,8 @@ private fun BentoTile(
                         .border(1.dp, colors.border, CircleShape)
                         .clickable { togglePin(state, app, hubPrefs) },
                     contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Outlined.PushPin, null, Modifier.size(15.dp), tint = if (state.pinned[app] == true) Color.White else colors.dim) }
+                ) { Icon(Icons.Outlined.PushPin, null, Modifier.size(15.dp), tint = if (state.pinned[app] == true) ac.on else colors.dim) }
             }
-        }
-        Column(Modifier.fillMaxWidth(if (big) 0.62f else 1f)) {
-            Box(
-                Modifier.size(46.dp).clip(RoundedCornerShape(15.dp))
-                    .background(ac.a.copy(alpha = if (colors.dark) 0.2f else 0.18f))
-                    .border(1.dp, ac.a.copy(alpha = 0.4f), RoundedCornerShape(15.dp)),
-                contentAlignment = Alignment.Center,
-            ) { Icon(m.icon, null, Modifier.size(24.dp), tint = ac.txt(colors.dark)) }
-            Spacer(Modifier.weight(1f))
-            Text(stringResource(app.titleRes), fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-            // One line, always: a wrapped tagline pushes the summary row down and breaks the tile grid.
-            Text(m.tag, fontSize = 12.5.sp, color = colors.dim, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.height(11.dp))
-            TileSummary(app, ac, monitoring, todayCount, curRate, curTo, notesCount, monthSpend)
         }
     }
 }
@@ -760,45 +756,39 @@ private fun togglePin(state: QuiverState, app: AppKey, hubPrefs: HubPrefs) {
     state.toast(if (now) tr(R.string.hub_pinned_to_top) else tr(R.string.hub_unpinned), ToastKind.Info)
 }
 
+/** A tile's figure: the number on its own line, the label beneath, both one line. */
 @Composable
-private fun TileSummary(app: AppKey, ac: Accent, monitoring: Boolean, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int, monthSpend: String) {
+private fun Stat(value: String, label: String) {
     val colors = Quiver.colors
+    Column {
+        Text(value, fontSize = 21.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(label, fontSize = 12.sp, color = colors.dim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun TileSummary(app: AppKey, ac: Accent, monitoring: Boolean, trashCount: Int, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int, monthSpend: String) {
+    val context = LocalContext.current
     when (app) {
-        AppKey.Screenshots -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(Modifier.size(9.dp).clip(CircleShape).background(if (monitoring) ac.a else colors.faint))
-            Text(if (monitoring) tr(R.string.hub_monitoring_active) else tr(R.string.hub_paused), fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = if (monitoring) ac.txt(colors.dark) else colors.dim)
-        }
-        AppKey.Currency -> Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(curRate?.let { "%.2f".format(it) } ?: "—", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
-            Text(tr(R.string.hub_usd_x, curTo), fontSize = 12.sp, color = colors.dim)
-        }
-        AppKey.Calendar -> Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("$todayCount", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
-            Text(trPlural(R.plurals.hub_items_today_label, todayCount), fontSize = 12.sp, color = colors.dim)
-        }
-        AppKey.Notes -> Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("$notesCount", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
-            Text(trPlural(R.plurals.hub_notes_label, notesCount), fontSize = 12.sp, color = colors.dim)
-        }
-        AppKey.Expenses -> Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(monthSpend, fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
-            Text(tr(R.string.hub_this_month), fontSize = 12.sp, color = colors.dim)
-        }
+        AppKey.Screenshots -> Stat("$trashCount", tr(if (monitoring) R.string.hub_tile_trash_monitoring else R.string.hub_tile_trash_paused))
+        AppKey.Currency -> Stat(curRate?.let { "%.2f".format(it) } ?: "—", tr(R.string.hub_usd_x, curTo))
+        AppKey.Calendar -> Stat("$todayCount", trPlural(R.plurals.hub_items_today_label, todayCount))
+        AppKey.Notes -> Stat("$notesCount", trPlural(R.plurals.hub_notes_label, notesCount))
+        AppKey.Expenses -> Stat(monthSpend, tr(R.string.hub_this_month))
         AppKey.Focus -> {
-            val context = LocalContext.current
             val focused = LocalWindowInfo.current.isWindowFocused // refresh on return from a blocked app
             val blocked = remember(focused) { FocusPrefs(context).blockedOn() }
-            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("$blocked", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
-                Text(tr(R.string.hub_blocked_today), fontSize = 12.sp, color = colors.dim)
-            }
+            Stat("$blocked", tr(R.string.hub_blocked_today))
         }
         AppKey.Move -> {
-            val context = LocalContext.current
-            val weekKm by remember { MoveDatabase.get(context).dao().distanceSince(startOfWeekMillis()) }.collectAsState(0.0)
-            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("%.1f".format(weekKm / 1000), fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
-                Text(tr(R.string.hub_km_this_week), fontSize = 12.sp, color = colors.dim)
+            if (Steps.hasPermission(context) && Steps.hasChip(context)) {
+                val today = LocalDate.now()
+                val hours by remember { MoveDatabase.get(context).steps().between(today.toString(), today.plusDays(1).toString()) }.collectAsState(emptyList())
+                val steps = hours.sumOf { it.steps }
+                Stat("%,d".format(steps), tr(R.string.hub_tile_steps_x, (steps * 100 / Steps.goal(context)).toInt()))
+            } else {
+                val weekKm by remember { MoveDatabase.get(context).dao().distanceSince(startOfWeekMillis()) }.collectAsState(0.0)
+                Stat("%.1f".format(weekKm / 1000), tr(R.string.hub_km_this_week))
             }
         }
         AppKey.Hub -> Unit

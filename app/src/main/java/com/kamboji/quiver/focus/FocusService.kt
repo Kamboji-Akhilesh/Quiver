@@ -25,6 +25,8 @@ class FocusService : AccessibilityService() {
     private var lastCheck = 0L
     private var lastActionAt = 0L
     private var lastAction = FocusPolicy.Action.None
+    /** When the feed was last seen on screen (uptime), for the daily allowance; 0 = not showing. */
+    private var feedSeenAt = 0L
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         val target = FocusTarget.forPackage(event.packageName?.toString()) ?: return
@@ -42,7 +44,9 @@ class FocusService : AccessibilityService() {
         val root = rootInActiveWindow ?: return
         if (root.packageName != target.pkg) return // already left the app
         if (Log.isLoggable(TAG, Log.VERBOSE)) Log.v(TAG, "${target.pkg} ids: ${visibleIds(root)}")
-        if (!isShowing(root, target)) return
+        if (!isShowing(root, target)) { feedSeenAt = 0; return }
+        if (!FocusPolicy.allowanceUsed(prefs, now, feedSeenAt)) { feedSeenAt = now; return }
+        feedSeenAt = 0
 
         val action = FocusPolicy.decide(now, lastActionAt, lastAction, prefs.closeApp)
         if (action == FocusPolicy.Action.None) return

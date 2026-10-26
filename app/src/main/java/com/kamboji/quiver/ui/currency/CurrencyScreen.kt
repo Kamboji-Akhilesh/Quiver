@@ -1,6 +1,7 @@
 package com.kamboji.quiver.ui.currency
 
 import com.kamboji.quiver.ui.locale.displayName
+import androidx.compose.foundation.layout.fillMaxHeight
 
 import com.kamboji.quiver.ui.locale.tr
 import androidx.compose.foundation.Canvas
@@ -299,6 +300,29 @@ private fun TrendSection(vm: CurrencyViewModel, ac: Accent) {
 
 @Composable
 private fun Sparkline(points: List<RatePoint>, toCode: String, color: Color, modifier: Modifier) {
+    val colors = Quiver.colors
+    val values = points.map { it.rate }
+    val axisDate = remember { SimpleDateFormat("d MMM", Locale.getDefault()) }
+    // Small axes: high / mid / low rate on the right, first / middle / last date below.
+    Column(modifier) {
+        Row(Modifier.weight(1f)) {
+            SparklinePlot(points, toCode, color, Modifier.weight(1f).fillMaxHeight())
+            if (values.isNotEmpty()) Column(Modifier.fillMaxHeight().padding(start = 6.dp), verticalArrangement = Arrangement.SpaceBetween) {
+                val hi = values.max()
+                val lo = values.min()
+                listOf(hi, (hi + lo) / 2, lo).forEach { Text(fmtRate(it), fontSize = 10.sp, fontFamily = Mono, color = colors.faint) }
+            }
+        }
+        if (points.size > 1) Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+            listOf(0, points.size / 2, points.lastIndex).forEach {
+                Text(axisDate.format(Date(points[it].dateMillis)), fontSize = 10.sp, fontFamily = Mono, color = colors.faint)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SparklinePlot(points: List<RatePoint>, toCode: String, color: Color, modifier: Modifier) {
     val colors = Quiver.colors
     val fill = color.copy(alpha = 0.14f)
     val values = remember(points) { points.map { it.rate } }

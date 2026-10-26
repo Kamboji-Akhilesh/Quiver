@@ -594,4 +594,22 @@
     <string name="settings_perm_banksafe">Bank-safe Focus</string>
     <string name="settings_perm_banksafe_sub">Blocker switches on only inside YouTube and Instagram</string>
     <string name="settings_version_x">Quiver %1$s</string>
+    <string name="qa_start_run">Start run</string>
+    <string name="qa_screen_time">Screen time</string>
+    <string name="hub_tile_trash_monitoring">in trash · monitoring</string>
+    <string name="hub_tile_trash_paused">in trash · paused</string>
+    <!-- %1$d percent of the daily step goal -->
+    <string name="hub_tile_steps_x">steps today · %1$d%%</string>
+    <string name="shots_delete_forever">Delete forever</string>
+    <!-- Focus daily allowance -->
+    <string name="focus_allowance">Daily allowance</string>
+    <string name="focus_allowance_off">Off</string>
+    <string name="focus_allowance_x">%1$d min</string>
+    <string name="focus_allowance_off_why">Shorts and Reels are blocked as soon as they open.</string>
+    <string name="focus_allowance_why">Allowed today, then blocked</string>
+    <string name="focus_allowance_used_x_y">%1$d of %2$d min</string>
+    <string name="move_pace_slower">slower</string>
+    <string name="move_pace_faster">faster</string>
+    <string name="search_in_screenshots">In your screenshots</string>
+    <string name="hub_notifications">Notifications</string>
 </resources>

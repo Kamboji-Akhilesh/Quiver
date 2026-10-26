@@ -167,8 +167,8 @@ private fun androidx.compose.foundation.layout.BoxScope.Attribution() {
     )
 }
 
-/** Slow → fast, like Strava's pace map. */
-private val PACE = intArrayOf(0xFF3B82F6.toInt(), 0xFF06B6D4.toInt(), 0xFF22C55E.toInt(), 0xFFEAB308.toInt(), 0xFFF97316.toInt(), 0xFFEF4444.toInt())
+/** Pace in one colour: faint where slower, strong where faster (6 steps). */
+private val PACE_ALPHA = floatArrayOf(0.25f, 0.4f, 0.55f, 0.7f, 0.85f, 1f)
 
 /** The route as one line, or as runs of pace-coloured segments. */
 private fun routeLines(m: MapView, track: List<Fix>, accent: Color, paceColours: Boolean, faded: Boolean): List<Polyline> {
@@ -180,12 +180,12 @@ private fun routeLines(m: MapView, track: List<Fix>, accent: Color, paceColours:
     }
     val points = track.map { GeoPoint(it.lat, it.lon) }
     if (!paceColours || track.size < 3) return listOf(line(points, accent.toArgb()))
-    val buckets = PaceColours.buckets(track, PACE.size)
+    val buckets = PaceColours.buckets(track, PACE_ALPHA.size)
     val out = mutableListOf<Polyline>()
     var start = 0
     for (i in 1..buckets.size) {
         if (i == buckets.size || buckets[i] != buckets[start]) {
-            out += line(points.subList(start, i + 1), PACE[buckets[start]])
+            out += line(points.subList(start, i + 1), accent.copy(alpha = PACE_ALPHA[buckets[start]]).toArgb())
             start = i
         }
     }
