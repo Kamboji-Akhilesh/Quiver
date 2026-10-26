@@ -488,4 +488,7 @@
     <string name="focus_bank_copy">Copy</string>
     <string name="focus_bank_copied">Command copied</string>
     <string name="focus_bank_open">Open</string>
+    <!-- %1$s is e.g. "312 expenses" -->
+    <string name="capture_history_title">Imported %1$s from your bank SMS</string>
+    <string name="capture_history_text">Past payments are in Expenses — tap to see them</string>
 </resources>
