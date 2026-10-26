@@ -3,7 +3,10 @@ package com.kamboji.quiver.ui.focus
 import com.kamboji.quiver.ui.locale.trPlural
 
 import com.kamboji.quiver.ui.locale.tr
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
+import android.widget.Toast
 import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,11 +26,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccountBalance
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kamboji.quiver.R
+import com.kamboji.quiver.focus.FocusGate
 import com.kamboji.quiver.focus.FocusPrefs
 import com.kamboji.quiver.focus.FocusTarget
 import com.kamboji.quiver.ui.components.EnableAccessDialog
@@ -68,7 +75,9 @@ fun FocusScreen(state: QuiverState) {
 
     // Re-read on return from Settings / from a blocked app.
     val focused = LocalWindowInfo.current.isWindowFocused
-    val serviceOn = remember(focused) { FocusPrefs.isServiceEnabled(context) }
+    val gateReady = remember(focused) { FocusGate.ready(context) }
+    // With the gate, the service is deliberately off outside YouTube/Instagram, yet blocking is on.
+    val serviceOn = remember(focused) { gateReady || FocusPrefs.isServiceEnabled(context) }
     val today = remember(focused) { prefs.blockedOn() }
     val total = remember(focused) { prefs.blockedTotal }
     val blocked = remember { mutableStateMapOf<FocusTarget, Boolean>().apply { FocusTarget.entries.forEach { put(it, prefs.isBlocked(it)) } } }
@@ -103,6 +112,10 @@ fun FocusScreen(state: QuiverState) {
                     Spacer(Modifier.height(12.dp))
                     EnableCard(onEnable = { showEnable = true })
                 }
+
+                Spacer(Modifier.height(18.dp))
+                SectionLabel(tr(R.string.focus_bank_safe))
+                BankSafeCard(focused)
 
                 Spacer(Modifier.height(18.dp))
                 SectionLabel(tr(R.string.focus_block))
@@ -179,5 +192,54 @@ private fun EnableCard(onEnable: () -> Unit) {
             Text(tr(R.string.focus_one_time_accessibility_permission_works), fontSize = 11.5.sp, color = colors.dim, lineHeight = 15.sp)
         }
         Text(tr(R.string.focus_enable), color = ac.txt(colors.dark), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+/** Setup for [FocusGate]: two one-time grants, after which banking apps never see the blocker. */
+@Composable
+private fun BankSafeCard(focused: Boolean) {
+    val colors = Quiver.colors
+    val ac = Accents.Focus
+    val context = LocalContext.current
+    val usage = remember(focused) { FocusGate.hasUsageAccess(context) }
+    val toggle = remember(focused) { FocusGate.canToggleService(context) }
+    // Starts the gate as soon as both grants are in place.
+    LaunchedEffect(usage, toggle) { FocusGate.sync(context) }
+
+    Column(Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(Icons.Outlined.AccountBalance, null, Modifier.size(18.dp), tint = ac.txt(colors.dark))
+            Text(
+                if (usage && toggle) tr(R.string.focus_bank_on) else tr(R.string.focus_bank_why),
+                fontSize = 12.5.sp, color = colors.dim, lineHeight = 17.sp,
+            )
+        }
+        if (usage && toggle) return@Column
+        BankStep(tr(R.string.focus_bank_step_usage), tr(R.string.focus_bank_step_usage_why), usage, tr(R.string.focus_bank_open)) {
+            runCatching { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
+        }
+        val cmd = FocusGate.grantCommand(context)
+        BankStep(tr(R.string.focus_bank_step_adb), tr(R.string.focus_bank_step_adb_why), toggle, tr(R.string.focus_bank_copy)) {
+            context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("adb", cmd))
+            Toast.makeText(context, tr(R.string.focus_bank_copied), Toast.LENGTH_SHORT).show()
+        }
+        if (!toggle) Text(
+            cmd, fontFamily = Mono, fontSize = 11.sp, color = colors.text, lineHeight = 15.sp,
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(colors.border).padding(10.dp),
+        )
+    }
+}
+
+@Composable
+private fun BankStep(title: String, why: String, done: Boolean, action: String, onAction: () -> Unit) {
+    val colors = Quiver.colors
+    val ac = Accents.Focus
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
+            Text(why, fontSize = 11.5.sp, color = colors.dim, lineHeight = 15.sp)
+        }
+        if (done) Icon(Icons.Outlined.CheckCircle, null, Modifier.size(22.dp), tint = ac.txt(colors.dark))
+        else Text(action, color = ac.txt(colors.dark), fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable(onClick = onAction).padding(8.dp))
     }
 }

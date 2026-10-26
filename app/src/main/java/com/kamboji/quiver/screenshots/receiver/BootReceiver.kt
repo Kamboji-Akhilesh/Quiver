@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.kamboji.quiver.focus.FocusGate
 import com.kamboji.quiver.screenshots.service.ScreenshotService
 import com.kamboji.quiver.screenshots.worker.CleanupWorker
 
@@ -21,6 +22,7 @@ class BootReceiver : BroadcastReceiver() {
                 ScreenshotService.startIfEnabled(context)
                 // Re-arm the periodic trash cleanup as well.
                 CleanupWorker.schedule(context)
+                FocusGate.sync(context)
             }
         }
     }

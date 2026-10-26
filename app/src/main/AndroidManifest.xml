@@ -19,6 +19,14 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- Focus gate (focus/FocusGate.kt): see which app is in front, and switch the
+         Focus accessibility service on only inside YouTube/Instagram so banking
+         apps never see it. Both are granted by the user by hand, never prompted. -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions"/>
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
     <!-- Calendar exact-time alerts. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
@@ -213,6 +221,14 @@
             <meta-data
                 android:name="android.accessibilityservice"
                 android:resource="@xml/focus_service" />
+        </service>
+        <service
+            android:name=".focus.FocusGateService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Switches the user's own Shorts/Reels blocker on only while YouTube or Instagram is in the foreground." />
         </service>
 
     </application>
