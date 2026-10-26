@@ -503,4 +503,25 @@
     <string name="backup_wrong_password">Wrong password</string>
     <string name="backup_continue">Continue</string>
     <string name="backup_working">Working…</string>
+    <!-- Screen time (Focus) -->
+    <string name="screen_time_today">Screen time today</string>
+    <string name="screen_time_needs_access">Allow usage access to see how long you spend in each app today. It\'s read on this phone only and never stored.</string>
+    <string name="screen_time_none">Less than a minute in any app so far.</string>
+    <string name="screen_time_hm">%1$dh %2$02dm</string>
+    <string name="screen_time_m">%1$dm</string>
+    <!-- Morning brief -->
+    <string name="brief_channel">Morning brief</string>
+    <string name="brief_title">Good morning</string>
+    <string name="brief_nothing_today">Nothing on your calendar today.</string>
+    <!-- %1$s "3 items", %2$s their titles -->
+    <string name="brief_today_x">Today: %1$s — %2$s</string>
+    <string name="brief_spent_x">Spent %1$s yesterday</string>
+    <string name="brief_screen_x">%1$s of screen time yesterday</string>
+    <!-- %1$s "4 feeds" -->
+    <string name="brief_blocked_x">%1$s blocked yesterday</string>
+    <string name="brief_moved_x">%1$s km moved this week</string>
+    <string name="brief_setting">Morning brief</string>
+    <string name="brief_setting_on">Every day at %1$s</string>
+    <string name="brief_setting_off">Calendar, spend and screen time in one notification</string>
+    <string name="hub_daily">Daily</string>
 </resources>

@@ -37,6 +37,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -51,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import com.kamboji.quiver.R
 import com.kamboji.quiver.focus.FocusGate
 import com.kamboji.quiver.focus.FocusPrefs
+import com.kamboji.quiver.focus.ScreenTime
 import com.kamboji.quiver.focus.FocusTarget
 import com.kamboji.quiver.ui.components.EnableAccessDialog
 import com.kamboji.quiver.ui.components.Pill
@@ -64,6 +66,8 @@ import com.kamboji.quiver.ui.theme.AppKey
 import com.kamboji.quiver.ui.theme.Display
 import com.kamboji.quiver.ui.theme.Mono
 import com.kamboji.quiver.ui.theme.Quiver
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun FocusScreen(state: QuiverState) {
@@ -112,6 +116,10 @@ fun FocusScreen(state: QuiverState) {
                     Spacer(Modifier.height(12.dp))
                     EnableCard(onEnable = { showEnable = true })
                 }
+
+                Spacer(Modifier.height(18.dp))
+                SectionLabel(tr(R.string.screen_time_today))
+                ScreenTimeCard(focused)
 
                 Spacer(Modifier.height(18.dp))
                 SectionLabel(tr(R.string.focus_bank_safe))
@@ -241,5 +249,48 @@ private fun BankStep(title: String, why: String, done: Boolean, action: String, 
         }
         if (done) Icon(Icons.Outlined.CheckCircle, null, Modifier.size(22.dp), tint = ac.txt(colors.dark))
         else Text(action, color = ac.txt(colors.dark), fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable(onClick = onAction).padding(8.dp))
+    }
+}
+
+/** Today's screen time, top apps first. Reads usage events on open; nothing is stored. */
+@Composable
+private fun ScreenTimeCard(focused: Boolean) {
+    val colors = Quiver.colors
+    val ac = Accents.Focus
+    val context = LocalContext.current
+    val allowed = remember(focused) { FocusGate.hasUsageAccess(context) }
+    val apps by produceState<List<Pair<String, Long>>?>(null, focused, allowed) {
+        value = if (allowed) withContext(Dispatchers.IO) { ScreenTime.forDay(context) } else null
+    }
+    Column(Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (!allowed) {
+            Text(tr(R.string.screen_time_needs_access), fontSize = 12.5.sp, color = colors.dim, lineHeight = 17.sp)
+            Text(
+                tr(R.string.focus_bank_open), color = ac.txt(colors.dark), fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                    .clickable { runCatching { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) } }
+                    .padding(vertical = 4.dp),
+            )
+            return@Column
+        }
+        val list = apps ?: return@Column
+        Text(ScreenTime.hm(list.sumOf { it.second }), fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
+        val top = list.take(6)
+        val max = top.firstOrNull()?.second ?: 1L
+        top.forEach { (pkg, ms) ->
+            val label = remember(pkg) {
+                runCatching { context.packageManager.getApplicationLabel(context.packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(label, Modifier.weight(1f), fontSize = 13.sp, color = colors.text, maxLines = 1)
+                    Text(ScreenTime.hm(ms), fontSize = 12.5.sp, fontFamily = Mono, color = colors.dim)
+                }
+                Box(Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(3.dp)).background(colors.border)) {
+                    Box(Modifier.fillMaxWidth(ms.toFloat() / max).height(5.dp).clip(RoundedCornerShape(3.dp)).background(ac.a))
+                }
+            }
+        }
+        if (list.isEmpty()) Text(tr(R.string.screen_time_none), fontSize = 12.5.sp, color = colors.dim)
     }
 }

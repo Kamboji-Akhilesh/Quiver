@@ -1,6 +1,11 @@
 package com.kamboji.quiver.ui.hub
 
 import android.net.Uri
+import java.time.format.DateTimeFormatter
+import java.time.LocalTime
+import com.kamboji.quiver.ui.components.QvTimePickerDialog
+import com.kamboji.quiver.ui.components.QvToggle
+import com.kamboji.quiver.brief.MorningBrief
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -332,6 +337,12 @@ fun HubScreen(state: QuiverState) {
             }
         }
 
+        // ---- daily ----
+        Spacer(Modifier.height(22.dp))
+        SectionLabel(tr(R.string.hub_daily))
+        Spacer(Modifier.height(4.dp))
+        BriefRow()
+
         // ---- your data (export / import) ----
         Spacer(Modifier.height(22.dp))
         SectionLabel(stringResource(R.string.section_your_data))
@@ -499,6 +510,36 @@ private fun DataSection(state: QuiverState) {
             onDismiss = { asking = null },
         ) { pw -> import(uri, pw) }
     }
+}
+
+/** Morning brief on/off and its time. */
+@Composable
+private fun BriefRow() {
+    val colors = Quiver.colors
+    val context = LocalContext.current
+    var on by remember { mutableStateOf(MorningBrief.isOn(context)) }
+    var time by remember { mutableStateOf(MorningBrief.time(context)) }
+    var picking by remember { mutableStateOf(false) }
+    Row(
+        Modifier.fillMaxWidth().glass(colors).clip(RoundedCornerShape(22.dp))
+            .clickable { picking = true }.padding(horizontal = 18.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(13.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(tr(R.string.brief_setting), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
+            Text(
+                if (on) tr(R.string.brief_setting_on, time.format(DateTimeFormatter.ofPattern("h:mm a"))) else tr(R.string.brief_setting_off),
+                fontSize = 12.sp, color = colors.dim, lineHeight = 16.sp,
+            )
+        }
+        QvToggle(on, { on = !on; MorningBrief.set(context, on, time) }, Accents.Hub)
+    }
+    if (picking) QvTimePickerDialog(time.hour, time.minute, Accents.Hub, { h, m ->
+        time = LocalTime.of(h, m)
+        on = true
+        MorningBrief.set(context, true, time)
+    }, { picking = false })
 }
 
 @Composable
