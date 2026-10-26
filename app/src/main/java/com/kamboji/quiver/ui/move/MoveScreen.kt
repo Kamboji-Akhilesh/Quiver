@@ -39,6 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import com.kamboji.quiver.move.steps.Steps
+import com.kamboji.quiver.move.BestEfforts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -82,6 +83,7 @@ import com.kamboji.quiver.move.data.MoveDatabase
 import com.kamboji.quiver.move.data.MoveEntity
 import com.kamboji.quiver.move.data.PointEntity
 import com.kamboji.quiver.ui.components.Pill
+import com.kamboji.quiver.ui.components.QvToggle
 import com.kamboji.quiver.ui.components.QvTopBar
 import com.kamboji.quiver.ui.components.SectionLabel
 import com.kamboji.quiver.ui.components.glass
@@ -116,13 +118,14 @@ fun MoveScreen(state: QuiverState) {
     val finished by MoveRecorder.finished.collectAsState()
     var detailId by remember { mutableStateOf<Long?>(null) }
     var showActivity by remember { mutableStateOf(false) }
+    var showHeatmap by remember { mutableStateOf(false) }
 
     // Recording ended → open its summary, once.
     LaunchedEffect(finished) {
         finished?.let { detailId = it; MoveRecorder.finished.value = null }
     }
     // Close anything the OS killed mid-recording.
-    LaunchedEffect(Unit) { withContext(Dispatchers.IO) { MoveRecovery.finishOrphans(context) } }
+    LaunchedEffect(Unit) { withContext(Dispatchers.IO) { MoveRecovery.finishOrphans(context); MoveRecovery.backfillBests(context) } }
 
     val current = live
     when {
@@ -132,14 +135,15 @@ fun MoveScreen(state: QuiverState) {
             DetailScreen(state, detailId!!) { detailId = null }
         }
         showActivity -> ActivityScreen(onBack = { showActivity = false }) { detailId = it }
-        else -> HomeScreen(state, onActivity = { showActivity = true }) { detailId = it }
+        showHeatmap -> HeatmapScreen { showHeatmap = false }
+        else -> HomeScreen(state, onActivity = { showActivity = true }, onHeatmap = { showHeatmap = true }) { detailId = it }
     }
 }
 
 // ---------------------------------------------------------------- home
 
 @Composable
-private fun HomeScreen(state: QuiverState, onActivity: () -> Unit, onOpen: (Long) -> Unit) {
+private fun HomeScreen(state: QuiverState, onActivity: () -> Unit, onHeatmap: () -> Unit, onOpen: (Long) -> Unit) {
     val ac = Accents.Move
     val colors = Quiver.colors
     val context = LocalContext.current
@@ -210,9 +214,21 @@ private fun HomeScreen(state: QuiverState, onActivity: () -> Unit, onOpen: (Long
                 fontSize = 12.sp, color = colors.dim,
                 modifier = Modifier.padding(top = 8.dp, start = 2.dp).clickable { weightDialog = true },
             )
+            var voice by remember { mutableStateOf(prefs.voiceSplits) }
+            Row(Modifier.fillMaxWidth().padding(top = 10.dp, start = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(tr(R.string.move_voice_setting), Modifier.weight(1f), fontSize = 13.sp, color = colors.text)
+                QvToggle(voice, { voice = !voice; prefs.voiceSplits = voice }, ac)
+            }
 
             Spacer(Modifier.height(18.dp))
-            SectionLabel(tr(R.string.move_activities))
+            Records(moves, onOpen)
+
+            SectionLabel(tr(R.string.move_activities), trailing = {
+                if (moves.any { !it.auto && it.preview.isNotEmpty() }) Text(
+                    tr(R.string.move_heatmap), color = ac.txt(colors.dark), fontSize = 12.5.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onHeatmap).padding(horizontal = 6.dp, vertical = 2.dp),
+                )
+            })
             if (moves.isEmpty()) {
                 Text(tr(R.string.move_no_activities_yet_pick_a), fontSize = 13.sp, color = colors.dim, modifier = Modifier.padding(top = 6.dp))
             }
@@ -304,6 +320,29 @@ private fun StepsCard(moves: List<MoveEntity>, onOpen: () -> Unit) {
             }
         }
     }
+}
+
+/** Current personal records per activity type; tap one to open the activity it came from. */
+@Composable
+private fun Records(moves: List<MoveEntity>, onOpen: (Long) -> Unit) {
+    val colors = Quiver.colors
+    val ac = Accents.Move
+    val byType = MoveType.entries.map { it to BestEfforts.records(it, moves) }.filter { it.second.isNotEmpty() }
+    if (byType.isEmpty()) return
+    SectionLabel(tr(R.string.move_personal_records))
+    Column(Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        byType.forEach { (type, records) ->
+            Text(type.displayName, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = ac.txt(colors.dark))
+            records.forEach { (e, m) ->
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { onOpen(m.id) }, verticalAlignment = Alignment.CenterVertically) {
+                    Text(BestEfforts.label(e.distanceM), Modifier.weight(1f), fontSize = 13.sp, color = colors.text)
+                    Text(formatDate(m.startedAt).substringBefore(" ·"), fontSize = 11.sp, color = colors.faint, modifier = Modifier.padding(end = 10.dp))
+                    Text(MoveFormat.duration(e.ms), fontSize = 13.sp, fontFamily = Mono, color = colors.text)
+                }
+            }
+        }
+    }
+    Spacer(Modifier.height(18.dp))
 }
 
 /** A progress ring; a second lap past the goal draws over the first. */
@@ -447,6 +486,7 @@ private fun DetailScreen(state: QuiverState, id: Long, onBack: () -> Unit) {
     val type = move.moveType
     val title = MoveSummary.title(type, move.startedAt)
     val track = remember(points) { MoveSummary.replay(type, points).track }
+    val allMoves by remember { dao.finished() }.collectAsState(emptyList())
 
     val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/gpx+xml")) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -465,10 +505,7 @@ private fun DetailScreen(state: QuiverState, id: Long, onBack: () -> Unit) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp).padding(bottom = 150.dp)) {
             Text(formatDate(move.startedAt), fontSize = 12.5.sp, color = colors.dim, modifier = Modifier.padding(start = 2.dp, bottom = 10.dp))
             if (track.size > 1) {
-                MoveMap(
-                    track, follow = false, accent = ac.a, dark = colors.dark,
-                    modifier = Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(24.dp)),
-                )
+                RouteWithReplay(move, track, BestEfforts.prs(move, allMoves))
                 Spacer(Modifier.height(14.dp))
             }
             Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -483,6 +520,26 @@ private fun DetailScreen(state: QuiverState, id: Long, onBack: () -> Unit) {
                     Stat(if (move.steps > 0) "${move.steps}" else "${move.calories}", if (move.steps > 0) tr(R.string.move_stat_steps) else tr(R.string.move_stat_kcal), Modifier.weight(1f))
                 }
                 if (move.steps > 0) Text(tr(R.string.move_x_kcal, move.calories), fontSize = 12.sp, color = colors.dim)
+            }
+
+            val efforts = remember(move) { BestEfforts.decode(move.bests) }
+            if (efforts.isNotEmpty()) {
+                val prs = remember(move, allMoves) { BestEfforts.prs(move, allMoves).associateBy { it.effort.distanceM } }
+                Spacer(Modifier.height(18.dp))
+                SectionLabel(tr(R.string.move_best_efforts))
+                Column(Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    efforts.forEach { e ->
+                        val pr = prs[e.distanceM]
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(BestEfforts.label(e.distanceM), Modifier.weight(1f), fontSize = 13.sp, color = colors.text)
+                            if (pr != null) Text(
+                                if (pr.previousMs != null) tr(R.string.move_pr_was_x, MoveFormat.duration(pr.previousMs)) else tr(R.string.move_pr_first),
+                                fontSize = 11.5.sp, color = ac.txt(colors.dark), fontWeight = FontWeight.Bold,
+                            )
+                            Text(MoveFormat.duration(e.ms), fontSize = 13.sp, fontFamily = Mono, color = colors.text)
+                        }
+                    }
+                }
             }
 
             if (move.splits.isNotEmpty()) {
@@ -517,6 +574,66 @@ private fun DetailScreen(state: QuiverState, id: Long, onBack: () -> Unit) {
             state.toast(tr(R.string.move_activity_deleted), ToastKind.Error)
             onBack()
         }
+    }
+}
+
+/**
+ * The route coloured by pace, with a Replay that redraws it over ~15 s. When
+ * the replay passes the point where a PR was set, it says so.
+ */
+@Composable
+private fun RouteWithReplay(move: MoveEntity, track: List<Fix>, prs: List<BestEfforts.Pr>) {
+    val ac = Accents.Move
+    val colors = Quiver.colors
+    var pace by remember { mutableStateOf(true) }
+    var at by remember { mutableStateOf<Int?>(null) }
+    var banner by remember { mutableStateOf<String?>(null) }
+    val dist = remember(track) {
+        DoubleArray(track.size).also { d -> for (i in 1 until track.size) d[i] = d[i - 1] + TrackMath.distanceM(track[i - 1], track[i]) }
+    }
+    val playing = at != null
+    LaunchedEffect(playing) {
+        if (!playing) return@LaunchedEffect
+        // ~15 s whatever the length: long routes skip points, short ones dwell on each.
+        val step = maxOf(1, track.size / 450)
+        val frameMs = (15_000L * step / track.size).coerceIn(16, 250)
+        var i = 0
+        while (i < track.lastIndex) {
+            val next = minOf(track.lastIndex, i + step)
+            prs.firstOrNull { it.effort.endAt in (track[i].t + 1)..track[next].t }?.let { pr ->
+                banner = if (pr.previousMs != null) tr(R.string.move_replay_pr_x_y_z, BestEfforts.label(pr.effort.distanceM), MoveFormat.duration(pr.effort.ms), MoveFormat.duration(pr.previousMs))
+                else tr(R.string.move_replay_first_x_y, BestEfforts.label(pr.effort.distanceM), MoveFormat.duration(pr.effort.ms))
+            }
+            i = next
+            at = i
+            delay(frameMs)
+        }
+        delay(2_500)
+        at = null
+        banner = null
+    }
+    LaunchedEffect(banner) { if (banner != null) { delay(3_000); banner = null } }
+
+    Box(Modifier.fillMaxWidth().height(260.dp).clip(RoundedCornerShape(24.dp))) {
+        MoveMap(track, follow = false, accent = ac.a, dark = colors.dark, modifier = Modifier.fillMaxSize(), paceColours = pace, replayAt = at)
+        at?.let { i ->
+            Text(
+                "${MoveFormat.km(dist[i])} · ${MoveFormat.duration(track[i].t - track.first().t)}",
+                fontSize = 13.sp, fontFamily = Mono, color = Color.White, fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.TopStart).padding(10.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xAA000000)).padding(horizontal = 10.dp, vertical = 5.dp),
+            )
+        }
+        banner?.let {
+            Text(
+                it, fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 44.dp).clip(RoundedCornerShape(12.dp))
+                    .background(Brush.linearGradient(listOf(ac.a, ac.b))).padding(horizontal = 12.dp, vertical = 7.dp),
+            )
+        }
+    }
+    Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Pill(if (playing) tr(R.string.move_replay_stop) else tr(R.string.move_replay), playing, ac, { at = if (playing) null else 0 })
+        Pill(tr(R.string.move_pace_colours), pace, ac, { pace = !pace })
     }
 }
 
@@ -670,3 +787,29 @@ private fun WeightDialog(current: Double, onDismiss: () -> Unit, onSave: (Double
 // Built per call so the pattern follows the phone's current locale.
 private fun formatDate(millis: Long): String =
     Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("EEE d MMM · h:mm a", java.util.Locale.getDefault()))
+
+/** Every recorded route on one map: the paths you take most glow brightest. */
+@Composable
+private fun HeatmapScreen(onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
+    val ac = Accents.Move
+    val colors = Quiver.colors
+    val context = LocalContext.current
+    val moves by remember { MoveDatabase.get(context).dao().finished() }.collectAsState(emptyList())
+    var type by remember { mutableStateOf<MoveType?>(null) }
+    val routes = remember(moves, type) {
+        moves.filter { !it.auto && (type == null || it.moveType == type) }.map { MoveSummary.parsePreview(it.preview) }
+    }
+    Column(Modifier.fillMaxSize()) {
+        QvTopBar(tr(R.string.move_heatmap), ac, onBack = onBack)
+        Row(Modifier.padding(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Pill(tr(R.string.move_heatmap_all), type == null, ac, { type = null })
+            MoveType.entries.forEach { t -> Pill(t.displayName, t == type, ac, { type = t }) }
+        }
+        Spacer(Modifier.height(12.dp))
+        HeatMap(
+            routes, ac.a, colors.dark,
+            Modifier.fillMaxWidth().weight(1f).padding(horizontal = 18.dp).padding(bottom = 120.dp).clip(RoundedCornerShape(24.dp)),
+        )
+    }
+}

@@ -35,6 +35,31 @@ while viewing). GPX export lets you hand any activity to Strava yourself.
   recalibration (`MoveSummary.replay`). `MoveRecovery` closes activities the
   OS killed mid-recording, from their saved points.
 
+## All-day steps (`steps/`)
+Like Google Fit, without an always-on service: the step-counter chip counts in
+hardware, so `Steps.sample` reads it every 15 min (WorkManager), on app open
+and at boot, and files the difference per local hour (`step_hours`; days,
+weeks and months are sums). Reboots are detected via the boot count; steps are
+spread by time across hour boundaries (`StepMath`, unit-tested). Recorded
+activities read the same chip, so their steps are already inside the day's
+total. `AutoDetect` logs walks/rides of 10+ min and runs of 5+ min from Play
+services' on-device activity recognition — time and steps, no GPS route.
+Screens: home card (today's ring, 7-day goal rings, weekly active-minutes
+target), My activity (Day/Week/Month chart + that period's activities).
+
+## Personal records
+`BestEfforts`: the fastest stretch of each standard distance anywhere inside
+an activity (Strava's run distances: 400 m … marathon; 1–20 km walk/hike;
+5–100 km ride), stored per activity (`moves.bests`) and backfilled for older
+ones. A detail screen marks efforts that were a PR when set ("was 25:03"); the
+replay announces them at the point on the route where they happened.
+
+## Map
+Pace-coloured route (`PaceColours`: smoothed speed, 10th–90th percentile
+scale), replay (~20 s, follows a dot with distance/time), live trail while
+recording, and a personal heatmap of every route (from stored thumbnails).
+Spoken km splits use the phone's own text-to-speech.
+
 ## Accuracy
 Simulated: ~1% average distance error across route shapes, up to ~2% on long
 noisy straights (GPS error wanders, so every tracker's path snakes a little).

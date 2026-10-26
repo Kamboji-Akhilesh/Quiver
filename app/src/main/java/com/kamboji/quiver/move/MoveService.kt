@@ -17,6 +17,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.speech.tts.TextToSpeech
 import android.location.Location
 import android.os.IBinder
 import android.os.Looper
@@ -176,8 +177,25 @@ class MoveService : Service(), SensorEventListener {
             )
             resumedNext = false
             if (buffer.size >= FLUSH_EVERY) flush()
+            announceSplits(f, m.moveType)
         }
         publish()
+    }
+
+    // Spoken km splits, like Strava's audio cues: the phone's own text-to-speech, nothing online.
+    private var tts: TextToSpeech? = null
+    private var spokenSplits = 0
+
+    private fun announceSplits(f: TrackFilter, type: MoveType) {
+        val splits = f.splitsMs
+        if (splits.size <= spokenSplits || !MovePrefs(this).voiceSplits) return
+        spokenSplits = splits.size
+        val last = splits.last() / 1000
+        val rate = if (type == MoveType.Ride) tr(R.string.move_voice_speed_x, "%.1f".format(java.util.Locale.ROOT, 3600.0 / last))
+            else tr(R.string.move_voice_pace_x_y, last / 60, last % 60)
+        val text = tr(R.string.move_voice_split_x_y, splits.size, rate)
+        tts?.speak(text, TextToSpeech.QUEUE_ADD, null, "split${splits.size}")
+            ?: run { tts = TextToSpeech(this) { ok -> if (ok == TextToSpeech.SUCCESS) tts?.speak(text, TextToSpeech.QUEUE_ADD, null, "split") } }
     }
 
     private fun setPaused(value: Boolean) {
@@ -263,6 +281,7 @@ class MoveService : Service(), SensorEventListener {
     override fun onDestroy() {
         fused.removeLocationUpdates(callback)
         sensors.unregisterListener(this)
+        tts?.shutdown()
         // Killed without Finish: keep what we have; MoveRecovery closes it next time.
         if (buffer.isNotEmpty()) runBlocking(Dispatchers.IO) { dao.insertPoints(buffer.toList()) }
         scope.cancel()
@@ -304,6 +323,15 @@ class MoveService : Service(), SensorEventListener {
 
 /** Closes activities whose recording was killed by the OS, from their saved points. */
 object MoveRecovery {
+    /** Best efforts for activities recorded before PRs existed. Once per activity ("-" marks "none"). */
+    suspend fun backfillBests(context: Context) {
+        val dao = MoveDatabase.get(context).dao()
+        dao.allFinished().filter { it.bests.isEmpty() && !it.auto }.forEach { m ->
+            val f = MoveSummary.replay(m.moveType, dao.points(m.id))
+            dao.update(m.copy(bests = BestEfforts.encode(BestEfforts.compute(f.track, BestEfforts.distances(m.moveType), f.distanceM))))
+        }
+    }
+
     suspend fun finishOrphans(context: Context) {
         if (MoveRecorder.live.value != null) return
         val dao = MoveDatabase.get(context).dao()
@@ -323,6 +351,11 @@ class MovePrefs(context: Context) {
     var weightKg: Double
         get() = prefs.getFloat("weight_kg", 70f).toDouble()
         set(v) = prefs.edit().putFloat("weight_kg", v.toFloat()).apply()
+
+    /** Speak each km's pace during a recording. */
+    var voiceSplits: Boolean
+        get() = prefs.getBoolean("voice_splits", true)
+        set(v) = prefs.edit().putBoolean("voice_splits", v).apply()
 
     var lastType: MoveType
         get() = runCatching { MoveType.valueOf(prefs.getString("last_type", null) ?: "") }.getOrDefault(MoveType.Run)

@@ -39,6 +39,8 @@ data class MoveEntity(
     val preview: String = "",
     /** Logged by activity recognition (no GPS, so no route or distance) rather than recorded. */
     @ColumnInfo(defaultValue = "0") val auto: Boolean = false,
+    /** Best efforts (fastest 1 km, 5 km…; see BestEfforts.encode). Empty = not computed yet. */
+    @ColumnInfo(defaultValue = "") val bests: String = "",
 ) {
     val moveType: MoveType get() = MoveType.valueOf(type)
     val elapsedMs: Long get() = (endedAt ?: startedAt) - startedAt
@@ -134,11 +136,12 @@ abstract class MoveDatabase : RoomDatabase() {
     companion object {
         @Volatile private var instance: MoveDatabase? = null
 
-        /** v2: hourly step totals, and auto-detected activities. */
+        /** v2: hourly step totals, auto-detected activities, best efforts. */
         internal val V1_TO_V2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("CREATE TABLE IF NOT EXISTS step_hours (hour TEXT NOT NULL PRIMARY KEY, steps INTEGER NOT NULL)")
                 db.execSQL("ALTER TABLE moves ADD COLUMN auto INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE moves ADD COLUMN bests TEXT NOT NULL DEFAULT ''")
             }
         }
 

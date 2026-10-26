@@ -39,6 +39,7 @@ object MoveSummary {
             calories = TrackMath.calories(type, f.distanceM, f.movingMs, weightKg),
             splitsMs = f.splitsMs.joinToString(","),
             preview = preview(f.track),
+            bests = BestEfforts.encode(BestEfforts.compute(f.track, BestEfforts.distances(type), f.distanceM)),
         )
     }
 

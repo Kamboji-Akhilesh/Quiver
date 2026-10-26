@@ -550,4 +550,22 @@
     <string name="activity_goal_steps">steps a day</string>
     <string name="activity_goal_minutes">active min a week</string>
     <string name="activity_goal_minutes_why">Active minutes are the time in your recorded and auto-detected walks, runs and rides. 150 a week is the WHO\'s recommended minimum.</string>
+    <string name="move_best_efforts">Best efforts</string>
+    <string name="move_personal_records">Personal records</string>
+    <!-- A best effort that was a PR when set; %1$s the previous best time -->
+    <string name="move_pr_was_x">🏆 PR · was %1$s</string>
+    <string name="move_pr_first">🏆 First</string>
+    <string name="move_replay">▶ Replay</string>
+    <string name="move_replay_stop">Stop</string>
+    <string name="move_pace_colours">Pace colours</string>
+    <!-- %1$s distance label, %2$s new time, %3$s old best -->
+    <string name="move_replay_pr_x_y_z">🏆 New %1$s PR · %2$s (was %3$s)</string>
+    <string name="move_replay_first_x_y">🏆 First %1$s · %2$s</string>
+    <string name="move_heatmap">Heatmap</string>
+    <string name="move_heatmap_all">All</string>
+    <!-- Spoken during a recording: "Kilometre 3. Pace 5 minutes 42 seconds per kilometre." -->
+    <string name="move_voice_split_x_y">Kilometre %1$d. %2$s.</string>
+    <string name="move_voice_pace_x_y">Pace %1$d minutes %2$d seconds per kilometre</string>
+    <string name="move_voice_speed_x">Speed %1$s kilometres per hour</string>
+    <string name="move_voice_setting">Speak each kilometre\'s pace</string>
 </resources>

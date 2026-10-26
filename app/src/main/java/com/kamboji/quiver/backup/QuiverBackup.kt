@@ -47,7 +47,7 @@ object QuiverBackup {
         JSONObject()
             .put("type", type).put("startedAt", startedAt).put("endedAt", endedAt)
             .put("distanceM", distanceM).put("movingMs", movingMs).put("elevationGainM", elevationGainM)
-            .put("steps", steps).put("calories", calories).put("splitsMs", splitsMs).put("preview", preview).put("auto", auto)
+            .put("steps", steps).put("calories", calories).put("splitsMs", splitsMs).put("preview", preview).put("auto", auto).put("bests", bests)
             // Compact rows: [t, lat, lon, accM, altM|null, speedMps|null, resumed]
             .put("points", JSONArray().also { arr ->
                 m.points.forEach { p ->
@@ -67,7 +67,7 @@ object QuiverBackup {
             distanceM = o.optDouble("distanceM", 0.0), movingMs = o.optLong("movingMs"),
             elevationGainM = o.optDouble("elevationGainM", 0.0), steps = o.optInt("steps"),
             calories = o.optInt("calories"), splitsMs = o.optString("splitsMs"), preview = o.optString("preview"),
-            auto = o.optBoolean("auto"),
+            auto = o.optBoolean("auto"), bests = o.optString("bests"),
         )
         val arr = o.optJSONArray("points") ?: JSONArray()
         val points = (0 until arr.length()).mapNotNull { i ->
