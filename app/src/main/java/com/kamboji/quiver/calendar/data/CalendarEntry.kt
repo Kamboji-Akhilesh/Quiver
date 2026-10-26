@@ -1,5 +1,7 @@
 package com.kamboji.quiver.calendar.data
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 import org.json.JSONObject
 import java.time.Instant
 import java.time.LocalDate
@@ -31,9 +33,10 @@ enum class RepeatUnit(val label: String) {
     MONTHLY("month"),
 }
 
-/** A task (checkable) or a timed event, with an optional alert. */
+/** A task (checkable) or a timed event, with an optional alert. A row of `calendar_entries`. */
+@Entity(tableName = "calendar_entries")
 data class CalendarEntry(
-    val id: Long,
+    @PrimaryKey val id: Long,
     val type: EntryType,
     val title: String,
     val startMillis: Long,

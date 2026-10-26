@@ -103,4 +103,41 @@ class QuiverBackupTest {
         val back = QuiverBackup.parse("""{"app":"quiver","version":1}""")
         assertTrue(back.notes.isEmpty() && back.entries.isEmpty() && back.expenses.isEmpty())
     }
+
+    @Test
+    fun `moves round-trip with their points and merge by start time`() {
+        val move = com.kamboji.quiver.move.data.MoveEntity(
+            id = 7, type = "Run", startedAt = 1_000, endedAt = 61_000, distanceM = 152.5, splitsMs = "300000",
+        )
+        val pts = listOf(
+            com.kamboji.quiver.move.data.PointEntity(moveId = 7, t = 1_000, lat = 12.97, lon = 77.59, accM = 4f, altM = null, speedMps = 2.5f),
+            com.kamboji.quiver.move.data.PointEntity(moveId = 7, t = 2_000, lat = 12.971, lon = 77.591, accM = 5f, altM = 920.0, speedMps = null, resumed = true),
+        )
+        val back = QuiverBackup.parse(
+            QuiverBackup.export(emptyList(), emptyList(), emptyList(), moves = listOf(QuiverBackup.Move(move, pts))).toString(),
+        ).moves.single()
+        assertEquals(152.5, back.move.distanceM, 0.0)
+        assertEquals(61_000L, back.move.endedAt)
+        assertEquals(listOf(null, 920.0), back.points.map { it.altM })
+        assertEquals(listOf(2.5f, null), back.points.map { it.speedMps })
+        assertEquals(listOf(false, true), back.points.map { it.resumed })
+
+        assertTrue(QuiverBackup.newMoves(listOf(move), listOf(back)).isEmpty())
+        assertEquals(1, QuiverBackup.newMoves(emptyList(), listOf(back)).size)
+    }
+
+    @Test
+    fun `moves Move can't show are skipped`() {
+        val doc = QuiverBackup.export(emptyList(), emptyList(), emptyList()).put(
+            "moves",
+            org.json.JSONArray()
+                .put(org.json.JSONObject().put("type", "Teleport").put("startedAt", 1).put("endedAt", 2))
+                .put(org.json.JSONObject().put("type", "Run").put("startedAt", 1).put("endedAt", org.json.JSONObject.NULL))
+                .put(org.json.JSONObject().put("type", "Walk").put("startedAt", 1).put("endedAt", 5)
+                    .put("points", org.json.JSONArray().put(org.json.JSONArray("[1, 999, 0, 5, null, null, false]")))),
+        )
+        val moves = QuiverBackup.parse(doc.toString()).moves
+        assertEquals(listOf("Walk"), moves.map { it.move.type })
+        assertTrue(moves.single().points.isEmpty())
+    }
 }

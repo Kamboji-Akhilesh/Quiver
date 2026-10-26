@@ -1,5 +1,7 @@
 package com.kamboji.quiver.expenses.data
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 import org.json.JSONObject
 import java.time.Instant
 import java.time.YearMonth
@@ -52,8 +54,9 @@ enum class ExpenseCategory(val id: String, val label: String, val emoji: String)
  * in; [needsReview] keeps them flagged until the user confirms the guessed
  * category (editing an expense clears the flag).
  */
+@Entity(tableName = "expenses")
 data class Expense(
-    val id: Long,
+    @PrimaryKey val id: Long,
     val amountPaise: Long,
     val category: ExpenseCategory,
     val note: String,

@@ -1,5 +1,9 @@
 package com.kamboji.quiver.ui.screenshots
 
+import com.kamboji.quiver.ui.locale.displayName
+import androidx.compose.material.icons.filled.Close
+
+import com.kamboji.quiver.ui.locale.tr
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.runtime.produceState
@@ -24,6 +28,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -97,8 +102,6 @@ import java.util.Date
 import java.util.Locale
 
 
-private fun labelFor(d: DeleteDelay): String =
-    DELAY_PRESETS.firstOrNull { it.second == d }?.first ?: d.describe()
 
 /** Routes between the screenshots home and its history / search sub-screens. */
 @Composable
@@ -132,145 +135,111 @@ private fun HomeScreen(state: QuiverState) {
         } else {
             context.stopService(intent)
         }
-        state.toast(if (on) "Monitoring resumed" else "Monitoring paused", if (on) ToastKind.Success else ToastKind.Info)
+        state.toast(if (on) tr(R.string.shots_monitoring_resumed) else tr(R.string.shots_monitoring_paused), if (on) ToastKind.Success else ToastKind.Info)
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 140.dp)) {
         QvTopBar(stringResource(R.string.title_screenshots), ac, onBack = { state.go(AppKey.Hub) })
-        Column(Modifier.padding(horizontal = 18.dp)) {
-            // status hero
-            Column(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                    .background(Brush.linearGradient(listOf(ac.a.copy(alpha = if (colors.dark) 0.22f else 0.18f), ac.b.copy(alpha = 0.10f))))
-                    .border(1.dp, ac.a.copy(alpha = 0.32f), RoundedCornerShape(28.dp))
-                    .padding(20.dp),
-            ) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-                    // "Tap to resume" means it: the label resumes too. Active-state taps do nothing (no accidental pause).
-                    Row(
-                        Modifier.weight(1f).clickable(enabled = !enabled) { setService(true) },
-                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    ) {
-                        Box(
-                            Modifier.size(52.dp).clip(RoundedCornerShape(18.dp)).background(ac.a.copy(alpha = 0.2f))
-                                .border(1.dp, ac.a.copy(alpha = 0.45f), RoundedCornerShape(18.dp)),
-                            contentAlignment = Alignment.Center,
-                        ) { androidx.compose.material3.Icon(Icons.Outlined.Shield, null, Modifier.size(28.dp), tint = ac.txt(colors.dark)) }
-                        Column {
-                            Text(if (enabled) "PROTECTION ON" else "PAUSED", color = ac.txt(colors.dark), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
-                            Text(if (enabled) "Monitoring active" else "Not monitoring", fontSize = 17.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-                            Text(if (enabled) "New screenshots auto-clean" else "Tap to resume", fontSize = 12.5.sp, color = colors.dim)
-                        }
-                    }
-                    QvToggle(enabled, { setService(!enabled) }, ac)
-                }
-                Spacer(Modifier.height(18.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatTile("${history.size}", "In trash", ac, Modifier.weight(1f))
-                    StatTile(labelFor(delay), "Auto-delete", ac, Modifier.weight(1f))
-                    StatTile("7 days", "Retention", ac, Modifier.weight(1f))
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-            // notification preview (decorative)
+        Column(Modifier.padding(horizontal = 20.dp)) {
+            // status
             Row(
-                Modifier.fillMaxWidth().glass(colors).padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp),
+                Modifier.fillMaxWidth().glass(colors).clickable(enabled = !enabled) { setService(true) }.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(ac.a.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
-                    androidx.compose.material3.Icon(Icons.Outlined.Notifications, null, Modifier.size(20.dp), tint = ac.txt(colors.dark))
+                Box(
+                    Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(ac.iconColor(colors.dark).copy(alpha = 0.14f)),
+                    contentAlignment = Alignment.Center,
+                ) { androidx.compose.material3.Icon(Icons.Outlined.Shield, null, Modifier.size(20.dp), tint = ac.iconColor(colors.dark)) }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(if (enabled) tr(R.string.shots_protection_on_title) else tr(R.string.shots_not_monitoring), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
+                    Text(if (enabled) tr(R.string.shots_new_screenshots_auto_clean) else tr(R.string.shots_tap_to_resume), fontSize = 12.5.sp, color = colors.dim)
                 }
-                Column(Modifier.weight(1f)) {
-                    Text("How auto-clean works", fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                    Text("New screenshots are moved to trash after the delay below.", fontSize = 12.sp, color = colors.dim)
-                }
+                QvToggle(enabled, { setService(!enabled) }, ac)
             }
 
-            Spacer(Modifier.height(16.dp))
-            SectionLabel("Auto-delete after")
-            Spacer(Modifier.height(4.dp))
-            Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp)) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(9.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    DELAY_PRESETS.forEach { (label, d) ->
-                        Pill(label, delay == d, ac, {
-                            delay = d
-                            SettingsManager.saveDelay(context, d)
-                            state.toast("Auto-delete set to $label", ToastKind.Success)
-                        })
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-            // search-your-screenshots entry
+            Spacer(Modifier.height(12.dp))
             val indexedCount by remember { textDao.observeCount() }.collectAsState(0)
-            Row(
-                Modifier.fillMaxWidth().glass(colors).clickable { state.screenshotsScreen = "search" }.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(ac.a.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
-                    androidx.compose.material3.Icon(Icons.Outlined.Search, null, Modifier.size(22.dp), tint = ac.txt(colors.dark))
-                }
-                Column(Modifier.weight(1f)) {
-                    Text("Search screenshots", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                    Text(
-                        if (indexedCount == 0) "Text is read on-device as you capture" else "$indexedCount searchable by their text",
-                        fontSize = 12.5.sp, color = colors.dim,
-                    )
-                }
-                androidx.compose.material3.Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(20.dp), tint = colors.dim)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                StatTile("${history.size}", tr(R.string.shots_in_trash_restore_window), Modifier.weight(1f)) { state.screenshotsScreen = "history" }
+                StatTile("$indexedCount", tr(R.string.shots_searchable_by_text), Modifier.weight(1f)) { state.screenshotsScreen = "search" }
             }
 
             Spacer(Modifier.height(12.dp))
-            // backfill older screenshots (charger-friendly)
+            // search entry
             Row(
-                Modifier.fillMaxWidth().glass(colors).clickable {
+                Modifier.fillMaxWidth().height(48.dp).glass(colors, RoundedCornerShape(14.dp))
+                    .clickable { state.screenshotsScreen = "search" }.padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                androidx.compose.material3.Icon(Icons.Outlined.Search, null, Modifier.size(18.dp), tint = colors.dim)
+                Text(tr(R.string.shots_wifi_password_otp_address), fontSize = 14.sp, color = colors.dim)
+            }
+
+            Spacer(Modifier.height(16.dp))
+            SectionLabel(tr(R.string.shots_auto_delete_after))
+            Spacer(Modifier.height(8.dp))
+            // Equal columns that fill the width (a wrapping row left a ragged gap at the end).
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                DELAY_PRESETS.chunked(3).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        row.forEach { d ->
+                            val on = delay == d
+                            Box(
+                                Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(12.dp))
+                                    .background(if (on) ac.a.copy(alpha = 0.12f) else colors.surf)
+                                    .border(1.dp, if (on) ac.txt(colors.dark) else colors.border, RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        delay = d
+                                        SettingsManager.saveDelay(context, d)
+                                        state.toast(tr(R.string.shots_auto_delete_set_to_x, d.displayName), ToastKind.Success)
+                                    },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(d.displayName, fontSize = 13.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium, color = if (on) ac.txt(colors.dark) else colors.text, maxLines = 1)
+                            }
+                        }
+                        repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Column(Modifier.fillMaxWidth().glass(colors).padding(horizontal = 16.dp, vertical = 2.dp)) {
+                LinkRow(tr(R.string.shots_deletion_history), tr(R.string.shots_x_in_trash_restorable_for, history.size)) { state.screenshotsScreen = "history" }
+                Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
+                LinkRow(tr(R.string.shots_index_older_screenshots), tr(R.string.shots_reads_existing_shots_for_search)) {
                     OcrBackfillWorker.enqueue(context)
-                    state.toast("Indexing older screenshots while charging", ToastKind.Info)
-                }.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(ac.a.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
-                    androidx.compose.material3.Icon(Icons.Outlined.Bolt, null, Modifier.size(22.dp), tint = ac.txt(colors.dark))
+                    state.toast(tr(R.string.shots_indexing_older_screenshots_while_charging), ToastKind.Info)
                 }
-                Column(Modifier.weight(1f)) {
-                    Text("Index older screenshots", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                    Text("Reads existing shots for search — runs while charging", fontSize = 12.5.sp, color = colors.dim)
-                }
-                androidx.compose.material3.Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(20.dp), tint = colors.dim)
-            }
-
-            Spacer(Modifier.height(12.dp))
-            // history link
-            Row(
-                Modifier.fillMaxWidth().glass(colors).clickable { state.screenshotsScreen = "history" }.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(ac.a.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
-                    androidx.compose.material3.Icon(Icons.Outlined.History, null, Modifier.size(22.dp), tint = ac.txt(colors.dark))
-                }
-                Column(Modifier.weight(1f)) {
-                    Text("Deletion history", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                    Text("${history.size} in trash · restorable for 7 days", fontSize = 12.5.sp, color = colors.dim)
-                }
-                androidx.compose.material3.Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(20.dp), tint = colors.dim)
             }
         }
     }
 }
 
 @Composable
-private fun StatTile(value: String, label: String, ac: com.kamboji.quiver.ui.theme.Accent, modifier: Modifier) {
+private fun LinkRow(title: String, sub: String, onClick: () -> Unit) {
+    val colors = Quiver.colors
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onClick).padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
+            Text(sub, fontSize = 12.sp, color = colors.dim)
+        }
+        androidx.compose.material3.Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(18.dp), tint = colors.dim)
+    }
+}
+
+@Composable
+private fun StatTile(value: String, label: String, modifier: Modifier, onClick: () -> Unit) {
     val colors = Quiver.colors
     Column(
-        modifier.clip(RoundedCornerShape(16.dp))
-            .background(if (colors.dark) Color(0x2E000000) else Color(0x80FFFFFF))
-            .border(1.dp, colors.border, RoundedCornerShape(16.dp))
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+        modifier.glass(colors, RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = ac.txt(colors.dark), maxLines = 1)
-        Text(label, fontSize = 11.sp, color = colors.dim)
+        Text(value, fontSize = 24.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text, maxLines = 1)
+        Text(label, fontSize = 12.5.sp, color = colors.dim, maxLines = 1)
     }
 }
 
@@ -283,11 +252,13 @@ private fun HistoryScreen(state: QuiverState) {
     val dao = remember { AppDatabase.getDatabase(context).historyDao() }
     val history by remember { dao.getAllHistory() }.collectAsState(emptyList())
     var preview by remember { mutableStateOf<HistoryItem?>(null) }
+    // The list's restore/delete for each item, so the preview can run the same ones.
+    val previewActions = remember { mutableMapOf<Long, Pair<() -> Unit, () -> Unit>>() }
 
     Column(Modifier.fillMaxSize()) {
-        QvTopBar("Deletion history", ac, onBack = { state.screenshotsScreen = "home" })
+        QvTopBar(tr(R.string.shots_deletion_history), ac, onBack = { state.screenshotsScreen = "home" })
         LazyColumn(
-            Modifier.fillMaxSize().padding(horizontal = 18.dp),
+            Modifier.fillMaxSize().padding(horizontal = 20.dp),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 140.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -298,47 +269,69 @@ private fun HistoryScreen(state: QuiverState) {
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     androidx.compose.material3.Icon(Icons.Outlined.Info, null, Modifier.size(18.dp), tint = ac.txt(colors.dark))
-                    Text("Files are kept 7 days before permanent deletion", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = ac.txt(colors.dark))
+                    Text(tr(R.string.shots_files_are_kept_7_days), fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = ac.txt(colors.dark))
                 }
             }
             if (history.isEmpty()) {
                 item {
                     Column(Modifier.fillMaxWidth().padding(top = 50.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(
-                            Modifier.size(88.dp).clip(RoundedCornerShape(30.dp)).background(ac.a.copy(alpha = 0.12f))
-                                .border(1.dp, ac.a.copy(alpha = 0.25f), RoundedCornerShape(30.dp)),
+                            Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(colors.surf)
+                                .border(1.dp, colors.border, RoundedCornerShape(16.dp)),
                             contentAlignment = Alignment.Center,
-                        ) { androidx.compose.material3.Icon(Icons.Outlined.Shield, null, Modifier.size(40.dp), tint = ac.txt(colors.dark)) }
+                        ) { androidx.compose.material3.Icon(Icons.Outlined.Shield, null, Modifier.size(24.dp), tint = ac.iconColor(colors.dark)) }
                         Spacer(Modifier.height(20.dp))
-                        Text("Trash is empty", fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-                        Text("Cleaned screenshots appear here for 7 days.", fontSize = 13.5.sp, color = colors.dim)
+                        Text(tr(R.string.shots_trash_is_empty), fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+                        Text(tr(R.string.shots_cleaned_screenshots_appear_here_for), fontSize = 13.5.sp, color = colors.dim)
                     }
                 }
             } else {
                 items(history, key = { it.id }) { item ->
+                    val restore = {
+                        preview = null
+                        scope.launch {
+                            TrashManager.restoreFromTrash(context, item)
+                            dao.delete(item)
+                        }
+                        state.toast(tr(R.string.shots_screenshot_restored), ToastKind.Success)
+                    }
+                    val delete = {
+                        preview = null
+                        scope.launch {
+                            TrashManager.permanentlyDelete(context, item)
+                            dao.delete(item)
+                        }
+                        state.toast(tr(R.string.shots_permanently_deleted), ToastKind.Error)
+                    }
+                    previewActions[item.id] = restore to delete
                     TrashRow(
                         item, ac,
                         onPreview = { preview = item },
                         onRestore = {
+                            preview = null
                             scope.launch {
                                 TrashManager.restoreFromTrash(context, item)
                                 dao.delete(item)
                             }
-                            state.toast("Screenshot restored", ToastKind.Success)
+                            state.toast(tr(R.string.shots_screenshot_restored), ToastKind.Success)
                         },
                         onDelete = {
+                            preview = null
                             scope.launch {
                                 TrashManager.permanentlyDelete(context, item)
                                 dao.delete(item)
                             }
-                            state.toast("Permanently deleted", ToastKind.Error)
+                            state.toast(tr(R.string.shots_permanently_deleted), ToastKind.Error)
                         },
                     )
                 }
             }
         }
     }
-    preview?.let { TrashPreview(it) { preview = null } }
+    preview?.let { item ->
+        val (restore, delete) = previewActions[item.id] ?: return@let
+        TrashPreview(item, ac, onRestore = { restore() }, onDelete = { delete() }) { preview = null }
+    }
 }
 
 /** Decodes a trash file near [maxPx] on its short side — screenshots are big, rows are small. */
@@ -356,19 +349,38 @@ private fun loadTrashBitmap(path: String?, maxPx: Int): ImageBitmap? {
 private fun rememberTrashBitmap(path: String?, maxPx: Int): ImageBitmap? =
     produceState<ImageBitmap?>(null, path) { value = withContext(Dispatchers.IO) { loadTrashBitmap(path, maxPx) } }.value
 
-/** Full-screen look at a trashed screenshot before restoring or deleting it. */
+/** Full-screen look at a trashed screenshot, with Restore / Delete forever right there. */
 @Composable
-private fun TrashPreview(item: HistoryItem, onDismiss: () -> Unit) {
+private fun TrashPreview(item: HistoryItem, ac: com.kamboji.quiver.ui.theme.Accent, onRestore: () -> Unit, onDelete: () -> Unit, onDismiss: () -> Unit) {
     val image = rememberTrashBitmap(item.trashPath, 1080)
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(
-            Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.92f)).clickable(onClick = onDismiss),
-            contentAlignment = Alignment.Center,
+        Column(
+            Modifier.fillMaxSize().background(Color(0xF20A0B0C)).padding(horizontal = 18.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            if (image != null) {
-                Image(image, item.fileName, Modifier.fillMaxSize().padding(16.dp), contentScale = ContentScale.Fit)
-            } else {
-                Text("Preview unavailable", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(
+                    Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Color(0x1FFFFFFF)).clickable(onClick = onDismiss),
+                    contentAlignment = Alignment.Center,
+                ) { androidx.compose.material3.Icon(Icons.Filled.Close, tr(R.string.calendar_close), Modifier.size(18.dp), tint = Color.White) }
+                Column(Modifier.weight(1f)) {
+                    Text(item.fileName, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
+                    Text(tr(R.string.shots_deleted_x, formatWhen(item.deletedAt)), fontSize = 12.sp, color = Color(0xB3FFFFFF))
+                }
+            }
+            Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                if (image != null) Image(image, item.fileName, Modifier.fillMaxSize().clip(RoundedCornerShape(18.dp)), contentScale = ContentScale.Fit)
+                else Text(tr(R.string.shots_preview_unavailable), color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(
+                    Modifier.weight(1f).height(52.dp).clip(RoundedCornerShape(14.dp)).border(1.dp, Color(0x66FB7185), RoundedCornerShape(14.dp)).clickable(onClick = onDelete),
+                    contentAlignment = Alignment.Center,
+                ) { Text(tr(R.string.shots_delete_forever), color = Color(0xFFFB7185), fontSize = 14.sp, fontWeight = FontWeight.SemiBold) }
+                Box(
+                    Modifier.weight(1f).height(52.dp).clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(listOf(ac.a, ac.b))).clickable(onClick = onRestore),
+                    contentAlignment = Alignment.Center,
+                ) { Text(tr(R.string.shots_restore), color = ac.on, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
             }
         }
     }
@@ -399,11 +411,11 @@ private fun TrashRow(
         }
         Column(Modifier.weight(1f)) {
             Text(item.fileName, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text, maxLines = 1)
-            Text("Deleted ${formatWhen(item.deletedAt)}", fontSize = 12.sp, color = colors.dim)
+            Text(tr(R.string.shots_deleted_x, formatWhen(item.deletedAt)), fontSize = 12.sp, color = colors.dim)
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ActionChip("Restore", Icons.Outlined.Restore, ac.a, ac.txt(colors.dark), ac.a.copy(alpha = 0.14f), onRestore)
-                ActionChip("Delete", Icons.Filled.DeleteOutline, Color(0xFFFB7185), Color(0xFFFB7185), Color(0x1FFB7185), onDelete)
+                ActionChip(tr(R.string.shots_restore), Icons.Outlined.Restore, ac.a, ac.txt(colors.dark), ac.a.copy(alpha = 0.14f), onRestore)
+                ActionChip(tr(R.string.shots_delete), Icons.Filled.DeleteOutline, Color(0xFFFB7185), Color(0xFFFB7185), Color(0x1FFB7185), onDelete)
             }
         }
     }
@@ -453,8 +465,8 @@ private fun SearchScreen(state: QuiverState) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        QvTopBar("Search screenshots", ac, onBack = { state.screenshotsScreen = "home" })
-        Column(Modifier.padding(horizontal = 18.dp)) {
+        QvTopBar(tr(R.string.shots_search_screenshots), ac, onBack = { state.screenshotsScreen = "home" })
+        Column(Modifier.padding(horizontal = 20.dp)) {
             // search field
             Row(
                 Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(100.dp)).padding(horizontal = 18.dp, vertical = 13.dp),
@@ -462,7 +474,7 @@ private fun SearchScreen(state: QuiverState) {
             ) {
                 androidx.compose.material3.Icon(Icons.Outlined.Search, null, Modifier.size(19.dp), tint = colors.dim)
                 Box(Modifier.weight(1f)) {
-                    if (query.isEmpty()) Text("wifi password, OTP, address…", color = colors.dim, fontSize = 14.5.sp)
+                    if (query.isEmpty()) Text(tr(R.string.shots_wifi_password_otp_address), color = colors.dim, fontSize = 14.5.sp)
                     BasicTextField(
                         query, { query = it }, singleLine = true,
                         textStyle = TextStyle(color = colors.text, fontSize = 14.5.sp),
@@ -474,12 +486,12 @@ private fun SearchScreen(state: QuiverState) {
         }
 
         if (query.isBlank()) {
-            SearchHint(ac, "Search the text inside your screenshots", "Everything is read on your phone — nothing is uploaded.")
+            SearchHint(ac, tr(R.string.shots_search_the_text_inside_your), tr(R.string.shots_everything_is_read_on_your))
         } else if (results.isEmpty()) {
-            SearchHint(ac, "No matches", "Try different words, or index older screenshots from the Screenshots home.")
+            SearchHint(ac, tr(R.string.shots_no_matches), tr(R.string.shots_try_different_words_or_index))
         } else {
             LazyColumn(
-                Modifier.fillMaxSize().padding(horizontal = 18.dp),
+                Modifier.fillMaxSize().padding(horizontal = 20.dp),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 140.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
@@ -496,10 +508,10 @@ private fun SearchHint(ac: com.kamboji.quiver.ui.theme.Accent, title: String, bo
     val colors = Quiver.colors
     Column(Modifier.fillMaxWidth().padding(top = 60.dp, start = 32.dp, end = 32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
-            Modifier.size(88.dp).clip(RoundedCornerShape(30.dp)).background(ac.a.copy(alpha = 0.12f))
-                .border(1.dp, ac.a.copy(alpha = 0.25f), RoundedCornerShape(30.dp)),
+            Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(colors.surf)
+                .border(1.dp, colors.border, RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center,
-        ) { androidx.compose.material3.Icon(Icons.Outlined.Search, null, Modifier.size(40.dp), tint = ac.txt(colors.dark)) }
+        ) { androidx.compose.material3.Icon(Icons.Outlined.Search, null, Modifier.size(24.dp), tint = ac.iconColor(colors.dark)) }
         Spacer(Modifier.height(18.dp))
         Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
         Spacer(Modifier.height(6.dp))
@@ -530,7 +542,7 @@ private fun ResultRow(match: ScreenshotMatch, ac: com.kamboji.quiver.ui.theme.Ac
 }
 
 /** Opens the matched screenshot in the system viewer; toasts if the file is gone. */
-private fun openImage(context: android.content.Context, match: ScreenshotMatch, state: QuiverState) {
+internal fun openImage(context: android.content.Context, match: ScreenshotMatch, state: QuiverState) {
     val opened = runCatching {
         context.startActivity(
             Intent(Intent.ACTION_VIEW)
@@ -539,6 +551,6 @@ private fun openImage(context: android.content.Context, match: ScreenshotMatch, 
         )
         true
     }.getOrDefault(false)
-    if (!opened) state.toast("That screenshot is no longer on your phone — its text is still saved", ToastKind.Info)
+    if (!opened) state.toast(tr(R.string.shots_that_screenshot_is_no_longer), ToastKind.Info)
 }
 

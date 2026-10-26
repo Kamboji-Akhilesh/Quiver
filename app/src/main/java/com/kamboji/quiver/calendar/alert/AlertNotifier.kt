@@ -1,5 +1,6 @@
 package com.kamboji.quiver.calendar.alert
 
+import com.kamboji.quiver.ui.locale.tr
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -36,7 +37,7 @@ object AlertNotifier {
         val builder = Notification.Builder(context, ALERT_CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(entry.title)
-            .setContentText(if (entry.isEvent) "Event" else "Task")
+            .setContentText(if (entry.isEvent) tr(R.string.alert_event) else tr(R.string.alert_task))
             .setContentIntent(open)
             .setAutoCancel(true)
             .setGroup(ALERT_CHANNEL) // never let Android bundle Quiver's notifications — see ExpenseCapture
@@ -44,7 +45,7 @@ object AlertNotifier {
         if (entry.isTask && !entry.done) {
             builder.addAction(
                 Notification.Action.Builder(
-                    null, "Mark as done",
+                    null, tr(R.string.alert_mark_as_done),
                     actionPending(context, entry.id, AlertActionReceiver.ACTION_DONE),
                 ).build(),
             )
@@ -52,7 +53,7 @@ object AlertNotifier {
         // Both events and tasks can be re-reminded in 5 minutes.
         builder.addAction(
             Notification.Action.Builder(
-                null, "Remind in 5 min",
+                null, tr(R.string.alert_remind_in_5_min),
                 actionPending(context, entry.id, AlertActionReceiver.ACTION_SNOOZE_5),
             ).build(),
         )
@@ -89,8 +90,8 @@ object AlertNotifier {
             .setSmallIcon(R.drawable.ic_notification)
             .setGroup(CALL_CHANNEL)
             // Privacy: the task title is hidden until the user accepts the call.
-            .setContentTitle("Reminder")
-            .setContentText("Incoming reminder")
+            .setContentTitle(tr(R.string.alert_reminder))
+            .setContentText(tr(R.string.alert_incoming_reminder))
             .setContentIntent(pi)
             .setFullScreenIntent(pi, true)
             .setCategory(Notification.CATEGORY_CALL)
@@ -112,14 +113,14 @@ object AlertNotifier {
     private fun ensureChannels(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
-            NotificationChannel(ALERT_CHANNEL, "Calendar alerts", NotificationManager.IMPORTANCE_HIGH)
+            NotificationChannel(ALERT_CHANNEL, tr(R.string.alert_calendar_alerts), NotificationManager.IMPORTANCE_HIGH)
         )
         // Call channel rings + vibrates so the alert is noticeable even when the
         // full-screen call activity can't launch (e.g. Android 14 / OEM ROMs).
         // When the activity does launch, it cancels this notification and plays
         // its own looping ringtone instead.
         nm.createNotificationChannel(
-            NotificationChannel(CALL_CHANNEL, "Calendar calls", NotificationManager.IMPORTANCE_HIGH).apply {
+            NotificationChannel(CALL_CHANNEL, tr(R.string.alert_calendar_calls), NotificationManager.IMPORTANCE_HIGH).apply {
                 val ring = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
                 setSound(
                     ring,

@@ -1,6 +1,7 @@
 package com.kamboji.quiver.ui.onboarding
 
 import android.Manifest
+import androidx.compose.runtime.ReadOnlyComposable
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -55,8 +56,10 @@ import com.kamboji.quiver.ui.theme.Accents
 import com.kamboji.quiver.ui.theme.Display
 import com.kamboji.quiver.ui.theme.Quiver
 
-private val AiA = Color(0xFFA78BFA)
-private val AiB = Color(0xFF22D3EE)
+// The brand colours follow the theme: Glass keeps purple→cyan, flat themes use their accent.
+private val AiA: Color @Composable @ReadOnlyComposable get() = Accents.Hub.a
+private val AiB: Color @Composable @ReadOnlyComposable get() = Accents.Hub.b
+private val AiOn: Color @Composable @ReadOnlyComposable get() = Accents.Hub.on
 
 /**
  * First-run flow: what Quiver is → why it needs notifications (asked HERE, with
@@ -165,9 +168,9 @@ private fun Page(icon: ImageVector?, title: String, body: String) {
             contentAlignment = Alignment.Center,
         ) {
             if (icon == null) {
-                Text("Q", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 34.sp, fontFamily = Display)
+                Text("Q", color = AiOn, fontWeight = FontWeight.Bold, fontSize = 34.sp, fontFamily = Display)
             } else {
-                Icon(icon, null, Modifier.size(40.dp), tint = Color.White)
+                Icon(icon, null, Modifier.size(40.dp), tint = AiOn)
             }
         }
         Spacer(Modifier.height(26.dp))
@@ -190,7 +193,7 @@ private fun PrimaryButton(label: String, onClick: () -> Unit) {
             .background(Brush.linearGradient(listOf(AiA, AiB)))
             .clickable(onClick = onClick).padding(vertical = 15.dp),
         contentAlignment = Alignment.Center,
-    ) { Text(label, color = Color(0xFF06121A), fontSize = 15.sp, fontWeight = FontWeight.Bold) }
+    ) { Text(label, color = Quiver.accent.on, fontSize = 15.sp, fontWeight = FontWeight.Bold) }
 }
 
 @Composable

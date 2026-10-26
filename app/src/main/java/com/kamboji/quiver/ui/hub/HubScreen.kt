@@ -1,5 +1,29 @@
 package com.kamboji.quiver.ui.hub
 
+import androidx.compose.material.icons.outlined.GridView
+import android.net.Uri
+import androidx.compose.foundation.layout.fillMaxSize
+import com.kamboji.quiver.move.steps.Steps
+import androidx.compose.material.icons.outlined.Edit
+import java.time.format.DateTimeFormatter
+import java.time.LocalTime
+import com.kamboji.quiver.ui.components.QvTimePickerDialog
+import com.kamboji.quiver.ui.components.QvToggle
+import com.kamboji.quiver.brief.MorningBrief
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import com.kamboji.quiver.backup.BackupCrypto
+import com.kamboji.quiver.backup.BackupIO
+import com.kamboji.quiver.ui.components.Pill
+import kotlinx.coroutines.launch
+import com.kamboji.quiver.ui.locale.trPlural
+
+import com.kamboji.quiver.ui.locale.tr
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -13,6 +37,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,16 +54,17 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
 import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.StickyNote2
+import androidx.compose.material.icons.automirrored.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Icon
@@ -62,22 +88,21 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kamboji.quiver.R
-import com.kamboji.quiver.backup.QuiverBackup
 import com.kamboji.quiver.calendar.CalendarViewModel
-import com.kamboji.quiver.calendar.alert.AlertScheduler
 import com.kamboji.quiver.calendar.data.CalendarStore
 import com.kamboji.quiver.currency.CurrencyViewModel
 import com.kamboji.quiver.currency.Ui
 import com.kamboji.quiver.expenses.ExpensesViewModel
-import com.kamboji.quiver.currency.worker.RateAlertWorker
-import com.kamboji.quiver.currency.data.RateAlertStore
 import com.kamboji.quiver.expenses.data.ExpenseMath
 import com.kamboji.quiver.expenses.data.ExpenseStore
 import com.kamboji.quiver.focus.FocusPrefs
+import com.kamboji.quiver.move.data.MoveDatabase
+import com.kamboji.quiver.ui.move.startOfWeekMillis
 import com.kamboji.quiver.notes.NotesViewModel
 import com.kamboji.quiver.notes.data.NotesStore
 import com.kamboji.quiver.screenshots.data.SettingsManager
@@ -85,8 +110,6 @@ import com.kamboji.quiver.screenshots.data.db.AppDatabase
 import com.kamboji.quiver.ui.components.QuiverModalSheet
 import com.kamboji.quiver.ui.components.SectionLabel
 import com.kamboji.quiver.ui.components.glass
-import com.kamboji.quiver.ui.locale.AppLang
-import com.kamboji.quiver.ui.locale.AppLocale
 import com.kamboji.quiver.ui.shell.QuiverState
 import com.kamboji.quiver.ui.shell.ToastKind
 import com.kamboji.quiver.ui.theme.Accent
@@ -102,16 +125,17 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Calendar
 
-private data class AppMeta(val tag: String, val icon: ImageVector)
+internal data class AppMeta(val tag: String, val icon: ImageVector)
 
-private fun meta(app: AppKey): AppMeta = when (app) {
-    AppKey.Screenshots -> AppMeta("clear the clutter", Icons.Outlined.Image)
-    AppKey.Currency -> AppMeta("live & offline rates", Icons.Outlined.SwapHoriz)
-    AppKey.Calendar -> AppMeta("tasks, events & calls", Icons.Outlined.CalendarMonth)
-    AppKey.Notes -> AppMeta("quick thoughts & lists", Icons.Outlined.StickyNote2)
-    AppKey.Expenses -> AppMeta("know where money goes", Icons.Outlined.Payments)
-    AppKey.Focus -> AppMeta("block shorts & reels", Icons.Outlined.SelfImprovement)
-    AppKey.Hub -> AppMeta("your apps", Icons.Filled.AutoAwesome)
+internal fun meta(app: AppKey): AppMeta = when (app) {
+    AppKey.Screenshots -> AppMeta(tr(R.string.hub_clear_the_clutter), Icons.Outlined.Image)
+    AppKey.Currency -> AppMeta(tr(R.string.hub_live_offline_rates), Icons.Outlined.SwapHoriz)
+    AppKey.Calendar -> AppMeta(tr(R.string.hub_tasks_events_calls), Icons.Outlined.CalendarMonth)
+    AppKey.Notes -> AppMeta(tr(R.string.hub_quick_thoughts_lists), Icons.AutoMirrored.Outlined.StickyNote2)
+    AppKey.Expenses -> AppMeta(tr(R.string.hub_where_money_goes), Icons.Outlined.Payments)
+    AppKey.Focus -> AppMeta(tr(R.string.hub_block_shorts_reels), Icons.Outlined.SelfImprovement)
+    AppKey.Move -> AppMeta(tr(R.string.hub_run_walk_ride_hike), Icons.AutoMirrored.Outlined.DirectionsRun)
+    AppKey.Hub -> AppMeta(tr(R.string.hub_your_apps), Icons.Filled.AutoAwesome)
 }
 
 private fun greetingRes(): Int = when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
@@ -123,10 +147,10 @@ private fun greetingRes(): Int = when (Calendar.getInstance().get(Calendar.HOUR_
 private fun timeAgo(ts: Long): String {
     val mins = (System.currentTimeMillis() - ts) / 60000
     return when {
-        mins < 1 -> "now"
-        mins < 60 -> "${mins}m"
-        mins < 1440 -> "${mins / 60}h"
-        else -> "${mins / 1440}d"
+        mins < 1 -> tr(R.string.hub_now)
+        mins < 60 -> tr(R.string.hub_ago_minutes, mins)
+        mins < 1440 -> tr(R.string.hub_ago_hours, mins / 60)
+        else -> tr(R.string.hub_ago_days, mins / 1440)
     }
 }
 
@@ -160,10 +184,9 @@ fun HubScreen(state: QuiverState) {
         val saved = hubPrefs.pinnedApps()
         state.pinned.keys.toList().forEach { state.pinned[it] = it in saved }
     }
-    val dashApps = remember { mutableStateListOf<AppKey>().also { it.addAll(hubPrefs.dashboardApps()) } }
+    val dashApps = remember { mutableStateListOf<AppKey>().also { it.addAll(hubPrefs.dashboardApps().take(HOME_MAX)) } }
     var showAddPicker by remember { mutableStateOf(false) }
-    var showLangSheet by remember { mutableStateOf(false) }
-    val allApps = listOf(AppKey.Screenshots, AppKey.Currency, AppKey.Calendar, AppKey.Notes, AppKey.Expenses, AppKey.Focus)
+    val allApps = listOf(AppKey.Screenshots, AppKey.Currency, AppKey.Calendar, AppKey.Notes, AppKey.Expenses, AppKey.Focus, AppKey.Move)
 
     // Only hit the currency API if its tile is actually on the dashboard.
     val currencyOnDash = AppKey.Currency in dashApps
@@ -179,122 +202,120 @@ fun HubScreen(state: QuiverState) {
         Modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 18.dp)
+            .padding(horizontal = 20.dp)
             .padding(top = 4.dp, bottom = 140.dp),
     ) {
         // ---- header ----
         Row(
             Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column {
-                Text(stringResource(greetingRes()), color = colors.dim, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                Row {
-                    Text("Your ", fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-                    Text(
-                        "Quiver",
-                        fontSize = 30.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = Display,
-                        style = TextStyle(brush = Brush.linearGradient(listOf(Color(0xFFA78BFA), Color(0xFF22D3EE)))),
-                    )
-                }
+                Text(stringResource(greetingRes()), color = colors.dim, fontSize = 13.sp)
+                Text(
+                    tr(R.string.hub_quiver),
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = (-0.5).sp,
+                    fontFamily = Display,
+                    // Glass keeps its gradient wordmark; flat themes use plain text.
+                    style = if (colors.flat) TextStyle(color = colors.text) else TextStyle(brush = Brush.linearGradient(listOf(Accents.Hub.a, Accents.Hub.b))),
+                )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                HeaderIcon(if (colors.dark) Icons.Filled.LightMode else Icons.Filled.DarkMode) { state.toggleTheme() }
-                HeaderIcon(Icons.Outlined.Language) { showLangSheet = true }
                 val caughtUp = stringResource(R.string.hub_caught_up)
-                HeaderIcon(Icons.Outlined.Notifications) { state.toast(caughtUp, ToastKind.Info) }
-                Box(
-                    Modifier.size(44.dp).clip(CircleShape)
-                        .background(Brush.linearGradient(listOf(Color(0xFFA78BFA), Color(0xFF22D3EE)))),
-                    contentAlignment = Alignment.Center,
-                ) { Text("Q", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp, fontFamily = Display) }
+                HeaderIcon(Icons.Outlined.Notifications, tr(R.string.hub_notifications)) { state.toast(caughtUp, ToastKind.Info) }
+                HeaderIcon(Icons.Outlined.Settings, tr(R.string.settings_title)) { state.settingsOpen = true }
             }
         }
 
         // ---- search trigger ----
         Spacer(Modifier.height(18.dp))
         Row(
-            Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(100.dp))
+            Modifier.fillMaxWidth().height(48.dp).glass(colors, RoundedCornerShape(14.dp))
                 .clickable { state.closeOverlays(); state.searchOpen = true }
-                .padding(horizontal = 18.dp, vertical = 13.dp),
+                .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(11.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Icon(Icons.Outlined.Search, null, Modifier.size(19.dp), tint = colors.dim)
-            Text("Search apps, actions, rates…", color = colors.dim, fontSize = 14.5.sp, modifier = Modifier.weight(1f))
+            Icon(Icons.Outlined.Search, null, Modifier.size(18.dp), tint = colors.dim)
+            Text(tr(R.string.hub_search_apps_actions_rates), color = colors.dim, fontSize = 14.sp, modifier = Modifier.weight(1f))
         }
 
         // ---- AI suggestion banner (real, adaptive) ----
         Spacer(Modifier.height(14.dp))
         val (bannerText, bannerAction) = hubSuggestion(state, trash.size, todayCount, monitoring)
         Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
                 .background(
-                    Brush.linearGradient(
-                        listOf(Color(0xFFA78BFA).copy(alpha = if (colors.dark) 0.22f else 0.18f), Color(0xFF22D3EE).copy(alpha = 0.14f)),
-                    ),
+                    if (colors.flat) SolidColor(colors.surf)
+                    else Brush.linearGradient(listOf(Accents.Hub.a.copy(alpha = if (colors.dark) 0.22f else 0.18f), Accents.Hub.b.copy(alpha = 0.14f))),
                 )
-                .border(1.dp, Color(0xFFA78BFA).copy(alpha = 0.4f), RoundedCornerShape(24.dp))
+                .border(1.dp, if (colors.flat) colors.border else Accents.Hub.a.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
                 .clickable { bannerAction() }
-                .padding(16.dp),
+                .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Box(
-                Modifier.size(44.dp).clip(RoundedCornerShape(14.dp))
-                    .background(Brush.linearGradient(listOf(Color(0xFFA78BFA), Color(0xFF22D3EE)))),
+                Modifier.size(36.dp).clip(RoundedCornerShape(10.dp))
+                    .background(Brush.linearGradient(listOf(Accents.Hub.a, Accents.Hub.b))),
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Filled.AutoAwesome, null, Modifier.size(24.dp), tint = Color.White) }
-            Column(Modifier.weight(1f)) {
-                Text("QUIVER AI", color = Accents.Hub.txt(colors.dark), fontSize = 11.5.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                Text(bannerText, color = colors.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, lineHeight = 18.sp)
+            ) { Icon(Icons.Filled.AutoAwesome, null, Modifier.size(18.dp), tint = Accents.Hub.on) }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(tr(R.string.hub_quiver_ai), color = Accents.Hub.txt(colors.dark), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
+                Text(bannerText, color = colors.text, fontSize = 14.sp, lineHeight = 19.sp)
             }
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(20.dp), tint = colors.dim)
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(16.dp), tint = colors.dim)
         }
 
         // ---- quick actions ----
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(14.dp))
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(9.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             QuickAction(stringResource(R.string.qa_clean), Icons.Outlined.Image, Accents.Screenshots) { state.go(AppKey.Screenshots) }
             QuickAction(stringResource(R.string.qa_convert), Icons.Outlined.SwapHoriz, Accents.Currency) { state.go(AppKey.Currency) }
             QuickAction(stringResource(R.string.qa_new_event), Icons.Filled.Add, Accents.Calendar) { state.go(AppKey.Calendar); state.calendarStartNew = true }
-            QuickAction(stringResource(R.string.qa_new_note), Icons.Outlined.StickyNote2, Accents.Notes) { state.go(AppKey.Notes); state.notesStartNew = true }
+            QuickAction(stringResource(R.string.qa_new_note), Icons.AutoMirrored.Outlined.StickyNote2, Accents.Notes) { state.go(AppKey.Notes); state.notesStartNew = true }
             QuickAction(stringResource(R.string.qa_add_expense), Icons.Outlined.Payments, Accents.Expenses) { state.go(AppKey.Expenses); state.expensesStartNew = true }
+            QuickAction(tr(R.string.qa_start_run), Icons.AutoMirrored.Outlined.DirectionsRun, Accents.Move) { state.go(AppKey.Move) }
+            QuickAction(tr(R.string.qa_screen_time), Icons.Outlined.SelfImprovement, Accents.Focus) { state.go(AppKey.Focus) }
             QuickAction(stringResource(R.string.qa_ask_ai), Icons.Filled.AutoAwesome, Accents.Hub) { state.closeOverlays(); state.aiOpen = true }
         }
 
         // ---- mini apps ----
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(18.dp))
         SectionLabel(stringResource(R.string.section_mini_apps)) {
-            Row(
-                Modifier.clip(RoundedCornerShape(100.dp))
-                    .background(if (state.editMode) Accents.Hub.glow.copy(alpha = 0.15f) else colors.surf)
-                    .border(1.dp, if (state.editMode) Accents.Hub.glow.copy(alpha = 0.5f) else colors.border, RoundedCornerShape(100.dp))
-                    .clickable { state.editMode = !state.editMode }
-                    .padding(horizontal = 13.dp, vertical = 7.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            Box(
+                Modifier.size(36.dp).clip(RoundedCornerShape(10.dp))
+                    .background(if (state.editMode) Accents.Hub.a else colors.surf)
+                    .border(1.dp, if (state.editMode) Accents.Hub.a else colors.border, RoundedCornerShape(10.dp))
+                    .clickable { state.editMode = !state.editMode },
+                contentAlignment = Alignment.Center,
             ) {
-                Icon(if (state.editMode) Icons.Filled.Check else Icons.Outlined.Tune, null, Modifier.size(15.dp), tint = if (state.editMode) Accents.Hub.txt(colors.dark) else colors.dim)
-                Text(if (state.editMode) "Done" else "Customize", color = if (state.editMode) Accents.Hub.txt(colors.dark) else colors.dim, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                Icon(
+                    if (state.editMode) Icons.Filled.Check else Icons.Outlined.Edit,
+                    if (state.editMode) tr(R.string.hub_done) else tr(R.string.hub_customize),
+                    Modifier.size(16.dp), tint = if (state.editMode) Accents.Hub.on else colors.text,
+                )
             }
         }
         if (state.editMode) {
-            Text("Pin a card to feature it large · pinned cards sort to the top", color = colors.dim, fontSize = 12.sp, modifier = Modifier.padding(start = 2.dp, bottom = 8.dp))
+            Text(tr(R.string.hub_pin_a_card_to_feature), color = colors.dim, fontSize = 12.sp, modifier = Modifier.padding(start = 2.dp, bottom = 8.dp))
         } else {
             Spacer(Modifier.height(8.dp))
         }
 
-        val order = dashApps.sortedByDescending { state.pinned[it] == true }
+        // Home is a short list of favourites; the Apps page holds everything.
+        val order = dashApps.sortedByDescending { state.pinned[it] == true }.take(HOME_MAX)
         BentoGrid(
-            state, order, monitoring, todayCount, curRate, curVm.to, notesCount, monthSpend, hubPrefs,
+            state, order, monitoring, trash.size, todayCount, curRate, curVm.to, notesCount, monthSpend, hubPrefs,
+            canAdd = dashApps.size < HOME_MAX,
             onAddApp = { showAddPicker = true },
+            onAllApps = { state.closeOverlays(); state.launcherOpen = true },
             onRemoveApp = { app ->
                 dashApps.remove(app)
                 state.pinned[app] = false
@@ -311,7 +332,7 @@ fun HubScreen(state: QuiverState) {
         Column(Modifier.fillMaxWidth().glass(colors).padding(6.dp)) {
             if (activity.isEmpty()) {
                 Text(
-                    "Nothing yet — clean a screenshot or add an event to see it here.",
+                    tr(R.string.hub_nothing_yet_clean_a_screenshot),
                     color = colors.dim, fontSize = 13.sp, modifier = Modifier.padding(14.dp),
                 )
             } else {
@@ -321,54 +342,16 @@ fun HubScreen(state: QuiverState) {
             }
         }
 
-        // ---- your data (export / import) ----
-        Spacer(Modifier.height(22.dp))
-        SectionLabel(stringResource(R.string.section_your_data))
-        Spacer(Modifier.height(4.dp))
-        DataSection(state)
     }
 
     if (showAddPicker) {
         AddAppSheet(
             available = allApps.filter { it !in dashApps },
             onAdd = { app ->
-                if (app !in dashApps) { dashApps.add(app); hubPrefs.setDashboardApps(dashApps.toList()) }
+                if (app !in dashApps && dashApps.size < HOME_MAX) { dashApps.add(app); hubPrefs.setDashboardApps(dashApps.toList()) }
             },
             onDismiss = { showAddPicker = false },
         )
-    }
-    if (showLangSheet) LanguageSheet(onDismiss = { showLangSheet = false })
-}
-
-@Composable
-private fun LanguageSheet(onDismiss: () -> Unit) {
-    val colors = Quiver.colors
-    val context = LocalContext.current
-    val current = remember { AppLocale.current(context) }
-    QuiverModalSheet(onDismiss) { hide ->
-        Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(stringResource(R.string.settings_language), fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text, modifier = Modifier.padding(bottom = 10.dp))
-            AppLang.entries.forEach { lang ->
-                val sel = lang == current
-                Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                        .background(if (sel) Accents.Hub.a.copy(alpha = 0.14f) else Color.Transparent)
-                        .clickable {
-                            AppLocale.set(context, lang)
-                            hide()
-                            // Re-attach the base context so the new locale takes effect app-wide.
-                            (context as? android.app.Activity)?.recreate()
-                        }.padding(horizontal = 14.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        if (lang == AppLang.SYSTEM) stringResource(R.string.settings_language_system) else lang.label,
-                        fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = colors.text, modifier = Modifier.weight(1f),
-                    )
-                    if (sel) Icon(Icons.Filled.Check, null, Modifier.size(20.dp), tint = Accents.Hub.txt(colors.dark))
-                }
-            }
-        }
     }
 }
 
@@ -377,9 +360,9 @@ private fun AddAppSheet(available: List<AppKey>, onAdd: (AppKey) -> Unit, onDism
     val colors = Quiver.colors
     QuiverModalSheet(onDismiss) { hide ->
         Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Add to dashboard", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text, modifier = Modifier.padding(bottom = 8.dp))
+            Text(tr(R.string.hub_add_to_dashboard), fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text, modifier = Modifier.padding(bottom = 8.dp))
             if (available.isEmpty()) {
-                Text("All mini-apps are already on your dashboard.", color = colors.dim, fontSize = 14.sp, modifier = Modifier.padding(vertical = 8.dp))
+                Text(tr(R.string.hub_all_mini_apps_are_already), color = colors.dim, fontSize = 14.sp, modifier = Modifier.padding(vertical = 8.dp))
             } else {
                 available.forEach { app ->
                     val ac = Accents.of(app)
@@ -397,7 +380,7 @@ private fun AddAppSheet(available: List<AppKey>, onAdd: (AppKey) -> Unit, onDism
                             Text(stringResource(app.titleRes), fontSize = 14.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
                             Text(m.tag, fontSize = 12.sp, color = colors.dim)
                         }
-                        Text("Add", color = ac.txt(colors.dark), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text(tr(R.string.hub_add), color = ac.txt(colors.dark), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -406,12 +389,12 @@ private fun AddAppSheet(available: List<AppKey>, onAdd: (AppKey) -> Unit, onDism
 }
 
 private fun hubSuggestion(state: QuiverState, trashCount: Int, todayCount: Int, monitoring: Boolean): Pair<String, () -> Unit> = when {
-    trashCount > 0 -> "You have $trashCount screenshot${if (trashCount == 1) "" else "s"} in trash — restore or clear them." to {
+    trashCount > 0 -> trPlural(R.plurals.hub_trash_banner, trashCount) to {
         state.go(AppKey.Screenshots); state.screenshotsScreen = "history"
     }
-    todayCount > 0 -> "$todayCount ${if (todayCount == 1) "item is" else "items are"} on your calendar today." to { state.go(AppKey.Calendar) }
-    monitoring -> "Auto-clean is on — new screenshots are tidied for you." to { state.go(AppKey.Screenshots) }
-    else -> "All clear. Tap to ask Quiver AI for anything." to { state.closeOverlays(); state.aiOpen = true }
+    todayCount > 0 -> trPlural(R.plurals.hub_calendar_banner, todayCount) to { state.go(AppKey.Calendar) }
+    monitoring -> tr(R.string.hub_auto_clean_is_on_new) to { state.go(AppKey.Screenshots) }
+    else -> tr(R.string.hub_all_clear_tap_to_ask) to { state.closeOverlays(); state.aiOpen = true }
 }
 
 private data class HubActivity(val icon: ImageVector, val title: String, val app: AppKey, val ts: Long)
@@ -421,84 +404,195 @@ private fun buildHubActivity(
     entries: List<com.kamboji.quiver.calendar.data.CalendarEntry>,
     notes: List<com.kamboji.quiver.notes.data.Note>,
 ): List<HubActivity> = buildList {
-    trash.take(3).forEach { add(HubActivity(Icons.Outlined.Image, "Trashed ${it.fileName}", AppKey.Screenshots, it.deletedAt)) }
+    trash.take(3).forEach { add(HubActivity(Icons.Outlined.Image, tr(R.string.hub_trashed_x, it.fileName), AppKey.Screenshots, it.deletedAt)) }
     entries.sortedByDescending { it.createdAtMillis }.take(3).forEach {
-        add(HubActivity(Icons.Outlined.CalendarMonth, "Added “${it.title}”", AppKey.Calendar, it.createdAtMillis))
+        add(HubActivity(Icons.Outlined.CalendarMonth, tr(R.string.hub_added_x, it.title), AppKey.Calendar, it.createdAtMillis))
     }
     notes.sortedByDescending { it.updatedAtMillis }.take(3).forEach {
-        val name = it.title.trim().ifBlank { it.body.trim().lineSequence().firstOrNull()?.take(30) ?: "Untitled note" }
-        add(HubActivity(Icons.Outlined.StickyNote2, "Edited “$name”", AppKey.Notes, it.updatedAtMillis))
+        val name = it.title.trim().ifBlank { it.body.trim().lineSequence().firstOrNull()?.take(30) ?: tr(R.string.hub_untitled_note) }
+        add(HubActivity(Icons.AutoMirrored.Outlined.StickyNote2, tr(R.string.hub_edited_x, name), AppKey.Notes, it.updatedAtMillis))
     }
 }.sortedByDescending { it.ts }.take(3)
 
 /**
- * Export/import of the three JSON stores. SAF pickers keep this permissionless:
- * the user chooses where the backup goes / comes from.
+ * Export/import of everything (notes, calendar, expenses, alerts, Move) as one
+ * password-encrypted file. SAF pickers keep this permissionless: the user
+ * chooses where the backup goes / comes from.
  */
 @Composable
-private fun DataSection(state: QuiverState) {
+internal fun DataSection(state: QuiverState) {
     val colors = Quiver.colors
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    // Which password sheet is open; the password waits here while the file picker is up.
+    var asking by remember { mutableStateOf<Uri?>(null) }
+    var askExport by remember { mutableStateOf(false) }
+    var exportPassword by remember { mutableStateOf<CharArray?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var wrong by remember { mutableStateOf(false) }
 
     val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        runCatching {
-            val doc = QuiverBackup.export(
-                NotesStore(context).getAll(),
-                CalendarStore(context).getAll(),
-                ExpenseStore(context).getAll(),
-                RateAlertStore(context).getAll(),
-            )
-            context.contentResolver.openOutputStream(uri)!!.use { it.write(doc.toString(2).toByteArray()) }
-        }.onSuccess { state.toast("Backup saved") }
-            .onFailure { state.toast("Export failed", ToastKind.Error) }
+        val pw = exportPassword ?: return@rememberLauncherForActivityResult
+        exportPassword = null
+        if (uri == null) { pw.fill(' '); return@rememberLauncherForActivityResult }
+        scope.launch {
+            busy = true
+            runCatching { BackupIO.export(context, uri, pw) }
+                .onSuccess { state.toast(tr(R.string.hub_backup_saved)) }
+                .onFailure { state.toast(tr(R.string.hub_export_failed), ToastKind.Error) }
+            pw.fill(' ')
+            busy = false
+        }
+    }
+
+    fun import(uri: Uri, password: CharArray?) = scope.launch {
+        busy = true
+        wrong = false
+        runCatching { BackupIO.merge(context, BackupIO.read(context, uri, password)) }
+            .onSuccess { c ->
+                asking = null
+                state.toast(
+                    if (c.total == 0) tr(R.string.hub_everything_was_already_here)
+                    else tr(
+                        R.string.hub_imported_x,
+                        listOfNotNull(
+                            trPlural(R.plurals.count_notes, c.notes),
+                            trPlural(R.plurals.count_calendar_items, c.calendar),
+                            trPlural(R.plurals.count_expenses, c.expenses),
+                            c.alerts.takeIf { it > 0 }?.let { trPlural(R.plurals.count_alerts, it) },
+                            c.moves.takeIf { it > 0 }?.let { trPlural(R.plurals.count_activities, it) },
+                        ).joinToString(" · "),
+                    ),
+                )
+            }
+            .onFailure { e ->
+                when (e) {
+                    is BackupIO.NeedsPassword -> { wrong = false; asking = uri }
+                    is BackupCrypto.WrongPassword -> wrong = true
+                    else -> { asking = null; state.toast(tr(R.string.hub_that_file_isn_t_a), ToastKind.Error) }
+                }
+            }
+        password?.fill(' ')
+        busy = false
     }
 
     val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        runCatching {
-            val text = context.contentResolver.openInputStream(uri)!!.bufferedReader().use { it.readText() }
-            val imported = QuiverBackup.parse(text)
-
-            val notesStore = NotesStore(context)
-            val notes = QuiverBackup.mergeNotes(notesStore.getAll(), imported.notes) { notesStore.nextId() }
-            notesStore.saveAll(notes.merged)
-
-            val calStore = CalendarStore(context)
-            val cal = QuiverBackup.mergeEntries(calStore.getAll(), imported.entries) { calStore.nextId() }
-            calStore.saveAll(cal.merged)
-            // Imported reminders should fire like locally-created ones.
-            cal.added.forEach { AlertScheduler.reschedule(context, it) }
-
-            val expStore = ExpenseStore(context)
-            val exp = QuiverBackup.mergeExpenses(expStore.getAll(), imported.expenses) { expStore.nextId() }
-            expStore.saveAll(exp.merged)
-
-            val alertStore = RateAlertStore(context)
-            val alerts = QuiverBackup.mergeRateAlerts(alertStore.getAll(), imported.rateAlerts) { alertStore.nextId() }
-            alertStore.saveAll(alerts.merged)
-            // Imported alerts need the background check running to ever fire.
-            if (alerts.added.any { !it.triggered }) RateAlertWorker.ensureScheduled(context)
-
-            listOf(notes.added.size, cal.added.size, exp.added.size, alerts.added.size)
-        }.onSuccess { (n, c, e, a) ->
-            state.toast(
-                if (n + c + e + a == 0) "Everything was already here"
-                else "Imported $n note${if (n == 1) "" else "s"} · $c calendar · $e expense${if (e == 1) "" else "s"}" +
-                    if (a > 0) " · $a alert${if (a == 1) "" else "s"}" else "",
-            )
-        }.onFailure { state.toast("That file isn't a Quiver backup", ToastKind.Error) }
+        if (uri != null) import(uri, null)
     }
 
     Column(Modifier.fillMaxWidth().glass(colors).padding(6.dp)) {
-        DataRow(Icons.Outlined.FileUpload, "Export data", "Notes, calendar, expenses & alerts → one file", true) {
-            exporter.launch("quiver-backup-${LocalDate.now()}.json")
+        DataRow(Icons.Outlined.FileUpload, tr(R.string.hub_export_data), tr(R.string.hub_notes_calendar_expenses_alerts_one), true) {
+            askExport = true
         }
-        DataRow(Icons.Outlined.FileDownload, "Import data", "Merge a backup into this phone", false) {
+        DataRow(Icons.Outlined.FileDownload, tr(R.string.hub_import_data), tr(R.string.hub_merge_a_backup_into_this), false) {
             importer.launch(arrayOf("application/json"))
         }
     }
+
+    if (askExport) PasswordSheet(
+        title = tr(R.string.backup_set_password), detail = tr(R.string.backup_set_password_why),
+        confirm = true, busy = false, error = null, onDismiss = { askExport = false },
+    ) { pw ->
+        exportPassword = pw
+        askExport = false
+        exporter.launch("quiver-backup-${LocalDate.now()}.json")
+    }
+    asking?.let { uri ->
+        PasswordSheet(
+            title = tr(R.string.backup_enter_password), detail = tr(R.string.backup_enter_password_why),
+            confirm = false, busy = busy, error = if (wrong) tr(R.string.backup_wrong_password) else null,
+            onDismiss = { asking = null },
+        ) { pw -> import(uri, pw) }
+    }
 }
+
+/** Morning brief on/off and its time. */
+@Composable
+internal fun BriefRow() {
+    val colors = Quiver.colors
+    val context = LocalContext.current
+    var on by remember { mutableStateOf(MorningBrief.isOn(context)) }
+    var time by remember { mutableStateOf(MorningBrief.time(context)) }
+    var picking by remember { mutableStateOf(false) }
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 58.dp).clickable { picking = true }.padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(tr(R.string.brief_setting), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
+            Text(
+                if (on) tr(R.string.brief_setting_on, time.format(DateTimeFormatter.ofPattern("h:mm a"))) else tr(R.string.brief_setting_off),
+                fontSize = 12.sp, color = colors.dim, lineHeight = 16.sp,
+            )
+        }
+        QvToggle(on, { on = !on; MorningBrief.set(context, on, time) }, Accents.Hub)
+    }
+    if (picking) QvTimePickerDialog(time.hour, time.minute, Accents.Hub, { h, m ->
+        time = LocalTime.of(h, m)
+        on = true
+        MorningBrief.set(context, true, time)
+    }, { picking = false })
+}
+
+@Composable
+private fun PasswordSheet(
+    title: String,
+    detail: String,
+    confirm: Boolean,
+    busy: Boolean,
+    error: String?,
+    onDismiss: () -> Unit,
+    onSubmit: (CharArray) -> Unit,
+) {
+    val colors = Quiver.colors
+    var pw by remember { mutableStateOf("") }
+    var again by remember { mutableStateOf("") }
+    val problem = when {
+        pw.length < MIN_PASSWORD -> tr(R.string.backup_password_too_short, MIN_PASSWORD)
+        confirm && again != pw -> tr(R.string.backup_passwords_differ)
+        else -> null
+    }
+    QuiverModalSheet(onDismiss) { _ ->
+        Column(
+            Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 24.dp).imePadding(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(title, fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+            Text(detail, fontSize = 13.sp, color = colors.dim, lineHeight = 18.sp)
+            PasswordField(pw, { pw = it }, tr(R.string.backup_password))
+            if (confirm) PasswordField(again, { again = it }, tr(R.string.backup_password_again))
+            val shown = error ?: problem?.takeIf { pw.isNotEmpty() && (!confirm || again.isNotEmpty()) }
+            if (shown != null) Text(shown, fontSize = 12.5.sp, color = Color(0xFFE5484D))
+            Pill(
+                if (busy) tr(R.string.backup_working) else tr(R.string.backup_continue),
+                problem == null && !busy, Accents.Hub,
+                { if (problem == null && !busy) onSubmit(pw.toCharArray()) },
+                Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PasswordField(value: String, onChange: (String) -> Unit, hint: String) {
+    val colors = Quiver.colors
+    Box(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(100.dp)).background(colors.surf)
+            .border(1.dp, colors.border, RoundedCornerShape(100.dp)).padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        if (value.isEmpty()) Text(hint, fontSize = 15.sp, color = colors.faint)
+        BasicTextField(
+            value, onChange, singleLine = true,
+            textStyle = TextStyle(color = colors.text, fontSize = 15.sp), cursorBrush = SolidColor(Accents.Hub.a),
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+private const val MIN_PASSWORD = 8
 
 @Composable
 private fun DataRow(icon: ImageVector, title: String, detail: String, divider: Boolean, onClick: () -> Unit) {
@@ -509,12 +603,8 @@ private fun DataRow(icon: ImageVector, title: String, detail: String, divider: B
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(13.dp),
     ) {
-        Box(
-            Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(Accents.Hub.a.copy(alpha = 0.14f)),
-            contentAlignment = Alignment.Center,
-        ) { Icon(icon, null, Modifier.size(19.dp), tint = Accents.Hub.txt(colors.dark)) }
-        Column(Modifier.weight(1f)) {
-            Text(title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
             Text(detail, fontSize = 12.sp, color = colors.dim)
         }
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(18.dp), tint = colors.dim)
@@ -523,58 +613,64 @@ private fun DataRow(icon: ImageVector, title: String, detail: String, divider: B
 }
 
 @Composable
-private fun HeaderIcon(icon: ImageVector, onClick: () -> Unit) {
+private fun HeaderIcon(icon: ImageVector, label: String, onClick: () -> Unit) {
     val colors = Quiver.colors
     Box(
-        Modifier.size(44.dp).clip(CircleShape).background(colors.surf)
-            .border(1.dp, colors.border, CircleShape).clickable(onClick = onClick),
+        Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(colors.surf)
+            .border(1.dp, colors.border, RoundedCornerShape(12.dp)).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
-    ) { Icon(icon, null, Modifier.size(21.dp), tint = colors.text) }
+    ) { Icon(icon, label, Modifier.size(18.dp), tint = colors.text) }
 }
 
 @Composable
 private fun QuickAction(label: String, icon: ImageVector, accent: Accent, onClick: () -> Unit) {
     val colors = Quiver.colors
     Row(
-        Modifier.glass(colors, RoundedCornerShape(16.dp)).clickable(onClick = onClick).padding(horizontal = 15.dp, vertical = 11.dp),
+        Modifier.height(40.dp).clip(RoundedCornerShape(12.dp)).border(1.dp, colors.border, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick).padding(start = 12.dp, end = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Icon(icon, null, Modifier.size(17.dp), tint = accent.txt(colors.dark))
-        Text(label, color = colors.text, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, fontFamily = Body)
+        Icon(icon, null, Modifier.size(16.dp), tint = accent.iconColor(colors.dark))
+        Text(label, color = colors.text, fontSize = 13.sp, fontWeight = FontWeight.Medium, fontFamily = Body)
     }
 }
 
 @Composable
-private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boolean, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int, monthSpend: String, hubPrefs: HubPrefs, onAddApp: () -> Unit, onRemoveApp: (AppKey) -> Unit) {
+private fun BentoGrid(state: QuiverState, order: List<AppKey>, monitoring: Boolean, trashCount: Int, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int, monthSpend: String, hubPrefs: HubPrefs, canAdd: Boolean, onAddApp: () -> Unit, onAllApps: () -> Unit, onRemoveApp: (AppKey) -> Unit) {
     val colors = Quiver.colors
     val rows = packTiles(order) { state.pinned[it] == true }
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         rows.forEach { row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 row.forEach { app ->
                     val big = state.pinned[app] == true
-                    BentoTile(state, app, big, monitoring, todayCount, curRate, curTo, notesCount, monthSpend, hubPrefs, { onRemoveApp(app) }, Modifier.weight(1f))
+                    BentoTile(state, app, big, monitoring, trashCount, todayCount, curRate, curTo, notesCount, monthSpend, hubPrefs, { onRemoveApp(app) }, Modifier.weight(1f))
                 }
                 if (row.size == 1 && state.pinned[row[0]] != true) Spacer(Modifier.weight(1f))
             }
         }
+        val add = canAdd && (state.editMode || order.isEmpty())
         Row(
-            Modifier.fillMaxWidth().height(80.dp).clip(RoundedCornerShape(24.dp))
-                .background(colors.surf)
-                .border(1.5.dp, colors.border2, RoundedCornerShape(24.dp))
-                .clickable(onClick = onAddApp),
+            Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(14.dp))
+                .border(1.dp, colors.border, RoundedCornerShape(14.dp))
+                .clickable(onClick = if (add) onAddApp else onAllApps),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {
-            Icon(Icons.Filled.Add, null, Modifier.size(20.dp), tint = colors.dim)
-            Spacer(Modifier.width(10.dp))
-            Text("More mini-apps land here", color = colors.dim, fontWeight = FontWeight.SemiBold)
+            Icon(if (add) Icons.Filled.Add else Icons.Outlined.GridView, null, Modifier.size(18.dp), tint = colors.dim)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                if (add) tr(R.string.hub_add_to_home_x_of_y, order.size, HOME_MAX) else tr(R.string.hub_all_apps),
+                color = colors.dim, fontSize = 13.5.sp, fontWeight = FontWeight.Medium,
+            )
         }
     }
 }
 
 /** Greedily groups apps into rows: a big (pinned) tile fills its own row. */
+private const val HOME_MAX = 4
+
 private fun packTiles(order: List<AppKey>, isBig: (AppKey) -> Boolean): List<List<AppKey>> {
     val rows = mutableListOf<List<AppKey>>()
     var i = 0
@@ -597,6 +693,7 @@ private fun BentoTile(
     app: AppKey,
     big: Boolean,
     monitoring: Boolean,
+    trashCount: Int,
     todayCount: Int,
     curRate: Double?,
     curTo: String,
@@ -611,24 +708,35 @@ private fun BentoTile(
     val m = meta(app)
     Box(
         modifier
-            .height(if (big) 184.dp else 178.dp)
-            .clip(RoundedCornerShape(28.dp))
+            .height(120.dp)
+            .clip(RoundedCornerShape(18.dp))
             .background(
-                Brush.linearGradient(
+                if (colors.flat) SolidColor(colors.surf)
+                else Brush.linearGradient(
                     listOf(
                         ac.a.copy(alpha = if (colors.dark) 0.22f else 0.18f),
                         ac.b.copy(alpha = if (colors.dark) 0.10f else 0.07f),
                     ),
                 ),
             )
-            .border(1.dp, ac.a.copy(alpha = if (colors.dark) 0.28f else 0.32f), RoundedCornerShape(28.dp))
+            .border(1.dp, if (colors.flat) colors.border else ac.a.copy(alpha = if (colors.dark) 0.28f else 0.32f), RoundedCornerShape(18.dp))
             .clickable { if (state.editMode) togglePin(state, app, hubPrefs) else state.go(app) }
-            .padding(18.dp),
+            .padding(14.dp),
     ) {
-        Icon(
-            m.icon, null, tint = ac.a.copy(alpha = 0.14f),
-            modifier = Modifier.align(Alignment.BottomEnd).size(if (big) 110.dp else 96.dp),
-        )
+        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(
+                    Modifier.size(32.dp).clip(RoundedCornerShape(9.dp))
+                        .background(ac.iconColor(colors.dark).copy(alpha = if (colors.dark) 0.14f else 0.12f)),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(m.icon, null, Modifier.size(17.dp), tint = ac.iconColor(colors.dark)) }
+                Text(
+                    stringResource(app.titleRes), fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                    color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+                )
+            }
+            TileSummary(app, ac, monitoring, trashCount, todayCount, curRate, curTo, notesCount, monthSpend)
+        }
         if (state.editMode) {
             Row(Modifier.align(Alignment.TopEnd), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Box(
@@ -642,21 +750,8 @@ private fun BentoTile(
                         .border(1.dp, colors.border, CircleShape)
                         .clickable { togglePin(state, app, hubPrefs) },
                     contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Outlined.PushPin, null, Modifier.size(15.dp), tint = if (state.pinned[app] == true) Color.White else colors.dim) }
+                ) { Icon(Icons.Outlined.PushPin, null, Modifier.size(15.dp), tint = if (state.pinned[app] == true) ac.on else colors.dim) }
             }
-        }
-        Column(Modifier.fillMaxWidth(if (big) 0.62f else 1f)) {
-            Box(
-                Modifier.size(46.dp).clip(RoundedCornerShape(15.dp))
-                    .background(ac.a.copy(alpha = if (colors.dark) 0.2f else 0.18f))
-                    .border(1.dp, ac.a.copy(alpha = 0.4f), RoundedCornerShape(15.dp)),
-                contentAlignment = Alignment.Center,
-            ) { Icon(m.icon, null, Modifier.size(24.dp), tint = ac.txt(colors.dark)) }
-            Spacer(Modifier.weight(1f))
-            Text(stringResource(app.titleRes), fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-            Text(m.tag, fontSize = 12.5.sp, color = colors.dim)
-            Spacer(Modifier.height(11.dp))
-            TileSummary(app, ac, monitoring, todayCount, curRate, curTo, notesCount, monthSpend)
         }
     }
 }
@@ -665,40 +760,42 @@ private fun togglePin(state: QuiverState, app: AppKey, hubPrefs: HubPrefs) {
     val now = !(state.pinned[app] ?: false)
     state.pinned[app] = now
     hubPrefs.setPinnedApps(state.pinned.filterValues { it }.keys)
-    state.toast(if (now) "Pinned to top" else "Unpinned", ToastKind.Info)
+    state.toast(if (now) tr(R.string.hub_pinned_to_top) else tr(R.string.hub_unpinned), ToastKind.Info)
+}
+
+/** A tile's figure: the number on its own line, the label beneath, both one line. */
+@Composable
+private fun Stat(value: String, label: String) {
+    val colors = Quiver.colors
+    Column {
+        Text(value, fontSize = 21.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(label, fontSize = 12.sp, color = colors.dim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
 }
 
 @Composable
-private fun TileSummary(app: AppKey, ac: Accent, monitoring: Boolean, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int, monthSpend: String) {
-    val colors = Quiver.colors
+private fun TileSummary(app: AppKey, ac: Accent, monitoring: Boolean, trashCount: Int, todayCount: Int, curRate: Double?, curTo: String, notesCount: Int, monthSpend: String) {
+    val context = LocalContext.current
     when (app) {
-        AppKey.Screenshots -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(Modifier.size(9.dp).clip(CircleShape).background(if (monitoring) ac.a else colors.faint))
-            Text(if (monitoring) "Monitoring active" else "Paused", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = if (monitoring) ac.txt(colors.dark) else colors.dim)
-        }
-        AppKey.Currency -> Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(curRate?.let { "%.2f".format(it) } ?: "—", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
-            Text("USD→$curTo", fontSize = 12.sp, color = colors.dim)
-        }
-        AppKey.Calendar -> Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("$todayCount", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
-            Text(if (todayCount == 1) "item today" else "items today", fontSize = 12.sp, color = colors.dim)
-        }
-        AppKey.Notes -> Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("$notesCount", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
-            Text(if (notesCount == 1) "note" else "notes", fontSize = 12.sp, color = colors.dim)
-        }
-        AppKey.Expenses -> Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(monthSpend, fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
-            Text("this month", fontSize = 12.sp, color = colors.dim)
-        }
+        AppKey.Screenshots -> Stat("$trashCount", tr(if (monitoring) R.string.hub_tile_trash_monitoring else R.string.hub_tile_trash_paused))
+        AppKey.Currency -> Stat(curRate?.let { "%.2f".format(it) } ?: "—", tr(R.string.hub_usd_x, curTo))
+        AppKey.Calendar -> Stat("$todayCount", trPlural(R.plurals.hub_items_today_label, todayCount))
+        AppKey.Notes -> Stat("$notesCount", trPlural(R.plurals.hub_notes_label, notesCount))
+        AppKey.Expenses -> Stat(monthSpend, tr(R.string.hub_this_month))
         AppKey.Focus -> {
-            val context = LocalContext.current
             val focused = LocalWindowInfo.current.isWindowFocused // refresh on return from a blocked app
             val blocked = remember(focused) { FocusPrefs(context).blockedOn() }
-            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("$blocked", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
-                Text("blocked today", fontSize = 12.sp, color = colors.dim)
+            Stat("$blocked", tr(R.string.hub_blocked_today))
+        }
+        AppKey.Move -> {
+            if (Steps.hasPermission(context) && Steps.hasChip(context)) {
+                val today = LocalDate.now()
+                val hours by remember { MoveDatabase.get(context).steps().between(today.toString(), today.plusDays(1).toString()) }.collectAsState(emptyList())
+                val steps = hours.sumOf { it.steps }
+                Stat("%,d".format(steps), tr(R.string.hub_tile_steps_x, (steps * 100 / Steps.goal(context)).toInt()))
+            } else {
+                val weekKm by remember { MoveDatabase.get(context).dao().distanceSince(startOfWeekMillis()) }.collectAsState(0.0)
+                Stat("%.1f".format(weekKm / 1000), tr(R.string.hub_km_this_week))
             }
         }
         AppKey.Hub -> Unit

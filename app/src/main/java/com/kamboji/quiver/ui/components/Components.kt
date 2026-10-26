@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -44,7 +45,7 @@ import com.kamboji.quiver.ui.theme.QuiverColors
  */
 fun Modifier.glass(
     colors: QuiverColors,
-    shape: Shape = RoundedCornerShape(26.dp),
+    shape: Shape = RoundedCornerShape(20.dp),
 ): Modifier = this
     .clip(shape)
     .background(colors.surf)
@@ -59,25 +60,26 @@ fun Modifier.surfaceCard(
     .background(if (colors.dark) Color(0x2E000000) else Color(0x8CFFFFFF))
     .border(BorderStroke(1.dp, colors.border), shape)
 
-/** Round, glassy icon button (theme toggle, bell, back chevron, etc.). */
+/** Rounded-square icon button (bell, back chevron, month arrows, etc.). */
 @Composable
 fun QvIconButton(
     icon: ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    size: Dp = 42.dp,
-    iconSize: Dp = 21.dp,
+    size: Dp = 40.dp,
+    iconSize: Dp = 18.dp,
     background: Color? = null,
     tint: Color? = null,
     contentDescription: String? = null,
 ) {
     val colors = Quiver.colors
+    val shape = RoundedCornerShape(size * 0.3f)
     Box(
         modifier
             .size(size)
-            .clip(CircleShape)
+            .clip(shape)
             .background(background ?: colors.surf)
-            .border(BorderStroke(1.dp, colors.border), CircleShape)
+            .border(BorderStroke(1.dp, colors.border), shape)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -106,11 +108,11 @@ fun SectionLabel(
     ) {
         Text(
             text.uppercase(),
-            color = colors.faint,
+            color = colors.dim,
             fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.SemiBold,
             fontFamily = Body,
-            letterSpacing = 1.4.sp,
+            letterSpacing = 1.sp,
             modifier = Modifier.weight(1f, fill = false),
         )
         trailing?.invoke()
@@ -127,23 +129,21 @@ fun Pill(
     modifier: Modifier = Modifier,
 ) {
     val colors = Quiver.colors
-    val shape = RoundedCornerShape(100.dp)
+    val shape = RoundedCornerShape(10.dp)
     Box(
         modifier
             .clip(shape)
-            .background(if (active) accent.glow.copy(alpha = if (colors.dark) 0.16f else 0.14f) else colors.surf)
-            .border(
-                BorderStroke(1.dp, if (active) accent.glow.copy(alpha = 0.55f) else colors.border),
-                shape,
-            )
+            .background(if (active) accent.glow.copy(alpha = 0.12f) else Color.Transparent)
+            .border(BorderStroke(1.dp, if (active) accent.txt(colors.dark) else colors.border), shape)
             .clickable(onClick = onClick)
-            .padding(horizontal = 15.dp, vertical = 9.dp),
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             label,
-            color = if (active) accent.txt(colors.dark) else colors.dim,
-            fontSize = 13.5.sp,
-            fontWeight = FontWeight.SemiBold,
+            color = if (active) accent.txt(colors.dark) else colors.text,
+            fontSize = 13.sp,
+            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
             fontFamily = Body,
         )
     }
@@ -158,11 +158,15 @@ fun QvToggle(
     modifier: Modifier = Modifier,
 ) {
     val colors = Quiver.colors
-    val knobShift by animateDpAsState(if (on) 24.dp else 0.dp, label = "knob")
-    val trackOff = if (colors.dark) Color(0x24FFFFFF) else Color(0x2412162D)
+    val knobShift by animateDpAsState(if (on) 20.dp else 0.dp, label = "knob")
+    val trackOff = when {
+        !colors.flat -> if (colors.dark) Color(0x24FFFFFF) else Color(0x2412162D)
+        colors.dark -> Color(0xFF2A2C31)
+        else -> colors.border2
+    }
     Box(
         modifier
-            .size(width = 56.dp, height = 32.dp)
+            .size(width = 48.dp, height = 28.dp)
             .clip(CircleShape)
             .background(
                 if (on) Brush.linearGradient(listOf(accent.a, accent.b))
@@ -179,9 +183,34 @@ fun QvToggle(
         Box(
             Modifier
                 .offset(x = knobShift)
-                .size(26.dp)
+                .size(22.dp)
                 .clip(CircleShape)
-                .background(Color.White),
+                .background(if (on) accent.on else if (colors.flat && colors.dark) colors.faint else Color.White),
         )
+    }
+}
+
+/** A segmented choice on a recessed track: the picked option sits on a raised fill. */
+@Composable
+fun <T> QvSegmented(options: List<Pair<T, String>>, selected: T, modifier: Modifier = Modifier, track: Color? = null, onPick: (T) -> Unit) {
+    val colors = Quiver.colors
+    Row(
+        modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+            .background(track ?: colors.surf)
+            .border(BorderStroke(1.dp, colors.border), RoundedCornerShape(12.dp))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        options.forEach { (value, label) ->
+            val on = value == selected
+            Box(
+                Modifier.weight(1f).height(36.dp).clip(RoundedCornerShape(9.dp))
+                    .background(if (on) colors.border else Color.Transparent)
+                    .clickable { onPick(value) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(label, fontSize = 13.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium, color = if (on) colors.text else colors.dim, fontFamily = Body)
+            }
+        }
     }
 }

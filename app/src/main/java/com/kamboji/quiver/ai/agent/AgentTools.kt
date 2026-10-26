@@ -94,7 +94,7 @@ class AgentTools(private val app: Context) {
             val body = args.optString("body").trim()
             if (title.isEmpty() && body.isEmpty()) return ToolResult(false, "Note was empty")
             val now = System.currentTimeMillis()
-            notes.saveAll(notes.getAll() + Note(notes.nextId(), title, body, 0, false, now, now))
+            notes.put(Note(notes.nextId(), title, body, 0, false, now, now))
             return ToolResult(true, "Added note “${title.ifBlank { "Untitled" }}”")
         }
     }
@@ -114,7 +114,7 @@ class AgentTools(private val app: Context) {
                 body = (target.body.trimEnd() + "\n\n" + text).trim(),
                 updatedAtMillis = System.currentTimeMillis(),
             )
-            notes.saveAll(all.map { if (it.id == target.id) updated else it })
+            notes.put(updated)
             return ToolResult(true, "Updated note “${target.title.ifBlank { "Untitled" }}”")
         }
     }
@@ -132,7 +132,7 @@ class AgentTools(private val app: Context) {
             allDay = false, done = false,
             alertStyle = AlertStyle.NOTIFICATION, alertLead = AlertLead.AT_TIME, createdAtMillis = now,
         )
-        calendar.saveAll(calendar.getAll() + entry)
+        calendar.put(entry)
         AlertScheduler.reschedule(app, entry)
         val label = WHEN_FMT.format(Instant.ofEpochMilli(start).atZone(ZoneId.systemDefault()))
         return ToolResult(true, "Added ${if (type == EntryType.TASK) "task" else "event"} “$title” for $label")
@@ -236,7 +236,7 @@ class AgentTools(private val app: Context) {
                 .let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: LocalDate.now()
             val at = if (date == LocalDate.now()) System.currentTimeMillis()
             else date.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            expenses.saveAll(expenses.getAll() + Expense(expenses.nextId(), paise, category, note, at))
+            expenses.put(Expense(expenses.nextId(), paise, category, note, at))
             return ToolResult(true, "Added expense ${ExpenseMath.formatPaise(paise)} · ${category.label}")
         }
     }

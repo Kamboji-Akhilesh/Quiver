@@ -1,5 +1,20 @@
 package com.kamboji.quiver.ui.expenses
 
+import androidx.compose.material.icons.outlined.Restaurant
+import androidx.compose.material.icons.outlined.ShoppingCart
+import androidx.compose.material.icons.outlined.DirectionsCar
+import androidx.compose.material.icons.outlined.ShoppingBag
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.LocalHospital
+import androidx.compose.material.icons.outlined.Movie
+import androidx.compose.material.icons.outlined.Category
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.kamboji.quiver.ui.locale.trPlural
+
+import com.kamboji.quiver.ui.locale.displayName
+import com.kamboji.quiver.ui.locale.monthName
+
+import com.kamboji.quiver.ui.locale.tr
 import android.Manifest
 import android.content.Intent
 import android.os.Build
@@ -100,6 +115,17 @@ private fun catColor(c: ExpenseCategory): Color = when (c) {
     ExpenseCategory.OTHER -> Color(0xFF94A3B8)
 }
 
+private fun catIcon(c: ExpenseCategory): ImageVector = when (c) {
+    ExpenseCategory.FOOD -> Icons.Outlined.Restaurant
+    ExpenseCategory.GROCERIES -> Icons.Outlined.ShoppingCart
+    ExpenseCategory.TRANSPORT -> Icons.Outlined.DirectionsCar
+    ExpenseCategory.SHOPPING -> Icons.Outlined.ShoppingBag
+    ExpenseCategory.BILLS -> Icons.AutoMirrored.Outlined.ReceiptLong
+    ExpenseCategory.HEALTH -> Icons.Outlined.LocalHospital
+    ExpenseCategory.ENTERTAINMENT -> Icons.Outlined.Movie
+    ExpenseCategory.OTHER -> Icons.Outlined.Category
+}
+
 private fun localDate(millis: Long): LocalDate =
     Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
 
@@ -128,45 +154,42 @@ fun ExpensesScreen(state: QuiverState) {
                 stringResource(R.string.title_expenses), ac, onBack = { state.go(AppKey.Hub) },
                 trailing = {
                     QvIconButton(
-                        Icons.Filled.Add, { sheet = ExpSheet.New }, size = 42.dp,
-                        background = colors.surf, tint = colors.text,
+                        Icons.Filled.Add, { sheet = ExpSheet.New },
+                        background = ac.a, tint = ac.on, contentDescription = "Add expense",
                     )
                 },
             )
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                    .padding(horizontal = 18.dp).padding(bottom = 150.dp),
+                    .padding(horizontal = 20.dp).padding(bottom = 150.dp),
             ) {
                 // month summary card
                 Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        Row {
-                            Text(month.month.name.lowercase().replaceFirstChar { it.uppercase() } + " ", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-                            Text("${month.year}", fontSize = 19.sp, fontWeight = FontWeight.Medium, fontFamily = Display, color = colors.dim)
-                        }
+                        Text("${monthName(month.month)} ${month.year}", fontSize = 13.5.sp, color = colors.dim)
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            QvIconButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, { month = month.minusMonths(1) }, size = 34.dp, iconSize = 17.dp)
-                            QvIconButton(Icons.AutoMirrored.Filled.KeyboardArrowRight, { month = month.plusMonths(1) }, size = 34.dp, iconSize = 17.dp)
+                            QvIconButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, { month = month.minusMonths(1) }, size = 32.dp, iconSize = 16.dp, background = Color.Transparent, contentDescription = "Previous month")
+                            QvIconButton(Icons.AutoMirrored.Filled.KeyboardArrowRight, { month = month.plusMonths(1) }, size = 32.dp, iconSize = 16.dp, background = Color.Transparent, contentDescription = "Next month")
                         }
                     }
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(6.dp))
                     Text(ExpenseMath.formatPaise(summary.totalPaise), fontSize = 34.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
-                    Text("${monthList.size} ${if (monthList.size == 1) "expense" else "expenses"} this month", fontSize = 12.5.sp, color = colors.dim)
+                    Text(trPlural(R.plurals.expenses_this_month, monthList.size), fontSize = 12.5.sp, color = colors.dim)
                     if (summary.totalPaise > 0) {
                         Spacer(Modifier.height(14.dp))
                         // stacked category bar
-                        Row(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp))) {
+                        Row(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                             summary.byCategory.forEach { (cat, paise) ->
                                 val frac = paise.toFloat() / summary.totalPaise
                                 if (frac > 0.01f) Box(Modifier.weight(frac).fillMaxSize().background(catColor(cat)))
                             }
                         }
                         Spacer(Modifier.height(10.dp))
-                        Row(Modifier.fillMaxWidth().horizontalScrollIfNeeded(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                             summary.byCategory.take(4).forEach { (cat, paise) ->
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                     Box(Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(catColor(cat)))
-                                    Text("${cat.label} ${ExpenseMath.formatPaise(paise)}", fontSize = 11.5.sp, color = colors.dim, maxLines = 1)
+                                    Text("${cat.displayName} ${ExpenseMath.formatPaise(paise)}", fontSize = 12.sp, color = colors.dim, maxLines = 1)
                                 }
                             }
                         }
@@ -182,9 +205,9 @@ fun ExpensesScreen(state: QuiverState) {
                 val smsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
                     if (result.values.all { it }) {
                         SmsCapture.enqueueScan(context)
-                        state.toast("Bank SMS tracking on", ToastKind.Success)
+                        state.toast(tr(R.string.expenses_bank_sms_tracking_on), ToastKind.Success)
                     } else {
-                        state.toast("SMS permission denied — allow it in App info", ToastKind.Info)
+                        state.toast(tr(R.string.expenses_sms_permission_denied_allow_it), ToastKind.Info)
                     }
                 }
                 // Catch up on anything that arrived while the app was closed.
@@ -192,11 +215,11 @@ fun ExpensesScreen(state: QuiverState) {
                 val toReview = all.filter { it.needsReview }
                 // Bank SMS first: every debit sends one. UPI-app notifications are the extra.
                 if (!smsOn) {
-                    AutoTrackCard(ac, Icons.Outlined.Sms, "Auto-track bank SMS", "Reads only messages from bank senders (like AX-HDFCBK) — never your chats. Stays on this phone.") {
+                    AutoTrackCard(ac, Icons.Outlined.Sms, tr(R.string.expenses_auto_track_bank_sms), tr(R.string.expenses_reads_only_messages_from_bank)) {
                         smsPermission.launch(arrayOf(Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS))
                     }
                 } else if (!captureOn) {
-                    AutoTrackCard(ac, Icons.Outlined.Notifications, "Also catch GPay & PhonePe", "Reads UPI-app payment notifications on this phone only.") { showEnable = true }
+                    AutoTrackCard(ac, Icons.Outlined.Notifications, tr(R.string.expenses_also_catch_gpay_phonepe), tr(R.string.expenses_reads_upi_app_payment_notifications)) { showEnable = true }
                 }
                 if (toReview.isNotEmpty()) {
                     if (!smsOn || !captureOn) Spacer(Modifier.height(10.dp))
@@ -210,14 +233,14 @@ fun ExpensesScreen(state: QuiverState) {
                     val byDay = monthList.groupBy { localDate(it.atMillis) }.toSortedMap(compareByDescending { it })
                     byDay.forEach { (day, dayItems) ->
                         Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 6.dp),
+                            Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                if (day == LocalDate.now()) "Today" else day.format(DAY_FMT),
-                                fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text,
+                                if (day == LocalDate.now()) tr(R.string.common_today) else day.format(DAY_FMT),
+                                fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.text,
                             )
-                            Text(ExpenseMath.formatPaise(dayItems.sumOf { it.amountPaise }), fontSize = 12.sp, fontFamily = Mono, color = colors.dim)
+                            Text(ExpenseMath.formatPaise(dayItems.sumOf { it.amountPaise }), fontSize = 13.sp, fontFamily = Mono, color = colors.dim)
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             dayItems.forEach { e -> ExpenseRow(e) { sheet = ExpSheet.Edit(e) } }
@@ -231,22 +254,22 @@ fun ExpensesScreen(state: QuiverState) {
         when (val s = sheet) {
             is ExpSheet.New -> ExpenseSheet(
                 editing = null, onDismiss = { sheet = null },
-                onInvalid = { state.toast("Enter a valid amount first", ToastKind.Info) },
+                onInvalid = { state.toast(tr(R.string.expenses_enter_a_valid_amount_first), ToastKind.Info) },
                 onDelete = null,
             ) { paise, cat, note, at ->
                 vm.add(paise, cat, note, at)
-                state.toast("Added ${ExpenseMath.formatPaise(paise)} · ${cat.label}", ToastKind.Success)
+                state.toast(tr(R.string.expenses_added_x_x, ExpenseMath.formatPaise(paise), cat.displayName), ToastKind.Success)
             }
             is ExpSheet.Edit -> ExpenseSheet(
                 editing = s.expense, onDismiss = { sheet = null },
-                onInvalid = { state.toast("Enter a valid amount first", ToastKind.Info) },
+                onInvalid = { state.toast(tr(R.string.expenses_enter_a_valid_amount_first), ToastKind.Info) },
                 onDelete = {
                     vm.delete(s.expense.id)
-                    state.toast("Expense deleted", ToastKind.Error)
+                    state.toast(tr(R.string.expenses_expense_deleted), ToastKind.Error)
                 },
             ) { paise, cat, note, at ->
                 vm.update(s.expense.id, paise, cat, note, at)
-                state.toast("Saved", ToastKind.Success)
+                state.toast(tr(R.string.expenses_saved), ToastKind.Success)
             }
             null -> Unit
         }
@@ -259,9 +282,9 @@ fun ExpensesScreen(state: QuiverState) {
 private fun EnableCaptureDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
     EnableAccessDialog(
-        title = "Allow notification access",
-        body = "Quiver reads payment notifications (GPay, PhonePe, bank SMS) to log expenses automatically. Everything is parsed on this phone — nothing is uploaded, ever.",
-        step = "In settings, turn ON “Quiver expense capture”.",
+        title = tr(R.string.expenses_allow_notification_access),
+        body = tr(R.string.expenses_quiver_reads_payment_notifications_gpay),
+        step = tr(R.string.expenses_in_settings_turn_on_quiver),
         accent = Accents.Expenses,
         onOpenSettings = { openListenerSettings(context) },
         onDismiss = onDismiss,
@@ -283,28 +306,25 @@ private fun openListenerSettings(context: android.content.Context) {
     }
 }
 
-/** Row modifier no-op placeholder — legend fits 4 chips; avoids a scroll dep. */
-private fun Modifier.horizontalScrollIfNeeded(): Modifier = this
-
 @Composable
 private fun ExpenseRow(e: Expense, onClick: () -> Unit) {
     val colors = Quiver.colors
     val col = catColor(e.category)
     Row(
-        Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(12.dp),
+        Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(16.dp)).clickable(onClick = onClick).padding(12.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(
-            Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(col.copy(alpha = 0.16f)),
+            Modifier.size(38.dp).clip(RoundedCornerShape(11.dp)).background(col.copy(alpha = 0.14f)),
             contentAlignment = Alignment.Center,
-        ) { Text(e.category.emoji, fontSize = 18.sp) }
+        ) { Icon(catIcon(e.category), null, Modifier.size(18.dp), tint = col) }
         Column(Modifier.weight(1f)) {
-            Text(e.note.ifBlank { e.category.label }, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.text, maxLines = 1)
-            Text(if (e.auto) "${e.category.label} · auto" else e.category.label, fontSize = 11.5.sp, color = colors.dim)
+            Text(e.note.ifBlank { e.category.displayName }, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.text, maxLines = 1)
+            Text(if (e.auto) tr(R.string.expenses_x_auto, e.category.displayName) else e.category.displayName, fontSize = 12.sp, color = colors.dim)
         }
         // Amber dot: auto-captured, category not confirmed yet.
         if (e.needsReview) Box(Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(Color(0xFFFBBF24)))
-        Text(ExpenseMath.formatPaise(e.amountPaise), fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
+        Text(ExpenseMath.formatPaise(e.amountPaise), fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold, fontFamily = Mono, color = colors.text)
     }
 }
 
@@ -312,37 +332,35 @@ private fun ExpenseRow(e: Expense, onClick: () -> Unit) {
 private fun AutoTrackCard(ac: com.kamboji.quiver.ui.theme.Accent, icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String, onEnable: () -> Unit) {
     val colors = Quiver.colors
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
-            .background(ac.a.copy(alpha = if (colors.dark) 0.14f else 0.10f))
-            .border(1.dp, ac.a.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
+        Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(16.dp))
             .clickable(onClick = onEnable).padding(14.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(ac.a.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
-            Icon(icon, null, Modifier.size(20.dp), tint = ac.txt(colors.dark))
+        Box(Modifier.size(38.dp).clip(RoundedCornerShape(11.dp)).background(ac.iconColor(colors.dark).copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+            Icon(icon, null, Modifier.size(18.dp), tint = ac.iconColor(colors.dark))
         }
         Column(Modifier.weight(1f)) {
-            Text(title, fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = colors.text)
+            Text(title, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
             Text(subtitle, fontSize = 11.5.sp, color = colors.dim, lineHeight = 15.sp)
         }
-        Text("Enable", color = ac.txt(colors.dark), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(tr(R.string.expenses_enable), color = ac.txt(colors.dark), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
 @Composable
 private fun ReviewBanner(count: Int, onClick: () -> Unit) {
     val colors = Quiver.colors
-    val amber = Color(0xFFFBBF24)
+    val amber = Quiver.accent.txt(colors.dark)
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
-            .background(amber.copy(alpha = if (colors.dark) 0.13f else 0.15f))
-            .border(1.dp, amber.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick).padding(14.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+            .background(amber.copy(alpha = 0.08f))
+            .border(1.dp, amber, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(amber))
         Text(
-            "$count auto-detected ${if (count == 1) "payment" else "payments"} — tap to review",
+            trPlural(R.plurals.expenses_auto_detected, count),
             Modifier.weight(1f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.text,
         )
     }
@@ -353,13 +371,13 @@ private fun EmptyExpenses(ac: com.kamboji.quiver.ui.theme.Accent) {
     val colors = Quiver.colors
     Column(Modifier.fillMaxWidth().padding(vertical = 40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
-            Modifier.size(88.dp).clip(RoundedCornerShape(30.dp)).background(ac.a.copy(alpha = 0.12f))
-                .border(1.dp, ac.a.copy(alpha = 0.25f), RoundedCornerShape(30.dp)),
+            Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(colors.surf)
+                .border(1.dp, colors.border, RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center,
-        ) { Icon(Icons.Outlined.Payments, null, Modifier.size(40.dp), tint = ac.txt(colors.dark)) }
-        Spacer(Modifier.height(16.dp))
-        Text("No spends this month", fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
-        Text("Tap + to add one, or tell Quiver AI “spent 250 on lunch”.", fontSize = 13.5.sp, color = colors.dim)
+        ) { Icon(Icons.Outlined.Payments, null, Modifier.size(24.dp), tint = ac.iconColor(colors.dark)) }
+        Spacer(Modifier.height(14.dp))
+        Text(tr(R.string.expenses_no_spends_this_month), fontSize = 17.sp, fontWeight = FontWeight.SemiBold, fontFamily = Display, color = colors.text)
+        Text(tr(R.string.expenses_tap_to_add_one_or), fontSize = 13.5.sp, color = colors.dim)
     }
 }
 
@@ -392,7 +410,7 @@ private fun ExpenseSheet(
 
     // Shared keyboard-safe composer panel (see QuiverComposerSheet for why).
     QuiverComposerSheet(
-        title = if (isEdit) "Edit expense" else "New expense",
+        title = if (isEdit) tr(R.string.expenses_edit_expense) else tr(R.string.expenses_new_expense),
         onDismiss = onDismiss,
         maxFieldsHeight = 360.dp,
         footer = {
@@ -415,7 +433,7 @@ private fun ExpenseSheet(
                     }
                     .padding(vertical = 15.dp),
                 contentAlignment = Alignment.Center,
-            ) { Text(if (isEdit) "Save changes" else "Add expense", color = Color(0xFF06121A), fontSize = 15.sp, fontWeight = FontWeight.Bold) }
+            ) { Text(if (isEdit) tr(R.string.expenses_save_changes) else tr(R.string.expenses_add_expense), color = Quiver.accent.on, fontSize = 15.sp, fontWeight = FontWeight.Bold) }
         },
     ) {
                 // amount
@@ -450,7 +468,7 @@ private fun ExpenseSheet(
                             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp),
                         ) {
                             Text(cat.emoji, fontSize = 13.sp)
-                            Text(cat.label, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = if (sel) colors.text else colors.dim)
+                            Text(cat.displayName, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = if (sel) colors.text else colors.dim)
                         }
                     }
                 }
@@ -459,7 +477,7 @@ private fun ExpenseSheet(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surf)
                         .border(1.dp, colors.border, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 15.dp),
                 ) {
-                    if (note.isEmpty()) Text("What was it? (optional)", color = colors.dim, fontSize = 14.5.sp)
+                    if (note.isEmpty()) Text(tr(R.string.expenses_what_was_it_optional), color = colors.dim, fontSize = 14.5.sp)
                     BasicTextField(
                         note, { note = it },
                         textStyle = TextStyle(color = colors.text, fontSize = 14.5.sp),
@@ -475,7 +493,7 @@ private fun ExpenseSheet(
                 ) {
                     Icon(Icons.Outlined.CalendarMonth, null, Modifier.size(17.dp), tint = ac.txt(colors.dark))
                     Text(
-                        if (date == LocalDate.now()) "Today" else date.format(DAY_FMT),
+                        if (date == LocalDate.now()) tr(R.string.common_today) else date.format(DAY_FMT),
                         color = colors.text, fontSize = 14.sp,
                     )
                 }
@@ -486,7 +504,7 @@ private fun ExpenseSheet(
                             .border(1.dp, Color(0xFFFB7185).copy(alpha = 0.4f), RoundedCornerShape(14.dp))
                             .clickable { onDelete(); onDismiss() }.padding(vertical = 13.dp),
                         contentAlignment = Alignment.Center,
-                    ) { Text("Delete expense", color = Color(0xFFFB7185), fontSize = 14.sp, fontWeight = FontWeight.Bold) }
+                    ) { Text(tr(R.string.expenses_delete_expense), color = Color(0xFFFB7185), fontSize = 14.sp, fontWeight = FontWeight.Bold) }
                 }
     }
 

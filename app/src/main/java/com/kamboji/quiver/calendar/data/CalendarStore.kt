@@ -1,57 +1,52 @@
 package com.kamboji.quiver.calendar.data
 
 import android.content.Context
-import android.content.SharedPreferences
+import androidx.room.InvalidationTracker
+import com.kamboji.quiver.data.QuiverDatabase
+import com.kamboji.quiver.data.observe
+import com.kamboji.quiver.data.replaceAll
 import com.kamboji.quiver.widgets.WidgetRefresher
-import org.json.JSONArray
 
-/** Persists calendar entries on-device as JSON in SharedPreferences. */
+/** Calendar tasks and events; every write refreshes the agenda widget. Rows live in the `calendar_entries` table of [QuiverDatabase]. */
 class CalendarStore(context: Context) {
     private val appContext = context.applicationContext
-    private val prefs =
-        context.getSharedPreferences("calendar_store", Context.MODE_PRIVATE)
+    private val db = QuiverDatabase.get(context)
+    private val dao = db.calendar()
+    private val prefs = context.getSharedPreferences("calendar_store", Context.MODE_PRIVATE)
 
-    /**
-     * Observes entry-list changes. Fires for writes made anywhere in the process
-     * (e.g. the full-screen call activity marking a task done) so a live screen's
-     * ViewModel can refresh instead of showing stale data.
-     */
-    fun observe(onChange: () -> Unit): SharedPreferences.OnSharedPreferenceChangeListener {
-        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key == KEY_LIST) onChange()
-        }
-        prefs.registerOnSharedPreferenceChangeListener(listener)
-        return listener
-    }
+    /** Fires after any write, from anywhere in the process (the AI agent, a receiver, a widget). */
+    fun observe(onChange: () -> Unit): InvalidationTracker.Observer = db.observe("calendar_entries", onChange)
 
-    fun stopObserving(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
-        prefs.unregisterOnSharedPreferenceChangeListener(listener)
-    }
+    fun stopObserving(observer: InvalidationTracker.Observer) = db.invalidationTracker.removeObserver(observer)
 
-    fun getAll(): List<CalendarEntry> {
-        val raw = prefs.getString(KEY_LIST, null) ?: return emptyList()
-        val arr = JSONArray(raw)
-        return buildList {
-            for (i in 0 until arr.length()) add(CalendarEntry.fromJson(arr.getJSONObject(i)))
-        }
-    }
+    fun getAll(): List<CalendarEntry> = dao.all()
 
-    fun saveAll(entries: List<CalendarEntry>) {
-        val arr = JSONArray()
-        entries.forEach { arr.put(it.toJson()) }
-        prefs.edit().putString(KEY_LIST, arr.toString()).apply()
-        // Every writer funnels through here, so the agenda widget stays current.
+    /** Inserts or replaces one row — use this rather than `saveAll(getAll() + x)`, which can drop a concurrent write. */
+    fun put(row: CalendarEntry) {
+        dao.upsert(listOf(row))
         WidgetRefresher.calendarChanged(appContext)
     }
 
+    fun putAll(rows: List<CalendarEntry>) {
+        if (rows.isEmpty()) return
+        dao.upsert(rows)
+        WidgetRefresher.calendarChanged(appContext)
+    }
+
+    /** Makes the table match [rows], writing only what changed. */
+    fun saveAll(rows: List<CalendarEntry>) {
+        db.replaceAll(dao, dao::all, rows) { it.id }
+        WidgetRefresher.calendarChanged(appContext)
+    }
+
+    @Synchronized
     fun nextId(): Long {
-        val next = prefs.getLong(KEY_SEQ, 0) + 1
+        val next = prefs.getLong(KEY_SEQ, 0L) + 1
         prefs.edit().putLong(KEY_SEQ, next).apply()
         return next
     }
 
-    companion object {
-        private const val KEY_LIST = "entries"
-        private const val KEY_SEQ = "seq"
+    private companion object {
+        const val KEY_SEQ = "seq"
     }
 }

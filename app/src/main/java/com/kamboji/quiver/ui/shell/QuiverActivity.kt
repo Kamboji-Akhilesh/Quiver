@@ -1,5 +1,6 @@
 package com.kamboji.quiver.ui.shell
 
+
 import android.Manifest
 import android.app.AlarmManager
 import android.content.Context
@@ -17,18 +18,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
 import com.kamboji.quiver.screenshots.service.ScreenshotService
-import com.kamboji.quiver.ui.locale.AppLocale
 
 /** Single-surface entry point for the redesigned Quiver hub. */
 class QuiverActivity : ComponentActivity() {
 
     private val permissions =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
-
-    // Apply the user's chosen UI language before any resources are resolved.
-    override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(AppLocale.wrap(newBase))
-    }
 
     /** One-shot deep-link command (app shortcut / share router) for the shell. */
     private val command = mutableStateOf<ShellCommand?>(null)

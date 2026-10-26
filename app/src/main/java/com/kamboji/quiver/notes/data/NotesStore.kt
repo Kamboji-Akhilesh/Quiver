@@ -1,38 +1,41 @@
 package com.kamboji.quiver.notes.data
 
 import android.content.Context
-import android.content.SharedPreferences
-import org.json.JSONArray
+import androidx.room.InvalidationTracker
+import com.kamboji.quiver.data.QuiverDatabase
+import com.kamboji.quiver.data.observe
+import com.kamboji.quiver.data.replaceAll
 
-/** On-device persistence for notes, backed by SharedPreferences JSON. */
+/** Notes on this phone. Rows live in the `notes` table of [QuiverDatabase]. */
 class NotesStore(context: Context) {
+    private val appContext = context.applicationContext
+    private val db = QuiverDatabase.get(context)
+    private val dao = db.notes()
     private val prefs = context.getSharedPreferences("notes", Context.MODE_PRIVATE)
 
-    /** Observes list changes (e.g. notes written by the AI agent) in-process. */
-    fun observe(onChange: () -> Unit): SharedPreferences.OnSharedPreferenceChangeListener {
-        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key == KEY_LIST) onChange()
-        }
-        prefs.registerOnSharedPreferenceChangeListener(listener)
-        return listener
+    /** Fires after any write, from anywhere in the process (the AI agent, a receiver, a widget). */
+    fun observe(onChange: () -> Unit): InvalidationTracker.Observer = db.observe("notes", onChange)
+
+    fun stopObserving(observer: InvalidationTracker.Observer) = db.invalidationTracker.removeObserver(observer)
+
+    fun getAll(): List<Note> = dao.all()
+
+    /** Inserts or replaces one row — use this rather than `saveAll(getAll() + x)`, which can drop a concurrent write. */
+    fun put(row: Note) {
+        dao.upsert(listOf(row))
     }
 
-    fun stopObserving(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
-        prefs.unregisterOnSharedPreferenceChangeListener(listener)
+    fun putAll(rows: List<Note>) {
+        if (rows.isEmpty()) return
+        dao.upsert(rows)
     }
 
-    fun getAll(): List<Note> {
-        val raw = prefs.getString(KEY_LIST, null) ?: return emptyList()
-        val arr = JSONArray(raw)
-        return (0 until arr.length()).map { Note.fromJson(arr.getJSONObject(it)) }
+    /** Makes the table match [rows], writing only what changed. */
+    fun saveAll(rows: List<Note>) {
+        db.replaceAll(dao, dao::all, rows) { it.id }
     }
 
-    fun saveAll(notes: List<Note>) {
-        val arr = JSONArray()
-        notes.forEach { arr.put(it.toJson()) }
-        prefs.edit().putString(KEY_LIST, arr.toString()).apply()
-    }
-
+    @Synchronized
     fun nextId(): Long {
         val next = prefs.getLong(KEY_SEQ, 0L) + 1
         prefs.edit().putLong(KEY_SEQ, next).apply()
@@ -40,7 +43,6 @@ class NotesStore(context: Context) {
     }
 
     private companion object {
-        const val KEY_LIST = "notes.list"
         const val KEY_SEQ = "notes.seq"
     }
 }

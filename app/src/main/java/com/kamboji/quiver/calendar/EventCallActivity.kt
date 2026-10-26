@@ -1,5 +1,6 @@
 package com.kamboji.quiver.calendar
 
+
 import android.app.NotificationManager
 import android.media.Ringtone
 import android.media.RingtoneManager
@@ -19,6 +20,7 @@ import com.kamboji.quiver.calendar.data.CalendarStore
 import com.kamboji.quiver.calendar.data.EntryType
 import com.kamboji.quiver.ui.calendar.ReminderCallScreen
 import com.kamboji.quiver.ui.theme.Accents
+import com.kamboji.quiver.ui.theme.AppKey
 import com.kamboji.quiver.ui.theme.QuiverTheme
 import java.util.Locale
 
@@ -62,7 +64,7 @@ class EventCallActivity : ComponentActivity() {
         startRinging()
 
         setContent {
-            QuiverTheme(dark = true, accent = Accents.Calendar) {
+            QuiverTheme(dark = true, app = AppKey.Calendar) {
                 ReminderCallScreen(
                     title = entry.title,
                     isTask = entry.isTask,
@@ -152,7 +154,7 @@ class EventCallActivity : ComponentActivity() {
 
     private fun markDone(entry: CalendarEntry) {
         val store = CalendarStore(this)
-        store.saveAll(store.getAll().map { if (it.id == entry.id) it.copy(done = true) else it })
+        store.getAll().firstOrNull { it.id == entry.id }?.let { store.put(it.copy(done = true)) }
         AlertScheduler.cancel(this, entry.id)
         finishCall()
     }

@@ -1,5 +1,8 @@
 package com.kamboji.quiver.ui.components
 
+import com.kamboji.quiver.R
+
+import com.kamboji.quiver.ui.locale.tr
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -59,7 +62,7 @@ fun EnableAccessDialog(
             Text(body, fontSize = 13.sp, color = colors.dim, lineHeight = 18.sp)
             Text(step, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
             Text(
-                "Toggle greyed out? Android locks this for sideloaded apps: open App info → tap ⋮ (top right) → “Allow restricted settings”, then come back and try again.",
+                tr(R.string.access_toggle_greyed_out_android_locks),
                 fontSize = 12.sp, color = colors.faint, lineHeight = 16.sp,
             )
             Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -73,14 +76,14 @@ fun EnableAccessDialog(
                         }
                         .padding(vertical = 12.dp),
                     contentAlignment = Alignment.Center,
-                ) { Text("App info", color = colors.text, fontSize = 13.5.sp, fontWeight = FontWeight.Bold) }
+                ) { Text(tr(R.string.access_app_info), color = colors.text, fontSize = 13.5.sp, fontWeight = FontWeight.Bold) }
                 Box(
                     Modifier.weight(1f).clip(RoundedCornerShape(100.dp))
                         .background(Brush.linearGradient(listOf(accent.a, accent.b)))
                         .clickable { onOpenSettings(); onDismiss() }
                         .padding(vertical = 12.dp),
                     contentAlignment = Alignment.Center,
-                ) { Text("Open settings", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.Bold) }
+                ) { Text(tr(R.string.access_open_settings), color = accent.on, fontSize = 13.5.sp, fontWeight = FontWeight.Bold) }
             }
         }
     }

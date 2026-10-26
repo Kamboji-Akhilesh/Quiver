@@ -1,5 +1,7 @@
 package com.kamboji.quiver.widgets
 
+import com.kamboji.quiver.ui.locale.displayName
+
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -30,10 +32,10 @@ import com.kamboji.quiver.R
 import com.kamboji.quiver.expenses.data.ExpenseMath
 import com.kamboji.quiver.expenses.data.ExpenseStore
 import com.kamboji.quiver.expenses.data.MonthSummary
-import com.kamboji.quiver.ui.locale.AppLocale
 import com.kamboji.quiver.ui.theme.AppKey
 import java.time.YearMonth
 import java.time.format.TextStyle as MonthNameStyle
+import java.util.Locale
 
 private val WidgetRose = ColorProvider(Color(0xFFFB7185))
 
@@ -43,15 +45,12 @@ class SpendWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val month = YearMonth.now()
         val summary = ExpenseMath.summarize(ExpenseMath.inMonth(ExpenseStore(context).getAll(), month))
-        // Widgets run outside an Activity, so they don't get the locale-wrapped base
-        // context; resolve strings and the month name in the user's chosen language.
-        val localized = AppLocale.localized(context)
-        provideContent { Spend(context, localized, month, summary) }
+        provideContent { Spend(context, month, summary) }
     }
 
     @Composable
-    private fun Spend(context: Context, localized: Context, month: YearMonth, summary: MonthSummary) {
-        val locale = AppLocale.locale(context)
+    private fun Spend(context: Context, month: YearMonth, summary: MonthSummary) {
+        val locale = Locale.getDefault()
         val monthLabel = month.month.getDisplayName(MonthNameStyle.SHORT, locale)
         Column(
             GlanceModifier.fillMaxSize().background(WidgetBg).cornerRadius(24.dp)
@@ -59,7 +58,7 @@ class SpendWidget : GlanceAppWidget() {
                 .clickable(actionStartActivity(openShellIntent(context, AppKey.Expenses))),
         ) {
             Text(
-                localized.getString(R.string.widget_spend_title, monthLabel).uppercase(locale),
+                context.getString(R.string.widget_spend_title, monthLabel).uppercase(locale),
                 style = TextStyle(color = WidgetRose, fontSize = 11.sp, fontWeight = FontWeight.Bold),
             )
             Spacer(GlanceModifier.height(4.dp))
@@ -70,7 +69,7 @@ class SpendWidget : GlanceAppWidget() {
             Spacer(GlanceModifier.height(8.dp))
             if (summary.byCategory.isEmpty()) {
                 Text(
-                    localized.getString(R.string.widget_no_expenses),
+                    context.getString(R.string.widget_no_expenses),
                     style = TextStyle(color = WidgetDim, fontSize = 12.sp),
                 )
             } else {
@@ -80,7 +79,7 @@ class SpendWidget : GlanceAppWidget() {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            "${cat.emoji} ${cat.label}",
+                            "${cat.emoji} ${cat.displayName}",
                             style = TextStyle(color = WidgetDim, fontSize = 12.sp, fontWeight = FontWeight.Medium),
                             modifier = GlanceModifier.defaultWeight(),
                         )

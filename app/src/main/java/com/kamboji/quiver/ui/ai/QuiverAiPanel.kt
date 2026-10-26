@@ -1,5 +1,9 @@
 package com.kamboji.quiver.ui.ai
 
+import com.kamboji.quiver.R
+import androidx.compose.runtime.ReadOnlyComposable
+
+import com.kamboji.quiver.ui.locale.tr
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -40,7 +44,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material.icons.outlined.VolumeUp
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -76,8 +80,10 @@ import com.kamboji.quiver.ui.theme.Accents
 import com.kamboji.quiver.ui.theme.Display
 import com.kamboji.quiver.ui.theme.Quiver
 
-private val AiA = Color(0xFFA78BFA)
-private val AiB = Color(0xFF22D3EE)
+// The brand colours follow the theme: Glass keeps purple→cyan, flat themes use their accent.
+private val AiA: Color @Composable @ReadOnlyComposable get() = Accents.Hub.a
+private val AiB: Color @Composable @ReadOnlyComposable get() = Accents.Hub.b
+private val AiOn: Color @Composable @ReadOnlyComposable get() = Accents.Hub.on
 
 @Composable
 fun QuiverAiPanel(onClose: () -> Unit, initialInput: String? = null, startMic: Boolean = false) {
@@ -93,29 +99,29 @@ fun QuiverAiPanel(onClose: () -> Unit, initialInput: String? = null, startMic: B
                 Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Box(Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(Brush.linearGradient(listOf(AiA, AiB))), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.AutoAwesome, null, Modifier.size(26.dp), tint = Color.White)
+                Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Brush.linearGradient(listOf(AiA, AiB))), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.AutoAwesome, null, Modifier.size(20.dp), tint = AiOn)
                 }
                 Column(Modifier.weight(1f)) {
-                    Text("Quiver AI", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+                    Text(tr(R.string.ai_quiver_ai), fontSize = 20.sp, fontWeight = FontWeight.SemiBold, fontFamily = Display, color = colors.text)
                     Text(
                         when (val s = state) {
-                            is ModelState.Ready -> "● On-device · ${s.label}"
-                            is ModelState.Downloading -> "Installing model…"
-                            else -> "Install to start"
+                            is ModelState.Ready -> tr(R.string.ai_on_device_x, s.label)
+                            is ModelState.Downloading -> tr(R.string.ai_installing_model)
+                            else -> tr(R.string.ai_install_to_start)
                         },
-                        fontSize = 12.5.sp, color = Accents.Hub.txt(colors.dark), fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp, color = colors.dim,
                     )
                 }
                 if (state is ModelState.Ready) {
                     Box(
-                        Modifier.size(38.dp).clip(CircleShape)
+                        Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
                             .background(if (showManage) AiA.copy(alpha = 0.2f) else colors.surf)
-                            .border(1.dp, colors.border, CircleShape).clickable { showManage = !showManage },
+                            .border(1.dp, colors.border, RoundedCornerShape(12.dp)).clickable { showManage = !showManage },
                         contentAlignment = Alignment.Center,
-                    ) { Icon(Icons.Outlined.Tune, "Manage model", Modifier.size(18.dp), tint = if (showManage) Accents.Hub.txt(colors.dark) else colors.text) }
+                    ) { Icon(Icons.Outlined.Tune, tr(R.string.ai_manage_model), Modifier.size(18.dp), tint = if (showManage) Accents.Hub.txt(colors.dark) else colors.text) }
                 }
-                Box(Modifier.size(38.dp).clip(CircleShape).background(colors.surf).border(1.dp, colors.border, CircleShape).clickable { hide() }, contentAlignment = Alignment.Center) {
+                Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(12.dp)).clickable { hide() }, contentAlignment = Alignment.Center) {
                     Icon(Icons.Filled.Close, null, Modifier.size(18.dp), tint = colors.text)
                 }
             }
@@ -125,7 +131,7 @@ fun QuiverAiPanel(onClose: () -> Unit, initialInput: String? = null, startMic: B
                 is ModelState.Ready ->
                     if (showManage) SetupBody(vm, null, current = s.label, onBack = { showManage = false })
                     else ChatBody(vm, initialInput, startMic)
-                is ModelState.Downloading -> Progress("Installing ${AiModel.DISPLAY_NAME}", s.progress, AiModel.SIZE_LABEL)
+                is ModelState.Downloading -> Progress(tr(R.string.ai_installing_x, AiModel.DISPLAY_NAME), s.progress, AiModel.SIZE_LABEL)
                 is ModelState.Error -> SetupBody(vm, s.message)
                 ModelState.None -> SetupBody(vm, null)
             }
@@ -146,7 +152,7 @@ private fun Progress(label: String, progress: Float, size: String?) {
         LinearProgressIndicator(progress = { progress }, color = AiA, trackColor = colors.surf2, modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)))
         Spacer(Modifier.height(8.dp))
         Text("${(progress * 100).toInt()}%", fontSize = 12.sp, color = colors.dim)
-        Text("Downloads in the background — you can close the app. It resumes if the connection drops.", fontSize = 12.sp, color = colors.faint, modifier = Modifier.padding(top = 14.dp))
+        Text(tr(R.string.ai_downloads_in_the_background_you), fontSize = 12.sp, color = colors.faint, modifier = Modifier.padding(top = 14.dp))
     }
 }
 
@@ -161,26 +167,26 @@ private fun SetupBody(vm: AiViewModel, error: String?, current: String? = null, 
             // Manage mode: the one installed model, with remove / back.
             item {
                 Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(16.dp)).padding(16.dp)) {
-                    Text("INSTALLED MODEL", fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = colors.dim)
+                    Text(tr(R.string.ai_installed_model), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = colors.dim)
                     Text(current, fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text, modifier = Modifier.padding(top = 3.dp))
                     Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        if (onBack != null) PillButton("Back to chat", filled = true) { onBack() }
-                        PillButton("Remove", filled = false) { vm.deleteModel(); onBack?.invoke() }
+                        if (onBack != null) PillButton(tr(R.string.ai_back_to_chat), filled = true) { onBack() }
+                        PillButton(tr(R.string.ai_remove), filled = false) { vm.deleteModel(); onBack?.invoke() }
                     }
                 }
             }
-            item { Text("Removing frees ${AiModel.SIZE_LABEL} of storage. You can reinstall anytime.", fontSize = 13.sp, color = colors.dim, lineHeight = 18.sp) }
+            item { Text(tr(R.string.ai_removing_frees_x_of_storage, AiModel.SIZE_LABEL), fontSize = 13.sp, color = colors.dim, lineHeight = 18.sp) }
             // Local-only log of what the model actually produced — sharing a bad
             // turn is how it becomes a training example for the next fine-tune.
             item {
-                PillButton("Share AI debug log", filled = false) {
+                PillButton(tr(R.string.ai_share_ai_debug_log), filled = false) {
                     AgentDebugLog.shareIntent(context)?.let { context.startActivity(it) }
                 }
             }
-            item { Text("The log stays on your phone. Share it after a bad answer so it can be turned into training data.", fontSize = 12.sp, color = colors.faint, lineHeight = 17.sp, modifier = Modifier.padding(bottom = 24.dp)) }
+            item { Text(tr(R.string.ai_the_log_stays_on_your), fontSize = 12.sp, color = colors.faint, lineHeight = 17.sp, modifier = Modifier.padding(bottom = 24.dp)) }
         } else {
             item {
-                Text("Quiver AI runs entirely on your phone — your messages and voice never leave the device. One model, tuned for Quiver's actions, installed once.", fontSize = 14.sp, color = colors.text, lineHeight = 20.sp)
+                Text(tr(R.string.ai_quiver_ai_runs_entirely_on), fontSize = 14.sp, color = colors.text, lineHeight = 20.sp)
             }
             if (error != null) {
                 item {
@@ -199,23 +205,23 @@ private fun SetupBody(vm: AiViewModel, error: String?, current: String? = null, 
                         Text(AiModel.SIZE_LABEL, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Accents.Hub.txt(colors.dark))
                     }
                     Text(
-                        "Adds notes, tasks and events, searches the web, checks rates — in English, हिन्दी, বাংলা, தமிழ், తెలుగు and मराठी.",
+                        tr(R.string.ai_adds_notes_tasks_and_events),
                         fontSize = 12.5.sp, color = colors.dim, lineHeight = 17.sp, modifier = Modifier.padding(top = 6.dp),
                     )
                     Spacer(Modifier.height(14.dp))
                     if (!confirm) {
-                        PillButton("Install", filled = true) { confirm = true }
+                        PillButton(tr(R.string.ai_install), filled = true) { confirm = true }
                     } else {
-                        Text("Download ${AiModel.SIZE_LABEL} now? Uses your data connection — Wi-Fi recommended. The model stays on your phone.", fontSize = 12.5.sp, color = colors.dim, lineHeight = 17.sp)
+                        Text(tr(R.string.ai_download_x_now_uses_your, AiModel.SIZE_LABEL), fontSize = 12.5.sp, color = colors.dim, lineHeight = 17.sp)
                         Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            PillButton("Not now", filled = false) { confirm = false }
-                            PillButton("Download", filled = true) { vm.download(); confirm = false }
+                            PillButton(tr(R.string.ai_not_now), filled = false) { confirm = false }
+                            PillButton(tr(R.string.ai_download), filled = true) { vm.download(); confirm = false }
                         }
                     }
                 }
             }
             item {
-                Text("If you skip this, Quiver AI can't answer questions or take voice commands — everything else in the app works normally. You can install it anytime from here.", fontSize = 12.sp, color = colors.faint, lineHeight = 17.sp, modifier = Modifier.padding(bottom = 24.dp))
+                Text(tr(R.string.ai_if_you_skip_this_quiver), fontSize = 12.sp, color = colors.faint, lineHeight = 17.sp, modifier = Modifier.padding(bottom = 24.dp))
             }
         }
     }
@@ -244,7 +250,7 @@ private fun ChatBody(vm: AiViewModel, initialInput: String? = null, startMic: Bo
         // messages
         LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (vm.messages.isEmpty()) {
-                item { Text("Ask me anything, or tell me to do it — “add a note”, “remind me tomorrow evening”, “what's USD to INR”, “what's in my screenshot trash”. Tasks keep running even if you close the app.", fontSize = 14.sp, color = colors.dim, lineHeight = 20.sp, modifier = Modifier.padding(vertical = 12.dp)) }
+                item { Text(tr(R.string.ai_ask_me_anything_or_tell), fontSize = 14.sp, color = colors.dim, lineHeight = 20.sp, modifier = Modifier.padding(vertical = 12.dp)) }
             }
             items(vm.messages, key = { it.id }) { msg -> Bubble(msg) { vm.speak(msg.text) } }
             if (vm.listening && vm.partialTranscript.isNotBlank()) {
@@ -257,8 +263,8 @@ private fun ChatBody(vm: AiViewModel, initialInput: String? = null, startMic: Bo
             VoiceLanguages.forEach { l ->
                 val sel = l == vm.lang
                 Box(
-                    Modifier.clip(RoundedCornerShape(100.dp)).background(if (sel) AiA.copy(alpha = 0.18f) else colors.surf)
-                        .border(1.dp, if (sel) AiA.copy(alpha = 0.5f) else colors.border, RoundedCornerShape(100.dp))
+                    Modifier.clip(RoundedCornerShape(17.dp)).background(if (sel) AiA.copy(alpha = 0.12f) else Color.Transparent)
+                        .border(1.dp, if (sel) Accents.Hub.txt(colors.dark) else colors.border, RoundedCornerShape(17.dp))
                         .clickable { vm.setLanguage(l) }.padding(horizontal = 12.dp, vertical = 6.dp),
                 ) { Text(l.label, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = if (sel) Accents.Hub.txt(colors.dark) else colors.dim) }
             }
@@ -266,30 +272,33 @@ private fun ChatBody(vm: AiViewModel, initialInput: String? = null, startMic: Bo
 
         // input bar
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 18.dp, top = 2.dp)
-                .clip(RoundedCornerShape(100.dp)).background(colors.surf).border(1.dp, colors.border, RoundedCornerShape(100.dp))
-                .padding(start = 18.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 22.dp, top = 2.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Box(Modifier.weight(1f)) {
-                if (input.isEmpty() && !vm.listening) Text("Ask anything…", color = colors.dim, fontSize = 14.5.sp)
-                if (vm.listening) Text("Listening…", color = AiA, fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold)
+            Box(
+                Modifier.weight(1f).height(50.dp).clip(RoundedCornerShape(16.dp)).background(colors.surf)
+                    .border(1.dp, colors.border, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                if (input.isEmpty() && !vm.listening) Text(tr(R.string.ai_ask_anything), color = colors.dim, fontSize = 14.5.sp)
+                if (vm.listening) Text(tr(R.string.ai_listening), color = AiA, fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold)
                 BasicTextField(input, { input = it }, textStyle = TextStyle(color = colors.text, fontSize = 14.5.sp), cursorBrush = SolidColor(AiA), modifier = Modifier.fillMaxWidth())
             }
             // mic
             Box(
-                Modifier.size(40.dp).clip(CircleShape).background(if (vm.listening) AiA else colors.surf2).clickable {
+                Modifier.size(50.dp).clip(RoundedCornerShape(16.dp)).background(if (vm.listening) AiA else colors.surf)
+                    .border(1.dp, colors.border, RoundedCornerShape(16.dp)).clickable {
                     if (vm.listening) vm.stopListening()
                     else if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) vm.startListening()
                     else micPermission.launch(Manifest.permission.RECORD_AUDIO)
                 }, contentAlignment = Alignment.Center,
-            ) { Icon(if (vm.listening) Icons.Filled.Stop else Icons.Filled.Mic, "Voice", Modifier.size(20.dp), tint = if (vm.listening) Color.White else colors.dim) }
+            ) { Icon(if (vm.listening) Icons.Filled.Stop else Icons.Filled.Mic, tr(R.string.ai_voice), Modifier.size(20.dp), tint = if (vm.listening) AiOn else colors.text) }
             // send
             Box(
-                Modifier.size(42.dp).clip(CircleShape).background(Brush.linearGradient(listOf(AiA, AiB))).clickable {
+                Modifier.size(50.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(AiA, AiB))).clickable {
                     if (input.isNotBlank() && !vm.generating) { vm.send(input); input = "" }
                 }, contentAlignment = Alignment.Center,
-            ) { Icon(Icons.AutoMirrored.Filled.ArrowForward, "Send", Modifier.size(20.dp), tint = Color.White) }
+            ) { Icon(Icons.AutoMirrored.Filled.ArrowForward, tr(R.string.ai_send), Modifier.size(20.dp), tint = AiOn) }
         }
     }
 }
@@ -299,20 +308,22 @@ private fun Bubble(msg: ChatMsg, onSpeak: () -> Unit) {
     val colors = Quiver.colors
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (msg.fromUser) Arrangement.End else Arrangement.Start) {
         Column(
-            Modifier.widthIn(max = 290.dp).clip(RoundedCornerShape(18.dp))
+            Modifier.widthIn(max = 300.dp)
+                .clip(if (msg.fromUser) RoundedCornerShape(18.dp, 18.dp, 6.dp, 18.dp) else RoundedCornerShape(18.dp, 18.dp, 18.dp, 6.dp))
                 .background(if (msg.fromUser) Brush.linearGradient(listOf(AiA, AiB)) else SolidColor(colors.surf2))
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+                .border(1.dp, if (msg.fromUser) Color.Transparent else colors.border, if (msg.fromUser) RoundedCornerShape(18.dp, 18.dp, 6.dp, 18.dp) else RoundedCornerShape(18.dp, 18.dp, 18.dp, 6.dp))
+                .padding(horizontal = 14.dp, vertical = 11.dp),
         ) {
             if (!msg.fromUser && msg.streaming) {
                 WorkingBubbleContent(msg.text)
             } else {
                 Text(
                     msg.text.ifEmpty { if (msg.streaming) "…" else "" },
-                    color = if (msg.fromUser) Color.White else colors.text, fontSize = 14.sp, lineHeight = 20.sp,
+                    color = if (msg.fromUser) AiOn else colors.text, fontSize = 14.sp, lineHeight = 20.sp,
                 )
             }
             if (!msg.fromUser && !msg.streaming && msg.text.isNotBlank()) {
-                Icon(Icons.Outlined.VolumeUp, "Speak", Modifier.size(16.dp).padding(top = 4.dp).clickable(onClick = onSpeak), tint = colors.dim)
+                Icon(Icons.AutoMirrored.Outlined.VolumeUp, tr(R.string.ai_speak), Modifier.size(16.dp).padding(top = 4.dp).clickable(onClick = onSpeak), tint = colors.dim)
             }
         }
     }
@@ -327,7 +338,7 @@ private fun Bubble(msg: ChatMsg, onSpeak: () -> Unit) {
 private fun WorkingBubbleContent(text: String) {
     val colors = Quiver.colors
     val lines = text.lines().filter { it.isNotBlank() }
-    val status = lines.firstOrNull() ?: "Working…"
+    val status = lines.firstOrNull() ?: tr(R.string.ai_working)
     val doneSteps = lines.drop(1)
 
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -338,7 +349,7 @@ private fun WorkingBubbleContent(text: String) {
         Text(line, color = colors.dim, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 4.dp))
     }
     Text(
-        "You can close the app — I'll keep working and notify you when it's done.",
+        tr(R.string.ai_you_can_close_the_app),
         color = colors.faint, fontSize = 11.5.sp, lineHeight = 15.sp, modifier = Modifier.padding(top = 8.dp),
     )
 }
@@ -379,5 +390,5 @@ private fun PillButton(label: String, filled: Boolean, onClick: () -> Unit) {
             .border(1.dp, if (filled) Color.Transparent else colors.border, RoundedCornerShape(100.dp))
             .clickable(onClick = onClick).padding(vertical = 12.dp, horizontal = 18.dp),
         contentAlignment = Alignment.Center,
-    ) { Text(label, color = if (filled) Color.White else colors.text, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
+    ) { Text(label, color = if (filled) AiOn else colors.text, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
 }

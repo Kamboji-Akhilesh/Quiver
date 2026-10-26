@@ -56,4 +56,20 @@ object FocusPolicy {
     /** A Home escalation finishes the previous block; only fresh blocks count. */
     fun isNewBlock(now: Long, lastAt: Long, last: Action): Boolean =
         last == Action.None || now - lastAt >= RETRY_MS
+
+    /** Longest gap between two sightings of the feed that still counts as watching. */
+    private const val MAX_TICK_MS = 5_000L
+
+    /**
+     * Daily allowance: true once today's watching time has reached the limit, so
+     * the feed should be blocked. Adds the time since the feed was last seen
+     * ([seenAt], uptime ms; 0 = just appeared) — capped, so a long pause in
+     * events never counts as watching.
+     */
+    fun allowanceUsed(prefs: FocusPrefs, now: Long, seenAt: Long): Boolean {
+        val limit = prefs.allowanceMin * 60_000L
+        if (limit <= 0) return true
+        if (seenAt > 0) prefs.addFeedMs(minOf(now - seenAt, MAX_TICK_MS))
+        return prefs.feedMsToday() >= limit
+    }
 }

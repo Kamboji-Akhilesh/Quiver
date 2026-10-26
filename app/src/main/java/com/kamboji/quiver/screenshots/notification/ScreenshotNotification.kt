@@ -1,5 +1,8 @@
 package com.kamboji.quiver.screenshots.notification
 
+import com.kamboji.quiver.ui.locale.displayName
+
+import com.kamboji.quiver.ui.locale.tr
 import android.app.*
 import android.content.Context
 import android.content.Intent
@@ -47,7 +50,7 @@ object ScreenshotNotification {
         if (Build.VERSION.SDK_INT >= 26) {
             val channel = NotificationChannel(
                 channelId,
-                "Screenshot cleanup",
+                tr(R.string.shotnotif_screenshot_cleanup),
                 NotificationManager.IMPORTANCE_HIGH
             )
             context.getSystemService(NotificationManager::class.java)
@@ -81,15 +84,15 @@ object ScreenshotNotification {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val text = "Will delete in ${delay.describe()}"
+        val text = tr(R.string.shotnotif_will_delete_in_x, delay.displayName)
 
         val notification = Notification.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_notification)
             .setGroup(channelId) // never let Android bundle Quiver's notifications — see ExpenseCapture
-            .setContentTitle("Screenshot captured")
+            .setContentTitle(tr(R.string.shotnotif_screenshot_captured))
             .setContentText(text)
-            .addAction(Notification.Action.Builder(null, "Cancel", cancelPendingIntent).build())
-            .addAction(Notification.Action.Builder(null, "Edit Time", editPendingIntent).build())
+            .addAction(Notification.Action.Builder(null, tr(R.string.shotnotif_cancel), cancelPendingIntent).build())
+            .addAction(Notification.Action.Builder(null, tr(R.string.shotnotif_edit_time), editPendingIntent).build())
             .setAutoCancel(true)
             .setColor(context.getColor(R.color.md_theme_light_primary))
             .build()

@@ -183,8 +183,8 @@ is isolated in `appfunctions/QuiverAppFunctions.kt`.
 
 - **Voice notes**  ✅ — mic button in the note editor toolbar reuses the
   existing `VoiceController` (platform STT, nothing recorded); the transcript
-  inserts at the cursor. Dictation language follows the chosen UI language
-  (`AppLang.voiceLang()`).
+  inserts at the cursor. Dictation language follows the phone's language
+  (`deviceVoiceLang()`).
 - **Currency rate alerts**  ✅ — `RateAlert` model + store + pure
   `RateAlertLogic` (crossing/direction, unit-tested). `RateAlertWorker`
   (periodic ~6h, network-constrained) checks each alert via
@@ -194,7 +194,10 @@ is isolated in `appfunctions/QuiverAppFunctions.kt`.
   live rate) with the full training sync — SPEC_TEXT / STEP_LABELS / validator /
   6-language `rate_alert` scenario + weight / eval cases; dataset regenerated
   (2519 rows) and `validate_dataset.py` passes.
-- **UI localization**  ◑ scoped to **infra + key screens** (deliberate; the rest
+- **UI localization**  ✖ removed 2026-10-26 — the app is English-only now
+  (picker, `AppLocale` and `values-{hi,bn,ta,te,mr}` deleted). The AI assistant
+  and voice still understand all six languages. History kept below.
+  Originally ◑ scoped to **infra + key screens** (deliberate; the rest
   is incremental so it never blocked phases 1–6):
   - Infra: `ui/locale/AppLocale` per-app locale via a `Configuration` wrap in
     `attachBaseContext` (works on ComponentActivity, all API levels; chosen over
@@ -257,6 +260,39 @@ and MediaPipe can run it on the **GPU**, where llama.cpp here was CPU-only.
   fixed (reads the device locale from the base config).
 
 ## Not done (out of this session's scope)
+
+- **On-device AI: retrain for the new features (deferred 2026-10-26).** Goal:
+  nothing leaves the phone — no cloud model (the Gemini API and a daily
+  "research agent" were considered and dropped for that reason).
+  1. Dataset: add tools + seed examples for everything built since the last
+     retrain — Move (start/stop an activity, steps today/this week, best
+     efforts/PRs, distance this week), screen time ("how long on Instagram
+     yesterday"), Focus counts, spending questions over the bank-SMS history
+     ("food spend last month"), the morning brief.
+  2. Fine-tune Gemma 3 1B (LoRA). The data is synthetic, so training on Colab's
+     free GPU or the Mac (MLX) doesn't leak anything personal.
+  3. Convert to MediaPipe `.task`, run `eval.py`; ship only on a better pass
+     rate, bump `AiModel.FILE_NAME`.
+  4. Conversation that doesn't cook a Snapdragon 695: keep the fine-tuned 1B
+     for actions; optionally offer Gemma 3n E2B (~3 GB) as a chat model after
+     benchmarking on the phone; stream tokens + speak sentence by sentence;
+     short context + running summary; load the model only while the panel is
+     open; stop on thermal warnings.
+  5. Open decision: `web_search` (sends the query to DuckDuckGo) and
+     AppFunctions (Gemini app can create Quiver items) both send data off the
+     phone. Kept for now at the user's request; revisit with this work.
+
+- **3D terrain replay (parked 2026-10-26).** The replay ships as a 2D
+  flyover (osmdroid tilted in perspective, heading-up, saved as MP4). Tried
+  and parked:
+  1. MapLibre GL JS in a WebView + AWS open terrain tiles — on branch
+     `wip/maplibre-3d`. Rendered for one route, blank for another; debugging
+     was cut short. MapLibre Native has no official 3D terrain yet.
+  2. Google Maps 3D SDK (`play-services-maps3d`) — needs a billing-enabled
+     Google Cloud project and an API key; photorealistic buildings only in
+     some cities. If picked up: restrict the key to the app's package +
+     SHA-1, cap the API's daily quota, set a budget alert, and load 3D only
+     when the user taps it.
 
 - **Model retrain**: `finetune_lora.py` + `eval.py` + shipping a new GGUF and
   bumping `AiModel.FILE_NAME`. The dataset now covers `search_screenshots` and

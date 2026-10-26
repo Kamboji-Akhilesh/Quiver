@@ -56,13 +56,6 @@ chips, and the "Your data" (backup) section. Enter edit mode and **pin** a tile 
 pinned tiles sort to the top *and* render at the large featured size; unpinned
 ones stay small and pair into rows. Persisted via `hub/HubPrefs`.
 
-## Localization (`locale/`)
-`AppLocale` applies a per-app language by wrapping the `Configuration` in
-`attachBaseContext` — this works on a plain `ComponentActivity` at every API level
-(chosen over `AppCompatDelegate`, since these activities aren't AppCompat). The
-in-app picker (globe in the Hub header) persists the choice and calls `recreate()`.
-Switching back to *System* resets `Locale.getDefault()` from the base config.
-
 ## Onboarding (`onboarding/`)
 `OnboardingOverlay` covers the shell on first run only: what Quiver is →
 notification/media permissions asked **with context** → an offer to install the AI

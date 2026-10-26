@@ -34,6 +34,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
+                    // From the app's ScreenshotCleaner days; renaming would orphan existing installs' index.
                     "screenshot_cleaner_db"
                 ).addMigrations(MIGRATION_1_2).build()
                 INSTANCE = instance

@@ -97,6 +97,15 @@ stored in paise as integers, so the math is never wrong. Month totals, per-categ
 bars, day-grouped list.
 → [`expenses/`](app/src/main/java/com/kamboji/quiver/expenses/README.md)
 
+### 🏃 Move — *run, walk, ride, hike — privately*
+**Problem:** Strava and Google Fit upload every route you record — your home,
+your routine, when you're out.
+**Solution:** a Strava-style recorder on the same location engine they use,
+with the numbers to match (~1% in testing), that never uploads anything. Live
+map, pace, splits, climb, steps, GPX export. Maps come from OpenStreetMap
+while you look at them.
+→ [`move/`](app/src/main/java/com/kamboji/quiver/move/README.md)
+
 ### 🧘 Focus — *no more accidental Shorts*
 **Problem:** you open YouTube or Instagram for one thing and lose an hour to
 Shorts/Reels; blocker apps that fix this want to watch everything you do.
@@ -181,7 +190,7 @@ app/src/main/java/com/kamboji/quiver/
 │   ├── ai/           # the Quiver AI chat panel
 │   ├── onboarding/   # first-run flow
 │   ├── locale/       # per-app language switching
-│   └── {calendar,notes,expenses,screenshots,currency,focus}/   # the screens
+│   └── {calendar,notes,expenses,screenshots,currency,focus,move}/   # the screens
 │
 ├── ai/               # on-device agent: engine, tools, planner, TTS, model mgmt
 ├── screenshots/      # auto-cleaner + OCR index & search
@@ -190,6 +199,7 @@ app/src/main/java/com/kamboji/quiver/
 ├── notes/            # note model + store
 ├── expenses/         # expense model + store + bank-SMS / UPI capture
 ├── focus/            # Shorts/Reels blocker (accessibility service + policy)
+├── move/             # run/walk/ride/hike tracker (fused location, Kalman filter, Room)
 │
 ├── widgets/          # Glance home-screen widgets
 ├── share/            # share-sheet router + shortcut/intent bridge

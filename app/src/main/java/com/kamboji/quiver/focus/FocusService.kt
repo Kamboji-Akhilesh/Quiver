@@ -1,5 +1,8 @@
 package com.kamboji.quiver.focus
 
+import com.kamboji.quiver.R
+
+import com.kamboji.quiver.ui.locale.tr
 import android.accessibilityservice.AccessibilityService
 import android.os.Handler
 import android.os.Looper
@@ -22,6 +25,8 @@ class FocusService : AccessibilityService() {
     private var lastCheck = 0L
     private var lastActionAt = 0L
     private var lastAction = FocusPolicy.Action.None
+    /** When the feed was last seen on screen (uptime), for the daily allowance; 0 = not showing. */
+    private var feedSeenAt = 0L
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         val target = FocusTarget.forPackage(event.packageName?.toString()) ?: return
@@ -39,13 +44,15 @@ class FocusService : AccessibilityService() {
         val root = rootInActiveWindow ?: return
         if (root.packageName != target.pkg) return // already left the app
         if (Log.isLoggable(TAG, Log.VERBOSE)) Log.v(TAG, "${target.pkg} ids: ${visibleIds(root)}")
-        if (!isShowing(root, target)) return
+        if (!isShowing(root, target)) { feedSeenAt = 0; return }
+        if (!FocusPolicy.allowanceUsed(prefs, now, feedSeenAt)) { feedSeenAt = now; return }
+        feedSeenAt = 0
 
         val action = FocusPolicy.decide(now, lastActionAt, lastAction, prefs.closeApp)
         if (action == FocusPolicy.Action.None) return
         if (FocusPolicy.isNewBlock(now, lastActionAt, lastAction)) {
             prefs.recordBlock()
-            Toast.makeText(this, "${target.label} blocked by Quiver", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, tr(R.string.focussvc_x_blocked_by_quiver, target.label), Toast.LENGTH_SHORT).show()
         }
         performGlobalAction(if (action == FocusPolicy.Action.Home) GLOBAL_ACTION_HOME else GLOBAL_ACTION_BACK)
         lastActionAt = now

@@ -1,5 +1,8 @@
 package com.kamboji.quiver.share
 
+import com.kamboji.quiver.R
+
+import com.kamboji.quiver.ui.locale.tr
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -27,7 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.outlined.Payments
-import androidx.compose.material.icons.outlined.StickyNote2
+import androidx.compose.material.icons.automirrored.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -103,7 +106,7 @@ class ShareActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            QuiverTheme(dark = true, accent = Accents.Hub) {
+            QuiverTheme(dark = true, app = AppKey.Hub) {
                 ShareChooser(
                     shared,
                     onNote = { saveNote(shared) },
@@ -126,10 +129,10 @@ class ShareActivity : ComponentActivity() {
             uri.authority == MediaStore.AUTHORITY ->
                 {
                     ScreenshotNotification.handleScreenshot(this, uri)
-                    Toast.makeText(this, "Cleanup scheduled — adjust it from the notification", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, tr(R.string.share_cleanup_scheduled_adjust_it_from), Toast.LENGTH_LONG).show()
                 }
             else ->
-                Toast.makeText(this, "Only gallery images can be scheduled for cleanup", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, tr(R.string.share_only_gallery_images_can_be), Toast.LENGTH_LONG).show()
         }
         finish()
     }
@@ -138,8 +141,8 @@ class ShareActivity : ComponentActivity() {
         val (title, body) = SharedText.noteSplit(text)
         val store = NotesStore(this)
         val now = System.currentTimeMillis()
-        store.saveAll(store.getAll() + Note(store.nextId(), title, body, 0, false, now, now))
-        openShell(AppKey.Notes, toast = "Note saved")
+        store.put(Note(store.nextId(), title, body, 0, false, now, now))
+        openShell(AppKey.Notes, toast = tr(R.string.share_note_saved))
     }
 
     private fun saveTask(text: String) {
@@ -157,21 +160,21 @@ class ShareActivity : ComponentActivity() {
             alertStyle = AlertStyle.NOTIFICATION, alertLead = AlertLead.AT_TIME,
             createdAtMillis = System.currentTimeMillis(),
         )
-        store.saveAll(store.getAll() + entry)
+        store.put(entry)
         AlertScheduler.reschedule(this, entry)
         val label = WHEN_FMT.format(Instant.ofEpochMilli(start).atZone(ZoneId.systemDefault()))
-        openShell(AppKey.Calendar, toast = "Task added · $label")
+        openShell(AppKey.Calendar, toast = tr(R.string.share_task_added_x, label))
     }
 
     private fun saveExpense(text: String) {
         val paise = SharedText.amountPaise(text)
         if (paise == null) {
-            openShell(AppKey.Expenses, startNew = true, toast = "No amount found — enter it manually")
+            openShell(AppKey.Expenses, startNew = true, toast = tr(R.string.share_no_amount_found_enter_it))
             return
         }
         val store = ExpenseStore(this)
-        store.saveAll(
-            store.getAll() + Expense(
+        store.put(
+            Expense(
                 id = store.nextId(), amountPaise = paise,
                 category = ExpenseCategory.parse(text),
                 note = SharedText.oneLine(text, 60),
@@ -179,7 +182,7 @@ class ShareActivity : ComponentActivity() {
                 needsReview = true, // category is a guess until the user confirms
             ),
         )
-        openShell(AppKey.Expenses, toast = "Added ${ExpenseMath.formatPaise(paise)} — review category")
+        openShell(AppKey.Expenses, toast = tr(R.string.share_added_x_review_category, ExpenseMath.formatPaise(paise)))
     }
 
     private fun openShell(
@@ -228,7 +231,7 @@ private fun ShareChooser(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text("Add to Quiver", fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
+            Text(tr(R.string.share_add_to_quiver), fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
                     .background(colors.surf).padding(12.dp),
@@ -236,10 +239,10 @@ private fun ShareChooser(
                 Text(text, fontSize = 13.sp, color = colors.dim, lineHeight = 18.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.height(2.dp))
-            ShareOption(Icons.Outlined.StickyNote2, "Save as note", "Keep the text in Notes", Accents.Notes, onNote)
-            ShareOption(Icons.Outlined.TaskAlt, "Add as task", "Reminder on your calendar", Accents.Calendar, onTask)
-            ShareOption(Icons.Outlined.Payments, "Log expense", "Record the amount in Expenses", Accents.Expenses, onExpense)
-            ShareOption(Icons.Filled.AutoAwesome, "Ask Quiver AI", "Hand it to the on-device assistant", Accents.Hub, onAi)
+            ShareOption(Icons.AutoMirrored.Outlined.StickyNote2, tr(R.string.share_save_as_note), tr(R.string.share_keep_the_text_in_notes), Accents.Notes, onNote)
+            ShareOption(Icons.Outlined.TaskAlt, tr(R.string.share_add_as_task), tr(R.string.share_reminder_on_your_calendar), Accents.Calendar, onTask)
+            ShareOption(Icons.Outlined.Payments, tr(R.string.share_log_expense), tr(R.string.share_record_the_amount_in_expenses), Accents.Expenses, onExpense)
+            ShareOption(Icons.Filled.AutoAwesome, tr(R.string.share_ask_quiver_ai), tr(R.string.share_hand_it_to_the_on), Accents.Hub, onAi)
         }
     }
 }

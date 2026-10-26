@@ -17,6 +17,18 @@ class FocusPrefs(context: Context) {
         get() = prefs.getBoolean(KEY_CLOSE_APP, false)
         set(v) = prefs.edit().putBoolean(KEY_CLOSE_APP, v).apply()
 
+    /** Minutes a day the feeds may be watched before blocking starts (0 = block at once). */
+    var allowanceMin: Int
+        get() = prefs.getInt(KEY_ALLOWANCE, 0)
+        set(v) = prefs.edit().putInt(KEY_ALLOWANCE, v).apply()
+
+    /** Time spent in Shorts/Reels today, counted only while the player is on screen. */
+    fun feedMsToday(day: LocalDate = LocalDate.now()): Long = prefs.getLong("feed_ms_$day", 0)
+
+    fun addFeedMs(ms: Long) {
+        prefs.edit().putLong("feed_ms_${LocalDate.now()}", feedMsToday() + ms).apply()
+    }
+
     // ponytail: one key per day forever (a few bytes/day); prune if this ever shows stats beyond a week.
     fun blockedOn(day: LocalDate = LocalDate.now()): Int = prefs.getInt("count_$day", 0)
     val blockedTotal: Int get() = prefs.getInt(KEY_TOTAL, 0)
@@ -31,6 +43,7 @@ class FocusPrefs(context: Context) {
     companion object {
         private const val KEY_CLOSE_APP = "close_app"
         private const val KEY_TOTAL = "count_total"
+        private const val KEY_ALLOWANCE = "allowance_min"
 
         /** Whether the user has switched on Quiver's accessibility service. */
         fun isServiceEnabled(context: Context): Boolean {

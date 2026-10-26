@@ -1,5 +1,6 @@
 package com.kamboji.quiver.screenshots.service
 
+import com.kamboji.quiver.ui.locale.tr
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -78,7 +79,7 @@ class ScreenshotService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "Screenshot Monitor",
+                tr(R.string.shotsvc_screenshot_monitor),
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(NotificationManager::class.java)
@@ -96,8 +97,8 @@ class ScreenshotService : Service() {
 
         return Notification.Builder(this, channelId)
             .setGroup(channelId) // never let Android bundle Quiver's notifications — see ExpenseCapture
-            .setContentTitle("Quiver")
-            .setContentText("Monitoring screenshots...")
+            .setContentTitle(tr(R.string.shotsvc_quiver))
+            .setContentText(tr(R.string.shotsvc_monitoring_screenshots))
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)
             .build()

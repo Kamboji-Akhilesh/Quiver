@@ -8,12 +8,38 @@
     <!-- Bank-SMS expense capture (on-device only; non-bank senders are never parsed). -->
     <uses-permission android:name="android.permission.READ_SMS"/>
     <uses-permission android:name="android.permission.RECEIVE_SMS"/>
+    <!-- Move tracker: precise GPS while recording (foreground service only — no background location), step counter. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION"/>
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- Focus gate (focus/FocusGate.kt): see which app is in front, and switch the
+         Focus accessibility service on only inside YouTube/Instagram so banking
+         apps never see it. Both are granted by the user by hand, never prompted. -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions"/>
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+
+    <!-- Screen time (focus/ScreenTime.kt) names apps and skips the home screen; Android 11+
+         hides other apps unless declared. Launchable apps + home only, not QUERY_ALL_PACKAGES. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
+    </queries>
     <!-- Calendar exact-time alerts. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
@@ -23,6 +49,7 @@
         tools:ignore="ScopedStorage"/>
 
     <application
+        android:name=".QuiverApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -30,7 +57,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.ScreenshotCleaner">
+        android:theme="@style/Theme.Quiver">
 
         <!-- UI Activities -->
         <!-- Redesigned single-surface hub is the launcher. -->
@@ -44,7 +71,7 @@
             android:exported="true"
             android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize"
-            android:theme="@style/Theme.ScreenshotCleaner">
+            android:theme="@style/Theme.Quiver">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -61,7 +88,7 @@
             android:exported="true"
             android:excludeFromRecents="true"
             android:taskAffinity=""
-            android:theme="@style/Theme.ScreenshotCleaner.Share">
+            android:theme="@style/Theme.Quiver.Share">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -82,7 +109,7 @@
             android:turnScreenOn="true"
             android:launchMode="singleInstance"
             android:taskAffinity=""
-            android:theme="@style/Theme.ScreenshotCleaner"/>
+            android:theme="@style/Theme.Quiver"/>
         <receiver
             android:name=".calendar.alert.AlertReceiver"
             android:exported="false"/>
@@ -91,7 +118,7 @@
             android:exported="false"/>
         <activity
             android:name=".screenshots.ui.DeleteConfirmActivity"
-            android:theme="@style/Theme.ScreenshotCleaner.Dialog"
+            android:theme="@style/Theme.Quiver.Dialog"
             android:excludeFromRecents="true"
             android:showOnLockScreen="true"
             android:turnScreenOn="true"
@@ -99,7 +126,7 @@
             android:taskAffinity=""/>
         <activity
             android:name=".screenshots.ui.EditDelayActivity"
-            android:theme="@style/Theme.ScreenshotCleaner.Share"
+            android:theme="@style/Theme.Quiver.Share"
             android:excludeFromRecents="true"
             android:taskAffinity=""/>
 
@@ -189,6 +216,12 @@
             </intent-filter>
         </receiver>
 
+        <!-- Move tracker: records while the screen is off; started only from the Move screen. -->
+        <service
+            android:name=".move.MoveService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
         <!-- Focus: Shorts/Reels blocker. Only sees YouTube + Instagram (see focus_service.xml). -->
         <service
             android:name=".focus.FocusService"
@@ -201,6 +234,16 @@
             <meta-data
                 android:name="android.accessibilityservice"
                 android:resource="@xml/focus_service" />
+        </service>
+        <!-- Move: activity-recognition start/stop events (move/steps/AutoDetect.kt) -->
+        <receiver android:name=".move.steps.TransitionReceiver" android:exported="false" />
+        <service
+            android:name=".focus.FocusGateService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Switches the user's own Shorts/Reels blocker on only while YouTube or Instagram is in the foreground." />
         </service>
 
     </application>

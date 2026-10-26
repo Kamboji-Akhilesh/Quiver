@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Display names for data enums, units and durations (see ui/locale/Labels.kt). -->
+<resources>
+    <string name="cat_food">Food</string>
+    <string name="cat_groceries">Groceries</string>
+    <string name="cat_transport">Transport</string>
+    <string name="cat_shopping">Shopping</string>
+    <string name="cat_bills">Bills</string>
+    <string name="cat_health">Health</string>
+    <string name="cat_fun">Fun</string>
+    <string name="cat_other">Other</string>
+
+    <string name="move_type_run">Run</string>
+    <string name="move_type_walk">Walk</string>
+    <string name="move_type_ride">Ride</string>
+    <string name="move_type_hike">Hike</string>
+    <!-- %1$s is the activity, e.g. "Run" -->
+    <string name="move_title_morning">Morning %1$s</string>
+    <string name="move_title_afternoon">Afternoon %1$s</string>
+    <string name="move_title_evening">Evening %1$s</string>
+    <string name="move_title_night">Night %1$s</string>
+    <!-- Units; %1$s is the number -->
+    <string name="unit_km">%1$s km</string>
+    <string name="unit_pace">%1$s /km</string>
+    <string name="unit_pace_none">– /km</string>
+    <string name="unit_kmh">%1$s km/h</string>
+
+    <string name="alert_style_none">No alert</string>
+    <string name="alert_style_notification">Notification</string>
+    <string name="alert_style_call">Call</string>
+    <string name="lead_at_time">At time</string>
+    <!-- %1$s is a duration, e.g. "5 minutes" -->
+    <string name="lead_before">%1$s before</string>
+    <!-- %1$s is a short date, e.g. "Oct 26" -->
+    <string name="calendar_added_to_x">Added to %1$s</string>
+    <string name="repeat_none">Does not repeat</string>
+    <string name="repeat_every_day">Every day</string>
+    <string name="repeat_every_week">Every week</string>
+    <string name="repeat_every_month">Every month</string>
+    <!-- %1$s is a count and unit, e.g. "2 weeks" -->
+    <string name="repeat_every_n">Every %1$s</string>
+    <!-- %1$s is a range, e.g. "30 days" -->
+    <string name="currency_range_trend">%1$s trend</string>
+
+    <plurals name="duration_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+    <plurals name="duration_minutes_short">
+        <item quantity="one">%d min</item>
+        <item quantity="other">%d min</item>
+    </plurals>
+    <plurals name="duration_hours">
+        <item quantity="one">%d hour</item>
+        <item quantity="other">%d hours</item>
+    </plurals>
+    <plurals name="duration_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+    <plurals name="duration_weeks">
+        <item quantity="one">%d week</item>
+        <item quantity="other">%d weeks</item>
+    </plurals>
+    <plurals name="duration_months">
+        <item quantity="one">%d month</item>
+        <item quantity="other">%d months</item>
+    </plurals>
+    <string name="common_all_day">all-day</string>
+    <string name="common_today">Today</string>
+    <!-- The all-day row's time column, split over two lines: "All" / "day" -->
+    <string name="calendar_allday_top">All</string>
+    <string name="calendar_allday_bottom">day</string>
+    <string name="calendar_new_task">New task</string>
+    <string name="calendar_new_event">New event</string>
+    <string name="calendar_edit_task">Edit task</string>
+    <string name="calendar_edit_event">Edit event</string>
+    <!-- %1$s rate, %2$s currency code -->
+    <string name="currency_now_x">Now %1$s %2$s</string>
+    <string name="currency_crosses">crosses</string>
+    <string name="currency_eg_x">e.g. %1$s</string>
+    <!-- %1$s "3 feeds blocked today", %2$s all-time count -->
+    <string name="focus_all_time">%1$s · %2$s all time</string>
+    <string name="hub_now">now</string>
+    <!-- Compact "time ago": 5m, 2h, 3d -->
+    <string name="hub_ago_minutes">%1$dm</string>
+    <string name="hub_ago_hours">%1$dh</string>
+    <string name="hub_ago_days">%1$dd</string>
+    <!-- %1$s is a list like "2 notes · 1 calendar item · 3 expenses" -->
+    <string name="hub_imported_x">Imported %1$s</string>
+    <string name="move_stat_distance">distance</string>
+    <string name="move_stat_moving">moving</string>
+    <string name="move_stat_speed">speed</string>
+    <string name="move_stat_climb">climb</string>
+    <string name="move_stat_steps">steps</string>
+    <string name="move_stat_elapsed">elapsed</string>
+    <string name="move_stat_kcal">kcal</string>
+    <string name="move_kilometres">kilometres</string>
+    <!-- %1$s is the weight number -->
+    <string name="move_calories_use_x">Calories use %1$s kg · change</string>
+    <string name="unit_kg">kg</string>
+    <string name="unit_m">%1$s m</string>
+
+    <plurals name="count_items">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
+    <plurals name="count_notes">
+        <item quantity="one">%d note</item>
+        <item quantity="other">%d notes</item>
+    </plurals>
+    <plurals name="count_calendar_items">
+        <item quantity="one">%d calendar item</item>
+        <item quantity="other">%d calendar items</item>
+    </plurals>
+    <plurals name="count_expenses">
+        <item quantity="one">%d expense</item>
+        <item quantity="other">%d expenses</item>
+    </plurals>
+    <plurals name="count_alerts">
+        <item quantity="one">%d alert</item>
+        <item quantity="other">%d alerts</item>
+    </plurals>
+    <plurals name="expenses_this_month">
+        <item quantity="one">%d expense this month</item>
+        <item quantity="other">%d expenses this month</item>
+    </plurals>
+    <plurals name="expenses_auto_detected">
+        <item quantity="one">%d auto-detected payment — tap to review</item>
+        <item quantity="other">%d auto-detected payments — tap to review</item>
+    </plurals>
+    <!-- Shown under the big number, so no count in the text -->
+    <plurals name="focus_feeds_blocked_today">
+        <item quantity="one">feed blocked today</item>
+        <item quantity="other">feeds blocked today</item>
+    </plurals>
+    <plurals name="hub_notes_label">
+        <item quantity="one">note</item>
+        <item quantity="other">notes</item>
+    </plurals>
+    <plurals name="move_stat_activities">
+        <item quantity="one">activity</item>
+        <item quantity="other">activities</item>
+    </plurals>
+    <plurals name="hub_trash_banner">
+        <item quantity="one">You have %d screenshot in trash — restore or clear them.</item>
+        <item quantity="other">You have %d screenshots in trash — restore or clear them.</item>
+    </plurals>
+    <plurals name="hub_calendar_banner">
+        <item quantity="one">%d item is on your calendar today.</item>
+        <item quantity="other">%d items are on your calendar today.</item>
+    </plurals>
+    <!-- Under the big count, so no number in the text -->
+    <plurals name="hub_items_today_label">
+        <item quantity="one">item today</item>
+        <item quantity="other">items today</item>
+    </plurals>
+    <plurals name="count_activities">
+        <item quantity="one">%d activity</item>
+        <item quantity="other">%d activities</item>
+    </plurals>
+    <plurals name="count_feeds">
+        <item quantity="one">%d feed</item>
+        <item quantity="other">%d feeds</item>
+    </plurals>
+</resources>
