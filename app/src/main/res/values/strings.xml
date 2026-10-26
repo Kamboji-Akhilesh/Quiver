@@ -636,4 +636,7 @@
     <string name="move_replay_resume">Resume</string>
     <string name="settings_map_labels">Show place names on maps</string>
     <string name="settings_map_labels_sub">Street and place labels on Move maps</string>
+    <string name="move_pace_chart">Pace</string>
+    <string name="move_speed_chart">Speed</string>
+    <string name="move_pace_chart_avg">avg %1$s</string>
 </resources>

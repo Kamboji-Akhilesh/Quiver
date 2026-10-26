@@ -171,6 +171,15 @@ class TrackFilter(private val type: MoveType) {
     /** The cleaned track — what the map draws and GPX exports. A snapshot, safe to hand to the UI. */
     val track: List<Fix> get() = kept.toList()
 
+    /**
+     * Where the runner is now, ahead of the last kept point: distance only
+     * counts once a full step is confirmed (that's the jitter filter), which
+     * at running pace takes 5-10 s. Shown live so the numbers move every
+     * second; never stored. Null when nothing is pending.
+     */
+    val head: Fix? get() = pending.lastOrNull()
+    val headM: Double get() = anchor?.let { a -> head?.let { TrackMath.distanceM(a, it) } } ?: 0.0
+
     private val splits = mutableListOf<Long>()
     private val kept = mutableListOf<Fix>()
 

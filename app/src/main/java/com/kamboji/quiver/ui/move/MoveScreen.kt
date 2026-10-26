@@ -1,5 +1,7 @@
 package com.kamboji.quiver.ui.move
 
+import androidx.compose.foundation.layout.fillMaxHeight
+import com.kamboji.quiver.move.PaceColours
 import com.kamboji.quiver.ui.locale.trPlural
 
 import com.kamboji.quiver.ui.locale.displayName
@@ -551,6 +553,14 @@ private fun DetailScreen(state: QuiverState, id: Long, onBack: () -> Unit) {
                 Splits(move.splits, type)
             }
 
+            val paces = remember(track) { PaceColours.profile(track, maxOf(50.0, move.distanceM / 40)) }
+            if (paces.size > 2) {
+                Spacer(Modifier.height(18.dp))
+                SectionLabel(if (type == MoveType.Ride) tr(R.string.move_speed_chart) else tr(R.string.move_pace_chart))
+                Spacer(Modifier.height(4.dp))
+                PaceChart(paces, type, move.distanceM / (move.movingMs / 1000.0).coerceAtLeast(1.0), ac.txt(colors.dark), Modifier.fillMaxWidth().glass(colors).padding(14.dp))
+            }
+
             val profile = remember(track) { elevationProfile(track) }
             if (profile.size > 2) {
                 Spacer(Modifier.height(18.dp))
@@ -705,6 +715,50 @@ private fun elevationProfile(track: List<Fix>): List<Pair<Double, Double>> {
     }
 }
 
+/**
+ * Pace along the route, faster higher (speed for rides), with the average as
+ * a dashed line and the fastest/slowest marked on the side.
+ */
+@Composable
+private fun PaceChart(points: List<Pair<Double, Double>>, type: MoveType, avgMps: Double, color: Color, modifier: Modifier) {
+    val colors = Quiver.colors
+    fun label(mps: Double) = if (type == MoveType.Ride) "%.1f".format(mps * 3.6)
+        else (1000 / mps).toLong().let { "%d:%02d".format(it / 60, it % 60) }
+    // Trim the extremes so one GPS hiccup doesn't flatten everything else.
+    val sorted = points.map { it.second }.sorted()
+    val lo = sorted[(sorted.size * 0.02).toInt()]
+    val hi = sorted[(sorted.size * 0.98).toInt().coerceAtMost(sorted.lastIndex)]
+    val span = (hi - lo).coerceAtLeast(0.2)
+    val maxD = points.last().first.coerceAtLeast(1.0)
+    Column(modifier) {
+        Row(Modifier.fillMaxWidth().height(120.dp)) {
+            Canvas(Modifier.weight(1f).fillMaxSize()) {
+                fun y(v: Double) = (size.height - ((v.coerceIn(lo, hi) - lo) / span * size.height)).toFloat()
+                val line = Path().apply {
+                    points.forEachIndexed { i, (d, v) ->
+                        val x = (d / maxD * size.width).toFloat()
+                        if (i == 0) moveTo(x, y(v)) else lineTo(x, y(v))
+                    }
+                }
+                val fill = Path().apply { addPath(line); lineTo(size.width, size.height); lineTo(0f, size.height); close() }
+                drawPath(fill, Brush.verticalGradient(listOf(color.copy(alpha = 0.30f), Color.Transparent)))
+                drawPath(line, color, style = Stroke(width = 4f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                val ay = y(avgMps)
+                drawLine(colors.dim, Offset(0f, ay), Offset(size.width, ay), 2f, pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(10f, 8f)))
+            }
+            Column(Modifier.padding(start = 8.dp).fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
+                Text(label(hi), fontSize = 10.sp, fontFamily = Mono, color = colors.faint)
+                Text(label(lo), fontSize = 10.sp, fontFamily = Mono, color = colors.faint)
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("0", fontSize = 10.sp, fontFamily = Mono, color = colors.faint)
+            Text(tr(R.string.move_pace_chart_avg, label(avgMps) + if (type == MoveType.Ride) " km/h" else " /km"), fontSize = 10.sp, color = colors.faint)
+            Text(MoveFormat.km(maxD), fontSize = 10.sp, fontFamily = Mono, color = colors.faint)
+        }
+    }
+}
+
 @Composable
 private fun ElevationChart(profile: List<Pair<Double, Double>>, color: Color, modifier: Modifier) {
     Canvas(modifier) {
@@ -749,7 +803,7 @@ internal fun RouteThumb(points: List<Pair<Double, Double>>, color: Color, modifi
 @Composable
 private fun Stat(value: String, label: String, modifier: Modifier = Modifier) {
     val colors = Quiver.colors
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text, maxLines = 1)
         Text(label, fontSize = 11.5.sp, color = colors.dim, maxLines = 1)
     }
@@ -758,7 +812,7 @@ private fun Stat(value: String, label: String, modifier: Modifier = Modifier) {
 @Composable
 private fun BigStat(value: String, label: String, modifier: Modifier = Modifier) {
     val colors = Quiver.colors
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(value, fontSize = 22.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text, maxLines = 1)
         Text(label, fontSize = 12.sp, color = colors.dim, maxLines = 1)
     }

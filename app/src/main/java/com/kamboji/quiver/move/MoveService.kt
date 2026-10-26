@@ -112,6 +112,8 @@ class MoveService : Service(), SensorEventListener {
     private var steps = 0
     private var pressureAltM: Double? = null
     private var accuracyM: Float? = null
+    /** Live distance shown so far; the provisional head can shrink when a step is confirmed, the display never does. */
+    private var shownM = 0.0
     private var lastNotifyAt = 0L
 
     private val callback = object : LocationCallback() {
@@ -140,6 +142,7 @@ class MoveService : Service(), SensorEventListener {
         val entity = MoveEntity(type = type.name, startedAt = now)
         move = entity.copy(id = runBlocking(Dispatchers.IO) { dao.insert(entity) })
         filter = TrackFilter(type)
+        shownM = 0.0
         MovePrefs(this).lastType = type
 
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
@@ -243,11 +246,11 @@ class MoveService : Service(), SensorEventListener {
             type = m.moveType,
             startedAt = m.startedAt,
             paused = paused,
-            distanceM = f.distanceM,
+            distanceM = if (paused) f.distanceM else maxOf(shownM, f.distanceM + f.headM).also { shownM = it },
             movingMs = f.movingMs,
             elevationGainM = f.elevationGainM,
             steps = steps,
-            track = f.track,
+            track = if (paused) f.track else f.track + listOfNotNull(f.head),
             accuracyM = accuracyM,
             speedMps = if (paused) null else f.currentSpeedMps,
         )
@@ -256,7 +259,7 @@ class MoveService : Service(), SensorEventListener {
         if (forceNotify || now - lastNotifyAt > NOTIFY_EVERY_MS) {
             lastNotifyAt = now
             val text = if (paused) tr(R.string.movesvc_paused_x, MoveFormat.km(f.distanceM))
-            else tr(R.string.movesvc_x_x_moving, MoveFormat.km(f.distanceM), MoveFormat.duration(f.movingMs))
+            else tr(R.string.movesvc_x_x_moving, MoveFormat.km(live.distanceM), MoveFormat.duration(f.movingMs))
             getSystemService(NotificationManager::class.java).notify(NOTIF_ID, notification(m.moveType, text))
         }
     }

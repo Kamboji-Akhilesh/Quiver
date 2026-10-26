@@ -24,4 +24,29 @@ object PaceColours {
             if (hi <= lo) n / 2 else (((smooth[i] - lo) / (hi - lo)) * n).toInt().coerceIn(0, n - 1)
         }
     }
+
+    /**
+     * Speed along the route for a pace chart: (distance from start, m/s) at
+     * each fix, averaged over the trailing [windowM] so GPS jitter doesn't
+     * spike it. Gaps over a minute (a pause) don't count as time.
+     */
+    fun profile(track: List<Fix>, windowM: Double): List<Pair<Double, Double>> {
+        if (track.size < 2) return emptyList()
+        val d = DoubleArray(track.size)
+        val moving = DoubleArray(track.size)
+        for (i in 1 until track.size) {
+            d[i] = d[i - 1] + TrackMath.distanceM(track[i - 1], track[i])
+            val dt = (track[i].t - track[i - 1].t) / 1000.0
+            moving[i] = moving[i - 1] + if (dt in 0.0..60.0) dt else 0.0
+        }
+        val out = mutableListOf<Pair<Double, Double>>()
+        var j = 0
+        for (i in 1 until track.size) {
+            while (j < i - 1 && d[i] - d[j + 1] >= windowM) j++
+            val dd = d[i] - d[j]
+            val dt = moving[i] - moving[j]
+            if (dd >= windowM / 2 && dt > 0) out += d[i] to dd / dt
+        }
+        return out
+    }
 }
