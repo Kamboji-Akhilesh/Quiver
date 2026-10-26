@@ -133,7 +133,7 @@ private fun RouteMap(
                         lines[k].setPoints(
                             when {
                                 range.first > i -> emptyList()
-                                range.last <= i -> points.subList(range.first, range.last + 1)
+                                range.last <= i -> points.slice(range)
                                 else -> points.subList(range.first, i + 1) + head
                             },
                         )
@@ -172,7 +172,8 @@ private fun RouteMap(
                         m.tilesScaleFactor = 1f
                         m.tag = null
                     }
-                    runs.forEachIndexed { k, (range, _) -> lines[k].setPoints(points.subList(range.first, range.last + 1)) }
+                    // A recording starts with no points: slice, which clamps, rather than subList.
+                    runs.forEachIndexed { k, (range, _) -> lines[k].setPoints(points.slice(range.first until minOf(range.last + 1, points.size))) }
                     dot.points = emptyList()
                     when {
                         points.isEmpty() -> Unit
@@ -319,21 +320,24 @@ private fun androidx.compose.foundation.layout.BoxScope.Attribution(labels: Bool
 /** Pace in one colour: faint where slower, strong where faster (6 steps). */
 private val PACE_ALPHA = floatArrayOf(0.25f, 0.4f, 0.55f, 0.7f, 0.85f, 1f)
 
-/** The route as fix ranges with a colour each: one range, or runs of equal pace. */
-private fun routeRuns(track: List<Fix>, accent: Color, paceColours: Boolean): List<Pair<IntRange, Int>> {
-    if (track.size < 2) return listOf(0..maxOf(0, track.lastIndex) to accent.toArgb())
-    if (!paceColours || track.size < 3) return listOf(0..track.lastIndex to accent.toArgb())
+/** Runs of equal pace as (first fix, last fix, opacity); one full-strength run without pace shading. */
+internal fun paceRuns(track: List<Fix>, paceColours: Boolean): List<Triple<Int, Int, Float>> {
+    if (track.size < 3 || !paceColours) return listOf(Triple(0, maxOf(0, track.lastIndex), 1f))
     val buckets = PaceColours.buckets(track, PACE_ALPHA.size)
-    val out = mutableListOf<Pair<IntRange, Int>>()
+    val out = mutableListOf<Triple<Int, Int, Float>>()
     var start = 0
     for (i in 1..buckets.size) {
         if (i == buckets.size || buckets[i] != buckets[start]) {
-            out += (start..i) to accent.copy(alpha = PACE_ALPHA[buckets[start]]).toArgb()
+            out += Triple(start, i, PACE_ALPHA[buckets[start]])
             start = i
         }
     }
     return out
 }
+
+/** The route as fix ranges with a colour each: one range, or runs of equal pace. */
+private fun routeRuns(track: List<Fix>, accent: Color, paceColours: Boolean): List<Pair<IntRange, Int>> =
+    paceRuns(track, paceColours).map { (s, e, a) -> (s..e) to accent.copy(alpha = a).toArgb() }
 
 private fun routeLine(m: MapView, color: Int) = Polyline(m).apply {
     outlinePaint.color = color
