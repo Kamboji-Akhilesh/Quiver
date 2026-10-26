@@ -2,6 +2,7 @@ package com.kamboji.quiver
 
 import android.app.Application
 import com.kamboji.quiver.focus.FocusGate
+import com.kamboji.quiver.move.steps.Steps
 import com.kamboji.quiver.ui.locale.Strings
 
 /**
@@ -14,5 +15,6 @@ class QuiverApplication : Application() {
         super.onCreate()
         Strings.attach(this)
         FocusGate.sync(this)
+        Steps.start(this)
     }
 }

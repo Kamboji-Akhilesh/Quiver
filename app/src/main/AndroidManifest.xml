@@ -235,6 +235,8 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/focus_service" />
         </service>
+        <!-- Move: activity-recognition start/stop events (move/steps/AutoDetect.kt) -->
+        <receiver android:name=".move.steps.TransitionReceiver" android:exported="false" />
         <service
             android:name=".focus.FocusGateService"
             android:exported="false"

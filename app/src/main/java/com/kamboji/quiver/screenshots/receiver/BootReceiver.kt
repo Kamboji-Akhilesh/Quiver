@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.kamboji.quiver.focus.FocusGate
+import com.kamboji.quiver.move.steps.Steps
 import com.kamboji.quiver.screenshots.service.ScreenshotService
 import com.kamboji.quiver.screenshots.worker.CleanupWorker
 
@@ -23,6 +24,8 @@ class BootReceiver : BroadcastReceiver() {
                 // Re-arm the periodic trash cleanup as well.
                 CleanupWorker.schedule(context)
                 FocusGate.sync(context)
+                // Activity-recognition registrations don't survive reboots or updates.
+                Steps.start(context)
             }
         }
     }

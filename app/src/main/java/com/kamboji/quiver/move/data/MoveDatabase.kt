@@ -2,6 +2,10 @@ package com.kamboji.quiver.move.data
 
 import android.content.Context
 import androidx.room.Dao
+import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.room.migration.Migration
+import androidx.room.Upsert
+import androidx.room.ColumnInfo
 import androidx.room.Database
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -33,6 +37,8 @@ data class MoveEntity(
     val splitsMs: String = "",
     /** A thinned "lat,lon;lat,lon…" route for list thumbnails (no point table read). */
     val preview: String = "",
+    /** Logged by activity recognition (no GPS, so no route or distance) rather than recorded. */
+    @ColumnInfo(defaultValue = "0") val auto: Boolean = false,
 ) {
     val moveType: MoveType get() = MoveType.valueOf(type)
     val elapsedMs: Long get() = (endedAt ?: startedAt) - startedAt
@@ -99,16 +105,41 @@ interface MoveDao {
     }
 }
 
+/** Steps on one day ("2026-10-26"), from the phone's step counter (move/steps). */
+@Entity(tableName = "daily_steps")
+data class DailySteps(@PrimaryKey val day: String, val steps: Long)
+
+@Dao
+interface StepsDao {
+    @Query("SELECT * FROM daily_steps WHERE day = :day") fun get(day: String): DailySteps?
+    @Query("SELECT * FROM daily_steps WHERE day >= :from ORDER BY day") fun since(from: String): Flow<List<DailySteps>>
+    @Query("SELECT * FROM daily_steps WHERE day >= :from ORDER BY day") suspend fun sinceOnce(from: String): List<DailySteps>
+    @Upsert fun put(row: DailySteps)
+
+    @Transaction
+    fun add(day: String, steps: Long) = put(DailySteps(day, (get(day)?.steps ?: 0) + steps))
+}
+
 /** Separate from the screenshots database so neither needs a migration for the other. */
-@Database(entities = [MoveEntity::class, PointEntity::class], version = 1, exportSchema = false)
+@Database(entities = [MoveEntity::class, PointEntity::class, DailySteps::class], version = 2, exportSchema = false)
 abstract class MoveDatabase : RoomDatabase() {
     abstract fun dao(): MoveDao
+    abstract fun steps(): StepsDao
 
     companion object {
         @Volatile private var instance: MoveDatabase? = null
 
+        /** v2: daily step totals, and auto-detected activities. */
+        internal val V1_TO_V2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS daily_steps (day TEXT NOT NULL PRIMARY KEY, steps INTEGER NOT NULL)")
+                db.execSQL("ALTER TABLE moves ADD COLUMN auto INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun get(context: Context): MoveDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, MoveDatabase::class.java, "move.db")
+                .addMigrations(V1_TO_V2)
                 .build().also { instance = it }
         }
     }

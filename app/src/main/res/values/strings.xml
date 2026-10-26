@@ -525,4 +525,10 @@
     <string name="brief_setting_on">Every day at %1$s</string>
     <string name="brief_setting_off">Calendar, spend and screen time in one notification</string>
     <string name="hub_daily">Daily</string>
+    <!-- Move: all-day steps -->
+    <string name="steps_enable">Count steps all day</string>
+    <string name="steps_enable_why">Uses your phone\'s step counter, like Google Fit, and logs walks, runs and rides by themselves. No GPS, barely any battery, nothing leaves the phone.</string>
+    <string name="steps_today_of_x">steps today · goal %1$s</string>
+    <!-- Auto-detected activity: %1$s duration, %2$s steps -->
+    <string name="steps_auto_row">%1$s · %2$s steps · auto</string>
 </resources>

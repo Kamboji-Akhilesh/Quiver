@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.kamboji.quiver.move.steps.Steps
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -170,6 +171,9 @@ private fun HomeScreen(state: QuiverState, onOpen: (Long) -> Unit) {
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp).padding(bottom = 150.dp),
         ) {
+            StepsCard()
+            Spacer(Modifier.height(14.dp))
+
             // Start card
             Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -223,12 +227,72 @@ private fun HomeScreen(state: QuiverState, onOpen: (Long) -> Unit) {
     }
 }
 
+/** Today's steps from the phone's step counter, the goal, and the last 7 days. */
+@Composable
+private fun StepsCard() {
+    val colors = Quiver.colors
+    val ac = Accents.Move
+    val context = LocalContext.current
+    var allowed by remember { mutableStateOf(Steps.hasPermission(context)) }
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        allowed = ok
+        if (ok) Steps.start(context)
+    }
+    if (!Steps.hasChip(context)) return
+    if (!allowed) {
+        Row(
+            Modifier.fillMaxWidth().glass(colors).clip(RoundedCornerShape(22.dp))
+                .clickable { ask.launch(Manifest.permission.ACTIVITY_RECOGNITION) }.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(tr(R.string.steps_enable), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                Text(tr(R.string.steps_enable_why), fontSize = 12.sp, color = colors.dim, lineHeight = 16.sp)
+            }
+            Text(tr(R.string.focus_enable), color = ac.txt(colors.dark), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        }
+        return
+    }
+    val today = LocalDate.now()
+    val dao = remember { MoveDatabase.get(context).steps() }
+    val days by remember { dao.since(today.minusDays(6).toString()) }.collectAsState(emptyList())
+    // Read the chip while the screen is open, so the count moves as you walk.
+    LaunchedEffect(Unit) { while (true) { Steps.sample(context); delay(30_000) } }
+    val byDay = days.associate { it.day to it.steps }
+    val now = byDay[today.toString()] ?: 0
+    val goal = Steps.goal(context)
+    Column(Modifier.fillMaxWidth().glass(colors).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("%,d".format(now), fontSize = 34.sp, fontWeight = FontWeight.Bold, fontFamily = Mono, color = colors.text)
+            Text(tr(R.string.steps_today_of_x, "%,d".format(goal)), fontSize = 13.sp, color = colors.dim, modifier = Modifier.padding(bottom = 6.dp))
+        }
+        Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(colors.border)) {
+            Box(Modifier.fillMaxWidth((now.toFloat() / goal).coerceIn(0f, 1f)).height(8.dp).clip(RoundedCornerShape(4.dp)).background(Brush.linearGradient(listOf(ac.a, ac.b))))
+        }
+        val week = (6 downTo 0).map { today.minusDays(it.toLong()) }
+        val top = maxOf(goal.toLong(), week.maxOf { byDay[it.toString()] ?: 0 })
+        Row(Modifier.fillMaxWidth().height(64.dp).padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
+            week.forEach { d ->
+                val n = byDay[d.toString()] ?: 0
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        Modifier.fillMaxWidth().height((44 * n / top).toInt().coerceAtLeast(3).dp).clip(RoundedCornerShape(4.dp))
+                            .background(if (n >= goal) ac.a else ac.a.copy(alpha = 0.35f)),
+                    )
+                    Text(d.dayOfWeek.getDisplayName(java.time.format.TextStyle.NARROW, java.util.Locale.getDefault()), fontSize = 10.sp, color = if (d == today) colors.text else colors.faint)
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun ActivityRow(m: MoveEntity, onClick: () -> Unit) {
     val colors = Quiver.colors
     val ac = Accents.Move
     Row(
-        Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(12.dp),
+        // Auto-detected activities have no route to open.
+        Modifier.fillMaxWidth().glass(colors, RoundedCornerShape(20.dp)).then(if (m.auto) Modifier else Modifier.clickable(onClick = onClick)).padding(12.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp),
     ) {
         RouteThumb(
@@ -239,7 +303,8 @@ private fun ActivityRow(m: MoveEntity, onClick: () -> Unit) {
             Text(MoveSummary.title(m.moveType, m.startedAt), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
             Text(formatDate(m.startedAt), fontSize = 11.5.sp, color = colors.dim)
             Text(
-                "${MoveFormat.km(m.distanceM)} · ${MoveFormat.duration(m.movingMs)} · ${MoveFormat.rate(m.moveType, m.distanceM, m.movingMs)}",
+                if (m.auto) tr(R.string.steps_auto_row, MoveFormat.duration(m.movingMs), "%,d".format(m.steps))
+                else "${MoveFormat.km(m.distanceM)} · ${MoveFormat.duration(m.movingMs)} · ${MoveFormat.rate(m.moveType, m.distanceM, m.movingMs)}",
                 fontSize = 12.sp, fontFamily = Mono, color = colors.text, modifier = Modifier.padding(top = 3.dp),
             )
         }
