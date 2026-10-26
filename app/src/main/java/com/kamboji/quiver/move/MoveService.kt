@@ -357,6 +357,11 @@ class MovePrefs(context: Context) {
         get() = prefs.getBoolean("voice_splits", true)
         set(v) = prefs.edit().putBoolean("voice_splits", v).apply()
 
+    /** Street and place names on Move maps; off by default for a clean map. */
+    var mapLabels: Boolean
+        get() = prefs.getBoolean("map_labels", false)
+        set(v) = prefs.edit().putBoolean("map_labels", v).apply()
+
     var lastType: MoveType
         get() = runCatching { MoveType.valueOf(prefs.getString("last_type", null) ?: "") }.getOrDefault(MoveType.Run)
         set(v) = prefs.edit().putString("last_type", v.name).apply()

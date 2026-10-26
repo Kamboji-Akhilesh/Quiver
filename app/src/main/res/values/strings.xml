@@ -634,4 +634,6 @@
     <string name="move_no_records_yet">No records yet. Record a run, walk or ride of 400 m or more and your best times show up here.</string>
     <string name="currency_just_now">just now</string>
     <string name="move_replay_resume">Resume</string>
+    <string name="settings_map_labels">Show place names on maps</string>
+    <string name="settings_map_labels_sub">Street and place labels on Move maps</string>
 </resources>

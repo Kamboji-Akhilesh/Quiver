@@ -18,8 +18,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.kamboji.quiver.move.Fix
+import com.kamboji.quiver.move.MovePrefs
 import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.MapTileIndex
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.CustomZoomButtonsController
@@ -71,7 +74,9 @@ fun MoveMap(
                     points[i].longitude + (points[j].longitude - points[i].longitude) * f,
                 )
                 progress.setPoints(points.subList(0, i + 1) + head)
-                dot.points = Polygon.pointsAsCircle(head, 9.0)
+                // ~20 px across whatever the zoom: metres per pixel at this latitude and zoom.
+                val metresPerPx = 156_543.03 * kotlin.math.cos(Math.toRadians(head.latitude)) / Math.pow(2.0, m.zoomLevelDouble)
+                dot.points = Polygon.pointsAsCircle(head, metresPerPx * 20)
                 m.controller.setCenter(head)
             }
             when {
@@ -142,6 +147,7 @@ private fun fit(m: MapView, points: List<GeoPoint>) {
 @Composable
 private fun rememberOsmMap(dark: Boolean): MapView {
     val context = LocalContext.current
+    val labels = remember { MovePrefs(context).mapLabels }
     remember {
         Configuration.getInstance().apply {
             // OSM's tile policy requires an identifying user agent.
@@ -152,11 +158,17 @@ private fun rememberOsmMap(dark: Boolean): MapView {
     }
     val map = remember {
         MapView(context).apply {
-            setTileSource(TileSourceFactory.MAPNIK)
+            if (labels) {
+                setTileSource(TileSourceFactory.MAPNIK)
+                if (dark) overlayManager.tilesOverlay.setColorFilter(DARK_TILES)
+            } else {
+                // Esri's canvas stops at zoom 16; past that the map would stay blank.
+                setTileSource(quietTiles(dark))
+                maxZoomLevel = 16.0
+            }
             setMultiTouchControls(true)
             zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
             controller.setZoom(16.5)
-            if (dark) overlayManager.tilesOverlay.setColorFilter(DARK_TILES)
             onResume()
         }
     }
@@ -166,9 +178,11 @@ private fun rememberOsmMap(dark: Boolean): MapView {
 
 @Composable
 private fun androidx.compose.foundation.layout.BoxScope.Attribution() {
-    // Required by the OpenStreetMap licence.
+    // Required by the OpenStreetMap (and Esri) terms.
+    val context = LocalContext.current
+    val labels = remember { MovePrefs(context).mapLabels }
     Text(
-        "© OpenStreetMap contributors",
+        if (labels) "© OpenStreetMap contributors" else "Esri · © OpenStreetMap contributors",
         fontSize = 9.sp, color = Color.White,
         modifier = Modifier.align(Alignment.BottomEnd).background(Color(0x99000000)).padding(horizontal = 5.dp, vertical = 2.dp),
     )
@@ -197,6 +211,25 @@ private fun routeLines(m: MapView, track: List<Fix>, accent: Color, paceColours:
         }
     }
     return out
+}
+
+/**
+ * Without labels (the default): Esri's grey canvas, which drops place, shop
+ * and landmark names and keeps only faint street names. With labels
+ * (Settings › Show place names on maps): standard OpenStreetMap, dimmed for dark.
+ * Both are keyless.
+ */
+private fun quietTiles(dark: Boolean): OnlineTileSourceBase {
+    val style = if (dark) "World_Dark_Gray_Base" else "World_Light_Gray_Base"
+    return object : OnlineTileSourceBase(
+        "esri-$style", 0, 16, 256, "",
+        arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/$style/MapServer/tile/"),
+        "Esri, HERE, Garmin, © OpenStreetMap contributors",
+    ) {
+        // Esri orders tiles z/y/x.
+        override fun getTileURLString(index: Long) =
+            baseUrl + MapTileIndex.getZoom(index) + "/" + MapTileIndex.getY(index) + "/" + MapTileIndex.getX(index)
+    }
 }
 
 /**

@@ -115,6 +115,12 @@ fun SettingsScreen(state: QuiverState) {
                     voice = !voice
                     MovePrefs(context).voiceSplits = voice
                 }
+                Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
+                var labels by remember { mutableStateOf(MovePrefs(context).mapLabels) }
+                SwitchRow(tr(R.string.settings_map_labels), tr(R.string.settings_map_labels_sub), labels) {
+                    labels = !labels
+                    MovePrefs(context).mapLabels = labels
+                }
             }
 
             Spacer(Modifier.height(6.dp))
