@@ -153,7 +153,7 @@ class EventCallActivity : ComponentActivity() {
 
     private fun markDone(entry: CalendarEntry) {
         val store = CalendarStore(this)
-        store.saveAll(store.getAll().map { if (it.id == entry.id) it.copy(done = true) else it })
+        store.getAll().firstOrNull { it.id == entry.id }?.let { store.put(it.copy(done = true)) }
         AlertScheduler.cancel(this, entry.id)
         finishCall()
     }

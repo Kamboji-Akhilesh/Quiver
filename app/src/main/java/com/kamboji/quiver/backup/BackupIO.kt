@@ -49,17 +49,17 @@ object BackupIO {
     suspend fun merge(context: Context, imported: QuiverBackup.Imported): Counts = withContext(Dispatchers.IO) {
         val notesStore = NotesStore(context)
         val notes = QuiverBackup.mergeNotes(notesStore.getAll(), imported.notes) { notesStore.nextId() }
-        notesStore.saveAll(notes.merged)
+        notesStore.putAll(notes.added)
 
         val calStore = CalendarStore(context)
         val cal = QuiverBackup.mergeEntries(calStore.getAll(), imported.entries) { calStore.nextId() }
-        calStore.saveAll(cal.merged)
+        calStore.putAll(cal.added)
         // Imported reminders should fire like locally-created ones.
         cal.added.forEach { AlertScheduler.reschedule(context, it) }
 
         val expStore = ExpenseStore(context)
         val exp = QuiverBackup.mergeExpenses(expStore.getAll(), imported.expenses) { expStore.nextId() }
-        expStore.saveAll(exp.merged)
+        expStore.putAll(exp.added)
 
         val alertStore = RateAlertStore(context)
         val alerts = QuiverBackup.mergeRateAlerts(alertStore.getAll(), imported.rateAlerts) { alertStore.nextId() }

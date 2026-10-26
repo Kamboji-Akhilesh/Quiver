@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Backup rules for API 31+. Same reasoning as backup_rules.xml: prefs hold all
-   user data and are small; the AI model file must never be included (25 MB
+   Backup rules for API 31+. Same reasoning as backup_rules.xml: prefs and
+   quiver.db hold the user's data and are small; the AI model file must never be included (25 MB
    cloud-backup quota) and the screenshot history DB is device-specific.
 -->
 <data-extraction-rules>
     <cloud-backup>
         <include domain="sharedpref" path="."/>
+        <include domain="database" path="quiver.db"/>
     </cloud-backup>
     <device-transfer>
         <include domain="sharedpref" path="."/>
+        <include domain="database" path="quiver.db"/>
     </device-transfer>
 </data-extraction-rules>

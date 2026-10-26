@@ -175,9 +175,10 @@ class ToggleTaskCallback : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         val id = parameters[EntryId] ?: return
         val store = CalendarStore(context)
-        val list = store.getAll().map { if (it.id == id) it.copy(done = !it.done) else it }
-        store.saveAll(list)
-        list.firstOrNull { it.id == id }?.let { AlertScheduler.reschedule(context, it) }
+        store.getAll().firstOrNull { it.id == id }?.let { e -> e.copy(done = !e.done) }?.let {
+            store.put(it)
+            AlertScheduler.reschedule(context, it)
+        }
         AgendaWidget().updateAll(context)
     }
 

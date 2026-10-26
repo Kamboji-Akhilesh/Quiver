@@ -1,10 +1,13 @@
 package com.kamboji.quiver.notes.data
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 import org.json.JSONObject
 
-/** A single note. Persisted as JSON via [NotesStore]. */
+/** A single note, a row of the `notes` table (see [NotesStore]). JSON is for backups. */
+@Entity(tableName = "notes")
 data class Note(
-    val id: Long,
+    @PrimaryKey val id: Long,
     val title: String,
     val body: String,
     val colorId: Int = 0,

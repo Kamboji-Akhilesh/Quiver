@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Auto Backup (API < 31). Include ONLY SharedPreferences: that's where every
-   user store lives (notes, calendar_store, expenses, hub/app prefs, screenshot
-   settings) and it's tiny. Without explicit includes the system would try to
+   Auto Backup (API < 31). Include SharedPreferences (settings, rate alerts) and
+   quiver.db (notes, calendar, expenses; journal mode TRUNCATE so it's one file).
+   Both are tiny. Without explicit includes the system would try to
    back up "everything", and files/llm-models (a multi-hundred-MB GGUF) blows
    the 25 MB auto-backup quota — killing the backup entirely. The screenshot
    history DB is device-specific (MediaStore URIs) and is deliberately out.
 -->
 <full-backup-content>
     <include domain="sharedpref" path="."/>
+    <include domain="database" path="quiver.db"/>
 </full-backup-content>

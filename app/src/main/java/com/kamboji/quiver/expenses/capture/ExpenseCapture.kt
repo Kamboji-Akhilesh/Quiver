@@ -28,7 +28,7 @@ object ExpenseCapture {
         if (!CaptureDedup.firstSeen(context, p, atMillis)) return false
         val store = ExpenseStore(context)
         val expense = expense(store.nextId(), p, atMillis, needsReview = true)
-        store.saveAll(store.getAll() + expense)
+        store.put(expense)
         notifyCaptured(context, expense)
         return true
     }
@@ -47,7 +47,7 @@ object ExpenseCapture {
             expense(store.nextId(), p, at, needsReview = false)
         }
         if (added.isEmpty()) return 0
-        store.saveAll(store.getAll() + added)
+        store.putAll(added)
         CaptureDedup.save(context, seen)
         notify(context, NOTIF_BASE - 1, tr(R.string.capture_history_title, trPlural(R.plurals.count_expenses, added.size)), tr(R.string.capture_history_text))
         return added.size

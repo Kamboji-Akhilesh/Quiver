@@ -83,7 +83,7 @@ class QuiverAppFunctions {
         val store = NotesStore(appFunctionContext.context)
         val now = System.currentTimeMillis()
         val id = store.nextId()
-        store.saveAll(store.getAll() + Note(id, title.trim(), content.trim(), 0, false, now, now))
+        store.put(Note(id, title.trim(), content.trim(), 0, false, now, now))
         CreatedNote(id, title.trim().ifBlank { "Untitled" })
     }
 
@@ -110,7 +110,7 @@ class QuiverAppFunctions {
         val cat = ExpenseCategory.parse(category)
         val store = ExpenseStore(appFunctionContext.context)
         val id = store.nextId()
-        store.saveAll(store.getAll() + Expense(id, paise, cat, note.trim(), System.currentTimeMillis()))
+        store.put(Expense(id, paise, cat, note.trim(), System.currentTimeMillis()))
         LoggedExpense(id, paise / 100.0, cat.id)
     }
 
@@ -142,7 +142,7 @@ class QuiverAppFunctions {
             alertStyle = AlertStyle.NOTIFICATION, alertLead = AlertLead.AT_TIME,
             createdAtMillis = System.currentTimeMillis(),
         )
-        store.saveAll(store.getAll() + entry)
+        store.put(entry)
         AlertScheduler.reschedule(context, entry)
         CreatedTask(entry.id, entry.title, start)
     }

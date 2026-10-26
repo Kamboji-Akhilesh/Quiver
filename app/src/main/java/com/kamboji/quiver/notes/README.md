@@ -17,8 +17,9 @@ are pinnable, colour-tagged, and searchable — and Quiver AI can read and write
 them for you (see [`ai/`](../ai/README.md)).
 
 ## How it works
-- `data/Note` + `data/NotesStore` — the note model and a JSON-in-SharedPreferences
-  store (the same pattern every mini-app uses). Each note carries a title, body,
+- `data/Note` + `data/NotesStore` — the note model and its store, a table in
+  `data/QuiverDatabase` (Room; shared with calendar and expenses, which moved
+  off SharedPreferences JSON on 2026-10-26). Each note carries a title, body,
   colour tag, pinned flag and created/updated timestamps.
 - `NotesViewModel` — CRUD, pin/unpin, colour, and "most recently updated first"
   ordering.

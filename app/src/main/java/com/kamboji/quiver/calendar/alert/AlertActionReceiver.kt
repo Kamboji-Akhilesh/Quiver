@@ -16,7 +16,7 @@ class AlertActionReceiver : BroadcastReceiver() {
         when (intent.action) {
             ACTION_DONE -> {
                 val store = CalendarStore(context)
-                store.saveAll(store.getAll().map { if (it.id == id) it.copy(done = true) else it })
+                store.getAll().firstOrNull { it.id == id }?.let { store.put(it.copy(done = true)) }
                 AlertScheduler.cancel(context, id)
                 AlertNotifier.cancel(context, id)
             }

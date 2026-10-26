@@ -141,7 +141,7 @@ class ShareActivity : ComponentActivity() {
         val (title, body) = SharedText.noteSplit(text)
         val store = NotesStore(this)
         val now = System.currentTimeMillis()
-        store.saveAll(store.getAll() + Note(store.nextId(), title, body, 0, false, now, now))
+        store.put(Note(store.nextId(), title, body, 0, false, now, now))
         openShell(AppKey.Notes, toast = tr(R.string.share_note_saved))
     }
 
@@ -160,7 +160,7 @@ class ShareActivity : ComponentActivity() {
             alertStyle = AlertStyle.NOTIFICATION, alertLead = AlertLead.AT_TIME,
             createdAtMillis = System.currentTimeMillis(),
         )
-        store.saveAll(store.getAll() + entry)
+        store.put(entry)
         AlertScheduler.reschedule(this, entry)
         val label = WHEN_FMT.format(Instant.ofEpochMilli(start).atZone(ZoneId.systemDefault()))
         openShell(AppKey.Calendar, toast = tr(R.string.share_task_added_x, label))
@@ -173,8 +173,8 @@ class ShareActivity : ComponentActivity() {
             return
         }
         val store = ExpenseStore(this)
-        store.saveAll(
-            store.getAll() + Expense(
+        store.put(
+            Expense(
                 id = store.nextId(), amountPaise = paise,
                 category = ExpenseCategory.parse(text),
                 note = SharedText.oneLine(text, 60),
