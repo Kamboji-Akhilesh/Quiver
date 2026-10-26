@@ -33,8 +33,8 @@ import java.io.File
  * OpenStreetMap under a route. Recording never needs this — only viewing
  * fetches tiles. [follow] keeps the newest point centred (live trail);
  * otherwise the map fits the whole route once. [paceColours] colours the
- * route slow → fast like Strava; [replayAt] draws it only up to that fix,
- * with a dot that the map follows.
+ * route slow → fast like Strava; [replayAt] draws it only up to that
+ * (fractional) fix index, with a dot the map follows.
  */
 @Composable
 fun MoveMap(
@@ -44,7 +44,7 @@ fun MoveMap(
     dark: Boolean,
     modifier: Modifier = Modifier,
     paceColours: Boolean = false,
-    replayAt: Int? = null,
+    replayAt: Float? = null,
 ) {
     val map = rememberOsmMap(dark)
     val drawn = remember { arrayOfNulls<Any>(2) } // the track + colouring the route overlays were built for
@@ -62,10 +62,17 @@ fun MoveMap(
                 if (replayAt != null) { m.overlays += progress; m.overlays += dot }
             }
             if (replayAt != null && points.isNotEmpty()) {
-                val i = replayAt.coerceIn(0, points.lastIndex)
-                progress.setPoints(points.subList(0, i + 1))
-                dot.points = Polygon.pointsAsCircle(points[i], 9.0)
-                m.controller.setCenter(points[i])
+                val i = replayAt.toInt().coerceIn(0, points.lastIndex)
+                val j = minOf(i + 1, points.lastIndex)
+                val f = (replayAt - i).toDouble()
+                // The head sits between fixes, so the line and the camera move smoothly.
+                val head = GeoPoint(
+                    points[i].latitude + (points[j].latitude - points[i].latitude) * f,
+                    points[i].longitude + (points[j].longitude - points[i].longitude) * f,
+                )
+                progress.setPoints(points.subList(0, i + 1) + head)
+                dot.points = Polygon.pointsAsCircle(head, 9.0)
+                m.controller.setCenter(head)
             }
             when {
                 points.isEmpty() || replayAt != null -> Unit

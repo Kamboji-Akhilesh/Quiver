@@ -47,6 +47,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -588,39 +589,62 @@ private fun RouteWithReplay(move: MoveEntity, track: List<Fix>, prs: List<BestEf
     val ac = Accents.Move
     val colors = Quiver.colors
     var pace by remember { mutableStateOf(true) }
-    var at by remember { mutableStateOf<Int?>(null) }
+    // Replay position as a fraction of the route's distance: advanced every frame and
+    // interpolated between fixes, so the head glides instead of hopping point to point.
+    var progress by remember { mutableStateOf<Float?>(null) }
+    var playing by remember { mutableStateOf(false) }
     var banner by remember { mutableStateOf<String?>(null) }
     val dist = remember(track) {
         DoubleArray(track.size).also { d -> for (i in 1 until track.size) d[i] = d[i - 1] + TrackMath.distanceM(track[i - 1], track[i]) }
     }
-    val playing = at != null
+    val total = dist.last()
+    // Fractional fix index for a fraction of the distance.
+    fun indexAt(f: Float): Float {
+        val target = f * total
+        val hi = dist.indexOfFirst { it >= target }.let { if (it < 0) dist.lastIndex else it }
+        if (hi == 0) return 0f
+        val lo = hi - 1
+        val span = dist[hi] - dist[lo]
+        return lo + if (span > 0) ((target - dist[lo]) / span).toFloat() else 1f
+    }
+    val at = progress?.let { indexAt(it) }
     LaunchedEffect(playing) {
         if (!playing) return@LaunchedEffect
-        // ~15 s whatever the length: long routes skip points, short ones dwell on each.
-        val step = maxOf(1, track.size / 450)
-        val frameMs = (15_000L * step / track.size).coerceIn(16, 250)
-        var i = 0
-        while (i < track.lastIndex) {
-            val next = minOf(track.lastIndex, i + step)
-            prs.firstOrNull { it.effort.endAt in (track[i].t + 1)..track[next].t }?.let { pr ->
-                banner = if (pr.previousMs != null) tr(R.string.move_replay_pr_x_y_z, BestEfforts.label(pr.effort.distanceM), MoveFormat.duration(pr.effort.ms), MoveFormat.duration(pr.previousMs))
-                else tr(R.string.move_replay_first_x_y, BestEfforts.label(pr.effort.distanceM), MoveFormat.duration(pr.effort.ms))
+        // 8 s for a short walk, +2 s a km, at most 20 s.
+        val durationNs = ((8_000 + total / 1000 * 2_000).coerceAtMost(20_000.0) * 1_000_000).toLong()
+        var last = withFrameNanos { it }
+        var lastIdx = indexAt(progress ?: 0f).toInt()
+        while (true) {
+            val now = withFrameNanos { it }
+            val p = ((progress ?: 0f) + (now - last).toFloat() / durationNs).coerceAtMost(1f)
+            last = now
+            progress = p
+            val idx = indexAt(p).toInt()
+            if (idx > lastIdx) {
+                prs.firstOrNull { it.effort.endAt in (track[lastIdx].t + 1)..track[idx].t }?.let { pr ->
+                    banner = if (pr.previousMs != null) tr(R.string.move_replay_pr_x_y_z, BestEfforts.label(pr.effort.distanceM), MoveFormat.duration(pr.effort.ms), MoveFormat.duration(pr.previousMs))
+                    else tr(R.string.move_replay_first_x_y, BestEfforts.label(pr.effort.distanceM), MoveFormat.duration(pr.effort.ms))
+                }
+                lastIdx = idx
             }
-            i = next
-            at = i
-            delay(frameMs)
+            if (p >= 1f) break
         }
         delay(2_500)
-        at = null
+        playing = false
+        progress = null
         banner = null
     }
     LaunchedEffect(banner) { if (banner != null) { delay(3_000); banner = null } }
 
     Box(Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(20.dp))) {
         MoveMap(track, follow = false, accent = ac.a, dark = colors.dark, modifier = Modifier.fillMaxSize(), paceColours = pace, replayAt = at)
-        at?.let { i ->
+        at?.let { f ->
+            val i = f.toInt().coerceAtMost(track.lastIndex)
+            val j = minOf(i + 1, track.lastIndex)
+            val frac = f - i
+            val t = track[i].t + ((track[j].t - track[i].t) * frac).toLong()
             Text(
-                "${MoveFormat.km(dist[i])} · ${MoveFormat.duration(track[i].t - track.first().t)}",
+                "${MoveFormat.km(dist[i] + (dist[j] - dist[i]) * frac)} · ${MoveFormat.duration(t - track.first().t)}",
                 fontSize = 13.sp, fontFamily = Mono, color = Color.White, fontWeight = FontWeight.Bold,
                 modifier = Modifier.align(Alignment.TopStart).padding(10.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xD90F1012)).padding(horizontal = 10.dp, vertical = 5.dp),
             )
@@ -634,7 +658,10 @@ private fun RouteWithReplay(move: MoveEntity, track: List<Fix>, prs: List<BestEf
         }
     }
     Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Pill(if (playing) tr(R.string.move_replay_stop) else tr(R.string.move_replay), playing, ac, { at = if (playing) null else 0 })
+        Pill(
+            when { playing -> tr(R.string.move_replay_stop); progress != null -> tr(R.string.move_replay_resume); else -> tr(R.string.move_replay) },
+            playing, ac, { if (!playing && progress == null) progress = 0f; playing = !playing },
+        )
         Spacer(Modifier.weight(1f))
         if (pace) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(tr(R.string.move_pace_slower), fontSize = 11.sp, color = colors.dim)

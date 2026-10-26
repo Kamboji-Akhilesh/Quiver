@@ -633,4 +633,5 @@
     <string name="steps_no_sensor_why">Goals still count your recorded walks, runs and rides.</string>
     <string name="move_no_records_yet">No records yet. Record a run, walk or ride of 400 m or more and your best times show up here.</string>
     <string name="currency_just_now">just now</string>
+    <string name="move_replay_resume">Resume</string>
 </resources>
