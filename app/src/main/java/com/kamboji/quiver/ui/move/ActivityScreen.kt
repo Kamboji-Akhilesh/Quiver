@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -202,7 +203,8 @@ private fun BarChart(values: List<Long>, labels: List<String>, goal: Long?, colo
                     drawLine(colors.dim, Offset(0f, y), Offset(size.width, y), 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f)))
                 }
             }
-            Column(Modifier.padding(start = 6.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            // Spread top to bottom so the labels sit on the gridlines.
+            Column(Modifier.padding(start = 6.dp).fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
                 Text(compact(top.toLong()), fontSize = 10.sp, color = colors.faint)
                 Text(compact(top.toLong() / 2), fontSize = 10.sp, color = colors.faint)
                 Text("0", fontSize = 10.sp, color = colors.faint)
