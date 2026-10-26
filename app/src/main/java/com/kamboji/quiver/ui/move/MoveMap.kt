@@ -92,7 +92,7 @@ private fun RouteMap(
     val runs = remember(track, paceColours) { routeRuns(track, accent, paceColours) }
     val lines = remember(runs) { runs.map { (_, color) -> routeLine(map, color) } }
     val dot = remember { Polygon(map).apply { fillPaint.color = android.graphics.Color.WHITE; outlinePaint.color = accent.toArgb(); outlinePaint.strokeWidth = 6f } }
-    val camera = remember { FloatArray(2) } // [0] smoothed heading, [1] 1 while a flyover has run (to re-fit after)
+    val camera = remember { FloatArray(3) } // [0] smoothed heading, [1] 1 while a flyover has run (to re-fit after), [2] the view's own width
 
     Box(modifier.clipToBounds().background(sky(dark))) {
         Box(
@@ -101,18 +101,18 @@ private fun RouteMap(
                 // down) so, tilted back, the far side reaches the horizon instead of ending
                 // in a hard edge partway up a tall screen.
                 .layout { measurable, constraints ->
+                    val w = constraints.maxWidth
                     val h = constraints.maxHeight
+                    // Wider too: tilted back, the far side narrows and would leave the top corners bare.
+                    val mapW = if (replaying) (w * MAP_WIDEN).toInt() else w
                     val mapH = if (replaying) (h * MAP_STRETCH).toInt() else h
-                    val placeable = measurable.measure(constraints.copy(minHeight = mapH, maxHeight = mapH))
-                    layout(constraints.maxWidth, h) { placeable.place(0, (h * 0.6f - mapH / 2f).toInt()) }
+                    val placeable = measurable.measure(constraints.copy(minWidth = mapW, maxWidth = mapW, minHeight = mapH, maxHeight = mapH))
+                    layout(w, h) { placeable.place((w - mapW) / 2, (h * PIVOT_Y - mapH / 2f).toInt()) }
                 }
                 .graphicsLayer {
-                    // Perspective tilt; widened a little so the receding sides stay covered.
                     rotationX = tilt
-                    cameraDistance = 7f * density
-                    val grow = 1f + tilt / 55f * 0.35f
-                    scaleX = grow
-                    scaleY = grow
+                    // Far enough back that the horizon stays near the top of a tall phone screen.
+                    cameraDistance = 16f * density
                     transformOrigin = TransformOrigin(0.5f, 0.5f)
                 },
         ) {
@@ -144,8 +144,14 @@ private fun RouteMap(
                         // Frame about a third of the route (400 m - 3 km across), whatever the screen density.
                         val routeM = points.zipWithNext { a, b -> a.distanceToAsDouble(b) }.sum()
                         val wantAcross = (routeM / 3).coerceIn(400.0, 3_000.0)
-                        val across = metresPerPixel(m) * m.width
-                        if (across > 0) m.controller.setZoom((m.zoomLevelDouble + log2(across / wantAcross)).coerceAtMost(m.maxZoomLevel))
+                        // Measured against the view's width, not the widened flyover layout.
+                        val across = metresPerPixel(m) * (camera[2].takeIf { it > 0 } ?: m.width.toFloat())
+                        if (across > 0) {
+                            val target = m.zoomLevelDouble + log2(across / wantAcross)
+                            // Past the tile set's last zoom (16 for the grey map), draw its tiles larger instead.
+                            if (target > m.maxZoomLevel) m.tilesScaleFactor = Math.pow(2.0, target - m.maxZoomLevel).toFloat().coerceAtMost(3f)
+                            m.controller.setZoom(minOf(target, m.maxZoomLevel))
+                        }
                     }
                     // Heading-up, eased so GPS wiggles don't spin the camera.
                     val target = bearing(points, i, camera[0])
@@ -157,11 +163,13 @@ private fun RouteMap(
                     val metresPerPx = metresPerPixel(m)
                     dot.points = Polygon.pointsAsCircle(head, metresPerPx * 5.5 * density)
                     // Look ahead: centre the camera in front of the runner, which sits them low on screen.
-                    m.controller.setCenter(head.destinationPoint(metresPerPx * m.height / MAP_STRETCH * 0.18, camera[0].toDouble()))
+                    m.controller.setCenter(head.destinationPoint(metresPerPx * m.height / MAP_STRETCH * 0.06, camera[0].toDouble()))
                 } else {
+                    camera[2] = m.width.toFloat()
                     if (camera[1] == 1f) { // flyover over: back to the flat, north-up whole route
                         camera[1] = 0f
                         m.mapOrientation = 0f
+                        m.tilesScaleFactor = 1f
                         m.tag = null
                     }
                     runs.forEachIndexed { k, (range, _) -> lines[k].setPoints(points.subList(range.first, range.last + 1)) }
@@ -182,13 +190,16 @@ private fun RouteMap(
         // Haze towards the horizon, like distance fog, so the far map fades into the sky.
         if (tilt > 0f) Box(
             Modifier.fillMaxSize().graphicsLayer { alpha = tilt / 55f }
-                .background(Brush.verticalGradient(0f to sky(dark), 0.32f to sky(dark).copy(alpha = 0f))),
+                .background(Brush.verticalGradient(0f to sky(dark), 0.16f to sky(dark), 0.34f to sky(dark).copy(alpha = 0f))),
         )
         Attribution(showLabels)
     }
 }
 
-private const val MAP_STRETCH = 2.2f
+// Flyover layout: the map is this much taller / wider than the view, centred PIVOT_Y down it.
+private const val MAP_STRETCH = 3f
+private const val MAP_WIDEN = 1.8f
+private const val PIVOT_Y = 0.62f
 
 private fun sky(dark: Boolean) = if (dark) Color(0xFF15171C) else Color(0xFFE6ECF2)
 
@@ -268,6 +279,9 @@ private fun rememberOsmMap(dark: Boolean, labels: Boolean): MapView {
             userAgentValue = context.packageName
             osmdroidBasePath = File(context.cacheDir, "osmdroid")
             osmdroidTileCache = File(context.cacheDir, "osmdroid/tiles")
+            // The flyover's oversized map shows many more tiles at once than a flat one.
+            cacheMapTileCount = 96
+            tileDownloadThreads = 4
         }
     }
     val map = remember {
