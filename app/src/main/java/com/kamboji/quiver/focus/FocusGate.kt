@@ -5,6 +5,7 @@ import android.app.AppOpsManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
@@ -162,6 +163,18 @@ class FocusGateService : Service() {
             .setOngoing(true)
             .setSilent(true)
             .setGroup(CHANNEL) // never let Android bundle Quiver's notifications — see ExpenseCapture
+            // Android shows a foreground service's notification even on a channel the app creates
+            // switched off; only the user can turn it off, and the service keeps running. One tap there.
+            .addAction(
+                0, tr(R.string.focusgate_hide),
+                PendingIntent.getActivity(
+                    this, 0,
+                    Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                        .putExtra(Settings.EXTRA_CHANNEL_ID, CHANNEL),
+                    PendingIntent.FLAG_IMMUTABLE,
+                ),
+            )
             .build()
 
     private companion object {

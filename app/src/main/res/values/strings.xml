@@ -478,6 +478,7 @@
     <string name="focusgate_channel">Focus gate</string>
     <string name="focusgate_title">Focus is standing by</string>
     <string name="focusgate_text">Blocking switches on only inside YouTube and Instagram</string>
+    <string name="focusgate_hide">Hide this notification</string>
     <string name="focus_bank_safe">Banking apps</string>
     <string name="focus_bank_why">Banking apps refuse to open while an accessibility service is on. Quiver can switch blocking on only while YouTube or Instagram is open, and off everywhere else. Two one-time steps:</string>
     <string name="focus_bank_on">Blocking switches on only inside YouTube and Instagram, so banking apps never see it.</string>
