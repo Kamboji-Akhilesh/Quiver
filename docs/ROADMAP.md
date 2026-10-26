@@ -261,6 +261,27 @@ and MediaPipe can run it on the **GPU**, where llama.cpp here was CPU-only.
 
 ## Not done (out of this session's scope)
 
+- **On-device AI: retrain for the new features (deferred 2026-10-26).** Goal:
+  nothing leaves the phone — no cloud model (the Gemini API and a daily
+  "research agent" were considered and dropped for that reason).
+  1. Dataset: add tools + seed examples for everything built since the last
+     retrain — Move (start/stop an activity, steps today/this week, best
+     efforts/PRs, distance this week), screen time ("how long on Instagram
+     yesterday"), Focus counts, spending questions over the bank-SMS history
+     ("food spend last month"), the morning brief.
+  2. Fine-tune Gemma 3 1B (LoRA). The data is synthetic, so training on Colab's
+     free GPU or the Mac (MLX) doesn't leak anything personal.
+  3. Convert to MediaPipe `.task`, run `eval.py`; ship only on a better pass
+     rate, bump `AiModel.FILE_NAME`.
+  4. Conversation that doesn't cook a Snapdragon 695: keep the fine-tuned 1B
+     for actions; optionally offer Gemma 3n E2B (~3 GB) as a chat model after
+     benchmarking on the phone; stream tokens + speak sentence by sentence;
+     short context + running summary; load the model only while the panel is
+     open; stop on thermal warnings.
+  5. Open decision: `web_search` (sends the query to DuckDuckGo) and
+     AppFunctions (Gemini app can create Quiver items) both send data off the
+     phone. Kept for now at the user's request; revisit with this work.
+
 - **Model retrain**: `finetune_lora.py` + `eval.py` + shipping a new GGUF and
   bumping `AiModel.FILE_NAME`. The dataset now covers `search_screenshots` and
   `add_rate_alert` and validates, but training needs a GPU — run it before
