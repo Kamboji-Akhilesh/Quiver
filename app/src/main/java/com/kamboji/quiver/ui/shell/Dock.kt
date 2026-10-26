@@ -85,14 +85,14 @@ fun Dock(state: QuiverState, modifier: Modifier = Modifier) {
                     .align(Alignment.TopCenter)
                     .size(56.dp)
                     .clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(Color(0xFFA78BFA), Color(0xFF22D3EE))))
+                    .background(Brush.linearGradient(listOf(Accents.Hub.a, Accents.Hub.b)))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                     ) { state.closeOverlays(); state.aiOpen = true },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.AutoAwesome, "Quiver AI", Modifier.size(26.dp), tint = Color.White)
+                Icon(Icons.Filled.AutoAwesome, "Quiver AI", Modifier.size(26.dp), tint = Accents.Hub.on)
             }
         }
         Spacer(Modifier.height(9.dp))

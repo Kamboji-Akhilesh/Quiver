@@ -181,7 +181,7 @@ fun QvToggle(
                 .offset(x = knobShift)
                 .size(26.dp)
                 .clip(CircleShape)
-                .background(Color.White),
+                .background(if (on) accent.on else Color.White),
         )
     }
 }

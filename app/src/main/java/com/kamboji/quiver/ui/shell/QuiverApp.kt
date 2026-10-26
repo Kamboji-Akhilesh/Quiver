@@ -35,7 +35,9 @@ import com.kamboji.quiver.ui.onboarding.OnboardingOverlay
 import com.kamboji.quiver.ui.screenshots.ScreenshotsScreen
 import com.kamboji.quiver.ui.theme.Accents
 import com.kamboji.quiver.ui.theme.AppKey
+import com.kamboji.quiver.ui.settings.SettingsScreen
 import com.kamboji.quiver.ui.theme.Quiver
+import com.kamboji.quiver.ui.theme.ThemeSettings
 import com.kamboji.quiver.ui.theme.QuiverTheme
 
 /**
@@ -51,7 +53,6 @@ fun QuiverApp(
     onOnboarded: () -> Unit = {},
 ) {
     val state = remember { QuiverState() }
-    val accent = Accents.of(state.app)
     var onboarding by remember { mutableStateOf(showOnboarding) }
 
     // Apply a deep-link command (app shortcut / share router) exactly once.
@@ -65,7 +66,7 @@ fun QuiverApp(
     // System back: unwind overlays/screens instead of leaving the app. Disabled
     // (falls through to exit) only when sitting on the Hub with nothing open.
     val onHubIdle = state.app == AppKey.Hub && !state.searchOpen && !state.aiOpen &&
-        !state.launcherOpen
+        !state.launcherOpen && !state.settingsOpen
     BackHandler(enabled = !onHubIdle) {
         when {
             state.searchOpen -> state.searchOpen = false
@@ -76,8 +77,9 @@ fun QuiverApp(
         }
     }
 
-    QuiverTheme(dark = state.dark, accent = accent) {
+    QuiverTheme(dark = ThemeSettings.isDark(), app = state.app) {
         val colors = Quiver.colors
+        val accent = Quiver.accent
         Box(Modifier.fillMaxSize().background(colors.bg)) {
             Aurora(accent)
 
@@ -95,9 +97,11 @@ fun QuiverApp(
                 }
             }
 
+            if (state.settingsOpen) SettingsScreen(state)
+
             // Dock — only on Home, so sub-screen sheets are never covered by it.
             AnimatedVisibility(
-                visible = state.app == AppKey.Hub,
+                visible = state.app == AppKey.Hub && !state.settingsOpen,
                 enter = slideInVertically { it } + fadeIn(),
                 exit = slideOutVertically { it } + fadeOut(),
                 modifier = Modifier

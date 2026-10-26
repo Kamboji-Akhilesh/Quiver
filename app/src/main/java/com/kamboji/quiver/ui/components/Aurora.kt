@@ -17,11 +17,13 @@ import com.kamboji.quiver.ui.theme.Accent
 import com.kamboji.quiver.ui.theme.Quiver
 
 /**
- * The slow-drifting colour wash behind every screen. Three soft radial blobs
+ * The slow-drifting colour wash behind every screen in the Glass theme. Three soft radial blobs
  * tinted by the active [accent]; they re-tint when the user switches apps.
  */
 @Composable
 fun Aurora(accent: Accent, modifier: Modifier = Modifier) {
+    // Flat palettes (Graphite, Paper, Dusk) sit on a plain ground; only Glass glows.
+    if (Quiver.colors.flat) return
     val dark = Quiver.colors.dark
     val t = rememberInfiniteTransition(label = "aurora")
     val p1 by t.animateFloat(

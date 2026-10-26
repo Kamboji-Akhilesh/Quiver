@@ -55,6 +55,7 @@ import com.kamboji.quiver.ui.components.QuiverModalSheet
 import com.kamboji.quiver.ui.theme.Accents
 import com.kamboji.quiver.ui.theme.Display
 import com.kamboji.quiver.ui.theme.Quiver
+import com.kamboji.quiver.ui.theme.AppKey
 import com.kamboji.quiver.ui.theme.QuiverTheme
 import java.util.UUID
 
@@ -79,7 +80,7 @@ class EditDelayActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            QuiverTheme(dark = true, accent = Accents.Screenshots) {
+            QuiverTheme(dark = true, app = AppKey.Screenshots) {
                 QuiverModalSheet(onDismiss = { finish() }) { hide ->
                     DelayPicker(
                         onPick = { rescheduleDelete(workId, notificationId, uri, it); hide() },

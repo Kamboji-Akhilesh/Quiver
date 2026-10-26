@@ -150,7 +150,8 @@ fun SearchOverlay(state: QuiverState) {
     var query by remember { mutableStateOf("") }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-    val actions = remember {
+    // Not remembered: the accents follow the colour theme, and the list is tiny.
+    val actions = run {
         listOf(
             SearchAction(tr(R.string.shell_clean_screenshots_now), Icons.Outlined.Image, AppKey.Screenshots, Accents.Screenshots),
             SearchAction(tr(R.string.shell_convert_100_usd_to_eur), Icons.Outlined.SwapHoriz, AppKey.Currency, Accents.Currency),
@@ -174,7 +175,7 @@ fun SearchOverlay(state: QuiverState) {
         ) {
             Row(
                 Modifier.weight(1f).clip(RoundedCornerShape(100.dp)).background(colors.surf)
-                    .border(1.dp, Color(0xFFA78BFA).copy(alpha = 0.4f), RoundedCornerShape(100.dp))
+                    .border(1.dp, Accents.Hub.a.copy(alpha = 0.4f), RoundedCornerShape(100.dp))
                     .padding(horizontal = 16.dp, vertical = 13.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(11.dp),
@@ -214,14 +215,14 @@ fun SearchOverlay(state: QuiverState) {
             Spacer(Modifier.height(12.dp))
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
-                    .background(Brush.linearGradient(listOf(Color(0xFFA78BFA).copy(alpha = if (colors.dark) 0.22f else 0.16f), Color(0xFF22D3EE).copy(alpha = 0.12f))))
-                    .border(1.dp, Color(0xFFA78BFA).copy(alpha = 0.4f), RoundedCornerShape(20.dp))
+                    .background(Brush.linearGradient(listOf(Accents.Hub.a.copy(alpha = if (colors.dark) 0.22f else 0.16f), Accents.Hub.b.copy(alpha = 0.12f))))
+                    .border(1.dp, Accents.Hub.a.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
                     .clickable { state.searchOpen = false; state.aiOpen = true }.padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(13.dp),
             ) {
-                Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Brush.linearGradient(listOf(Color(0xFFA78BFA), Color(0xFF22D3EE)))), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.AutoAwesome, null, Modifier.size(21.dp), tint = Color.White)
+                Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Brush.linearGradient(listOf(Accents.Hub.a, Accents.Hub.b))), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.AutoAwesome, null, Modifier.size(21.dp), tint = Accents.Hub.on)
                 }
                 Column(Modifier.weight(1f)) {
                     Text(if (query.isBlank()) tr(R.string.shell_ask_quiver_ai) else "“$query”", fontSize = 14.5.sp, fontWeight = FontWeight.Bold, color = colors.text)

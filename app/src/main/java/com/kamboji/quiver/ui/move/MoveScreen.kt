@@ -192,8 +192,8 @@ private fun HomeScreen(state: QuiverState, onActivity: () -> Unit, onHeatmap: ()
                     contentAlignment = Alignment.Center,
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Filled.PlayArrow, null, Modifier.size(22.dp), tint = Color.White)
-                        Text(tr(R.string.move_start_x, type.displayName.lowercase()), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Filled.PlayArrow, null, Modifier.size(22.dp), tint = ac.on)
+                        Text(tr(R.string.move_start_x, type.displayName.lowercase()), color = ac.on, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
                 Text(
@@ -431,9 +431,14 @@ private fun LiveScreen(state: QuiverState, live: MoveRecorder.Live) {
         ) {
             RoundButton(
                 if (live.paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                if (live.paused) tr(R.string.move_resume) else tr(R.string.move_pause), ac.a,
+                if (live.paused) tr(R.string.move_resume) else tr(R.string.move_pause),
+                // Glass: coloured Pause, pink Finish (original). Flat themes: quiet Pause, accent Finish.
+                if (colors.flat) colors.surf2 else ac.a, if (colors.flat) colors.text else Color.White,
             ) { if (live.paused) MoveRecorder.resume(context) else MoveRecorder.pause(context) }
-            RoundButton(Icons.Filled.Stop, tr(R.string.move_finish), Color(0xFFFB7185)) { MoveRecorder.finish(context) }
+            RoundButton(
+                Icons.Filled.Stop, tr(R.string.move_finish),
+                if (colors.flat) ac.a else Color(0xFFFB7185), if (colors.flat) ac.on else Color.White,
+            ) { MoveRecorder.finish(context) }
         }
         Text(
             tr(R.string.move_discard), fontSize = 12.sp, color = colors.faint,
@@ -625,7 +630,7 @@ private fun RouteWithReplay(move: MoveEntity, track: List<Fix>, prs: List<BestEf
         }
         banner?.let {
             Text(
-                it, fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Bold,
+                it, fontSize = 13.sp, color = ac.on, fontWeight = FontWeight.Bold,
                 modifier = Modifier.align(Alignment.TopCenter).padding(top = 44.dp).clip(RoundedCornerShape(12.dp))
                     .background(Brush.linearGradient(listOf(ac.a, ac.b))).padding(horizontal = 12.dp, vertical = 7.dp),
             )
@@ -722,13 +727,13 @@ private fun Stat(value: String, label: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun RoundButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, color: Color, onClick: () -> Unit) {
+private fun RoundButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, color: Color, tint: Color, onClick: () -> Unit) {
     val colors = Quiver.colors
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(
             Modifier.size(76.dp).clip(CircleShape).background(color).clickable(onClick = onClick),
             contentAlignment = Alignment.Center,
-        ) { Icon(icon, label, Modifier.size(34.dp), tint = Color.White) }
+        ) { Icon(icon, label, Modifier.size(34.dp), tint = tint) }
         Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
     }
 }

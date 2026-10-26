@@ -1,6 +1,7 @@
 package com.kamboji.quiver.ui.ai
 
 import com.kamboji.quiver.R
+import androidx.compose.runtime.ReadOnlyComposable
 
 import com.kamboji.quiver.ui.locale.tr
 import android.Manifest
@@ -79,8 +80,10 @@ import com.kamboji.quiver.ui.theme.Accents
 import com.kamboji.quiver.ui.theme.Display
 import com.kamboji.quiver.ui.theme.Quiver
 
-private val AiA = Color(0xFFA78BFA)
-private val AiB = Color(0xFF22D3EE)
+// The brand colours follow the theme: Glass keeps purple→cyan, flat themes use their accent.
+private val AiA: Color @Composable @ReadOnlyComposable get() = Accents.Hub.a
+private val AiB: Color @Composable @ReadOnlyComposable get() = Accents.Hub.b
+private val AiOn: Color @Composable @ReadOnlyComposable get() = Accents.Hub.on
 
 @Composable
 fun QuiverAiPanel(onClose: () -> Unit, initialInput: String? = null, startMic: Boolean = false) {
@@ -97,7 +100,7 @@ fun QuiverAiPanel(onClose: () -> Unit, initialInput: String? = null, startMic: B
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Box(Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(Brush.linearGradient(listOf(AiA, AiB))), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.AutoAwesome, null, Modifier.size(26.dp), tint = Color.White)
+                    Icon(Icons.Filled.AutoAwesome, null, Modifier.size(26.dp), tint = AiOn)
                 }
                 Column(Modifier.weight(1f)) {
                     Text(tr(R.string.ai_quiver_ai), fontSize = 19.sp, fontWeight = FontWeight.Bold, fontFamily = Display, color = colors.text)
@@ -286,13 +289,13 @@ private fun ChatBody(vm: AiViewModel, initialInput: String? = null, startMic: Bo
                     else if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) vm.startListening()
                     else micPermission.launch(Manifest.permission.RECORD_AUDIO)
                 }, contentAlignment = Alignment.Center,
-            ) { Icon(if (vm.listening) Icons.Filled.Stop else Icons.Filled.Mic, tr(R.string.ai_voice), Modifier.size(20.dp), tint = if (vm.listening) Color.White else colors.dim) }
+            ) { Icon(if (vm.listening) Icons.Filled.Stop else Icons.Filled.Mic, tr(R.string.ai_voice), Modifier.size(20.dp), tint = if (vm.listening) AiOn else colors.dim) }
             // send
             Box(
                 Modifier.size(42.dp).clip(CircleShape).background(Brush.linearGradient(listOf(AiA, AiB))).clickable {
                     if (input.isNotBlank() && !vm.generating) { vm.send(input); input = "" }
                 }, contentAlignment = Alignment.Center,
-            ) { Icon(Icons.AutoMirrored.Filled.ArrowForward, tr(R.string.ai_send), Modifier.size(20.dp), tint = Color.White) }
+            ) { Icon(Icons.AutoMirrored.Filled.ArrowForward, tr(R.string.ai_send), Modifier.size(20.dp), tint = AiOn) }
         }
     }
 }
@@ -311,7 +314,7 @@ private fun Bubble(msg: ChatMsg, onSpeak: () -> Unit) {
             } else {
                 Text(
                     msg.text.ifEmpty { if (msg.streaming) "…" else "" },
-                    color = if (msg.fromUser) Color.White else colors.text, fontSize = 14.sp, lineHeight = 20.sp,
+                    color = if (msg.fromUser) AiOn else colors.text, fontSize = 14.sp, lineHeight = 20.sp,
                 )
             }
             if (!msg.fromUser && !msg.streaming && msg.text.isNotBlank()) {
@@ -382,5 +385,5 @@ private fun PillButton(label: String, filled: Boolean, onClick: () -> Unit) {
             .border(1.dp, if (filled) Color.Transparent else colors.border, RoundedCornerShape(100.dp))
             .clickable(onClick = onClick).padding(vertical = 12.dp, horizontal = 18.dp),
         contentAlignment = Alignment.Center,
-    ) { Text(label, color = if (filled) Color.White else colors.text, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
+    ) { Text(label, color = if (filled) AiOn else colors.text, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
 }

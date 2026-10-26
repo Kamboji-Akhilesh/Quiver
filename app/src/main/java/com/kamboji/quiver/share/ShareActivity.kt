@@ -106,7 +106,7 @@ class ShareActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            QuiverTheme(dark = true, accent = Accents.Hub) {
+            QuiverTheme(dark = true, app = AppKey.Hub) {
                 ShareChooser(
                     shared,
                     onNote = { saveNote(shared) },

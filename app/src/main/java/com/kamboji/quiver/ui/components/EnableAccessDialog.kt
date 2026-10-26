@@ -83,7 +83,7 @@ fun EnableAccessDialog(
                         .clickable { onOpenSettings(); onDismiss() }
                         .padding(vertical = 12.dp),
                     contentAlignment = Alignment.Center,
-                ) { Text(tr(R.string.access_open_settings), color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.Bold) }
+                ) { Text(tr(R.string.access_open_settings), color = accent.on, fontSize = 13.5.sp, fontWeight = FontWeight.Bold) }
             }
         }
     }

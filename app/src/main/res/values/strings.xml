@@ -568,4 +568,30 @@
     <string name="move_voice_pace_x_y">Pace %1$d minutes %2$d seconds per kilometre</string>
     <string name="move_voice_speed_x">Speed %1$s kilometres per hour</string>
     <string name="move_voice_setting">Speak each kilometre\'s pace</string>
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_mode_system">System</string>
+    <string name="settings_mode_light">Light</string>
+    <string name="settings_mode_dark">Dark</string>
+    <string name="settings_colour_theme">Colour theme</string>
+    <string name="settings_theme_quiver">Quiver</string>
+    <string name="settings_theme_quiver_sub">Graphite · Paper</string>
+    <string name="settings_theme_dusk">Dusk</string>
+    <string name="settings_theme_dusk_sub">Navy · amber</string>
+    <string name="settings_theme_glass">Glass</string>
+    <string name="settings_theme_glass_sub">The original</string>
+    <string name="settings_voice_sub">During Move recordings</string>
+    <string name="settings_permissions">Permissions &amp; privacy</string>
+    <string name="settings_perm_sms">Bank SMS</string>
+    <string name="settings_perm_sms_sub">Logs payments from bank messages</string>
+    <string name="settings_perm_notifications">Payment notifications</string>
+    <string name="settings_perm_notifications_sub">GPay &amp; PhonePe</string>
+    <string name="settings_perm_usage">Usage access</string>
+    <string name="settings_perm_usage_sub">Screen time and bank-safe Focus</string>
+    <string name="settings_perm_activity">Physical activity</string>
+    <string name="settings_perm_activity_sub">All-day steps and auto-detected walks</string>
+    <string name="settings_perm_banksafe">Bank-safe Focus</string>
+    <string name="settings_perm_banksafe_sub">Blocker switches on only inside YouTube and Instagram</string>
+    <string name="settings_version_x">Quiver %1$s</string>
 </resources>

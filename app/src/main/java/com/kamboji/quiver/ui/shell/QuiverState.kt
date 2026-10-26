@@ -16,8 +16,8 @@ data class ToastMsg(val text: String, val kind: ToastKind, val id: Long)
  * durable data lives in the existing stores/ViewModels.
  */
 class QuiverState {
-    var dark by mutableStateOf(true)
     var app by mutableStateOf(AppKey.Hub)
+    var settingsOpen by mutableStateOf(false)
 
     /** Screenshots sub-screen: "home" or "history". */
     var screenshotsScreen by mutableStateOf("home")
@@ -57,9 +57,6 @@ class QuiverState {
         AppKey.Move to false,
     )
 
-    fun toggleTheme() {
-        dark = !dark
-    }
 
     fun closeOverlays() {
         searchOpen = false

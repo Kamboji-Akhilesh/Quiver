@@ -20,6 +20,7 @@ import com.kamboji.quiver.calendar.data.CalendarStore
 import com.kamboji.quiver.calendar.data.EntryType
 import com.kamboji.quiver.ui.calendar.ReminderCallScreen
 import com.kamboji.quiver.ui.theme.Accents
+import com.kamboji.quiver.ui.theme.AppKey
 import com.kamboji.quiver.ui.theme.QuiverTheme
 import java.util.Locale
 
@@ -63,7 +64,7 @@ class EventCallActivity : ComponentActivity() {
         startRinging()
 
         setContent {
-            QuiverTheme(dark = true, accent = Accents.Calendar) {
+            QuiverTheme(dark = true, app = AppKey.Calendar) {
                 ReminderCallScreen(
                     title = entry.title,
                     isTask = entry.isTask,

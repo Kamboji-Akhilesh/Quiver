@@ -53,6 +53,7 @@ import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
 import androidx.compose.material.icons.outlined.SelfImprovement
@@ -214,19 +215,19 @@ fun HubScreen(state: QuiverState) {
                         fontSize = 30.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = Display,
-                        style = TextStyle(brush = Brush.linearGradient(listOf(Color(0xFFA78BFA), Color(0xFF22D3EE)))),
+                        style = TextStyle(brush = Brush.linearGradient(listOf(Accents.Hub.a, Accents.Hub.b))),
                     )
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                HeaderIcon(if (colors.dark) Icons.Filled.LightMode else Icons.Filled.DarkMode) { state.toggleTheme() }
+                HeaderIcon(Icons.Outlined.Settings) { state.settingsOpen = true }
                 val caughtUp = stringResource(R.string.hub_caught_up)
                 HeaderIcon(Icons.Outlined.Notifications) { state.toast(caughtUp, ToastKind.Info) }
                 Box(
                     Modifier.size(44.dp).clip(CircleShape)
-                        .background(Brush.linearGradient(listOf(Color(0xFFA78BFA), Color(0xFF22D3EE)))),
+                        .background(Brush.linearGradient(listOf(Accents.Hub.a, Accents.Hub.b))),
                     contentAlignment = Alignment.Center,
-                ) { Text("Q", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp, fontFamily = Display) }
+                ) { Text("Q", color = Accents.Hub.on, fontWeight = FontWeight.Bold, fontSize = 16.sp, fontFamily = Display) }
             }
         }
 
@@ -250,10 +251,10 @@ fun HubScreen(state: QuiverState) {
             Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
                 .background(
                     Brush.linearGradient(
-                        listOf(Color(0xFFA78BFA).copy(alpha = if (colors.dark) 0.22f else 0.18f), Color(0xFF22D3EE).copy(alpha = 0.14f)),
+                        listOf(Accents.Hub.a.copy(alpha = if (colors.dark) 0.22f else 0.18f), Accents.Hub.b.copy(alpha = 0.14f)),
                     ),
                 )
-                .border(1.dp, Color(0xFFA78BFA).copy(alpha = 0.4f), RoundedCornerShape(24.dp))
+                .border(1.dp, Accents.Hub.a.copy(alpha = 0.4f), RoundedCornerShape(24.dp))
                 .clickable { bannerAction() }
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -261,9 +262,9 @@ fun HubScreen(state: QuiverState) {
         ) {
             Box(
                 Modifier.size(44.dp).clip(RoundedCornerShape(14.dp))
-                    .background(Brush.linearGradient(listOf(Color(0xFFA78BFA), Color(0xFF22D3EE)))),
+                    .background(Brush.linearGradient(listOf(Accents.Hub.a, Accents.Hub.b))),
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Filled.AutoAwesome, null, Modifier.size(24.dp), tint = Color.White) }
+            ) { Icon(Icons.Filled.AutoAwesome, null, Modifier.size(24.dp), tint = Accents.Hub.on) }
             Column(Modifier.weight(1f)) {
                 Text(tr(R.string.hub_quiver_ai), color = Accents.Hub.txt(colors.dark), fontSize = 11.5.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                 Text(bannerText, color = colors.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, lineHeight = 18.sp)
@@ -337,17 +338,6 @@ fun HubScreen(state: QuiverState) {
             }
         }
 
-        // ---- daily ----
-        Spacer(Modifier.height(22.dp))
-        SectionLabel(tr(R.string.hub_daily))
-        Spacer(Modifier.height(4.dp))
-        BriefRow()
-
-        // ---- your data (export / import) ----
-        Spacer(Modifier.height(22.dp))
-        SectionLabel(stringResource(R.string.section_your_data))
-        Spacer(Modifier.height(4.dp))
-        DataSection(state)
     }
 
     if (showAddPicker) {
@@ -426,7 +416,7 @@ private fun buildHubActivity(
  * chooses where the backup goes / comes from.
  */
 @Composable
-private fun DataSection(state: QuiverState) {
+internal fun DataSection(state: QuiverState) {
     val colors = Quiver.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -514,7 +504,7 @@ private fun DataSection(state: QuiverState) {
 
 /** Morning brief on/off and its time. */
 @Composable
-private fun BriefRow() {
+internal fun BriefRow() {
     val colors = Quiver.colors
     val context = LocalContext.current
     var on by remember { mutableStateOf(MorningBrief.isOn(context)) }
