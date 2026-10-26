@@ -1,5 +1,13 @@
 package com.kamboji.quiver.ui.move
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.fillMaxSize
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import androidx.compose.foundation.background
@@ -35,9 +43,13 @@ import java.io.File
 /**
  * OpenStreetMap under a route. Recording never needs this — only viewing
  * fetches tiles. [follow] keeps the newest point centred (live trail);
- * otherwise the map fits the whole route once. [paceColours] colours the
- * route slow → fast like Strava; [replayAt] draws it only up to that
- * (fractional) fix index, with a dot the map follows.
+ * otherwise the map fits the whole route once. [paceColours] shades the
+ * route slow → fast.
+ *
+ * [replayAt] (a fractional fix index) turns it into a Strava-style flyover:
+ * the map tilts back in perspective, turns so the runner heads up the screen,
+ * zooms in and follows, and the route is drawn only as far as the runner has
+ * got — nothing ahead is shown.
  */
 @Composable
 fun MoveMap(
@@ -50,48 +62,98 @@ fun MoveMap(
     replayAt: Float? = null,
 ) {
     val map = rememberOsmMap(dark)
-    val drawn = remember { arrayOfNulls<Any>(2) } // the track + colouring the route overlays were built for
-    val progress = remember { Polyline(map).apply { outlinePaint.color = accent.toArgb(); outlinePaint.strokeWidth = 12f; outlinePaint.strokeCap = Paint.Cap.ROUND } }
+    val replaying = replayAt != null
+    val tilt by animateFloatAsState(if (replaying) 55f else 0f, tween(900), label = "tilt")
+    val density = LocalDensity.current.density
+    // Built once per track + colouring: each run of equal pace is one line over a range of fixes.
+    val runs = remember(track, paceColours) { routeRuns(track, accent, paceColours) }
+    val lines = remember(runs) { runs.map { (_, color) -> routeLine(map, color) } }
     val dot = remember { Polygon(map).apply { fillPaint.color = android.graphics.Color.WHITE; outlinePaint.color = accent.toArgb(); outlinePaint.strokeWidth = 6f } }
+    val camera = remember { FloatArray(2) } // [0] smoothed heading, [1] 1 while a flyover has run (to re-fit after)
 
-    Box(modifier) {
-        AndroidView({ map }) { m ->
-            val points = track.map { GeoPoint(it.lat, it.lon) }
-            if (drawn[0] !== track || drawn[1] != (paceColours to (replayAt != null))) {
-                drawn[0] = track
-                drawn[1] = paceColours to (replayAt != null)
-                m.overlays.clear()
-                routeLines(m, track, accent, paceColours, faded = replayAt != null).forEach { m.overlays += it }
-                if (replayAt != null) { m.overlays += progress; m.overlays += dot }
-            }
-            if (replayAt != null && points.isNotEmpty()) {
-                val i = replayAt.toInt().coerceIn(0, points.lastIndex)
-                val j = minOf(i + 1, points.lastIndex)
-                val f = (replayAt - i).toDouble()
-                // The head sits between fixes, so the line and the camera move smoothly.
-                val head = GeoPoint(
-                    points[i].latitude + (points[j].latitude - points[i].latitude) * f,
-                    points[i].longitude + (points[j].longitude - points[i].longitude) * f,
-                )
-                progress.setPoints(points.subList(0, i + 1) + head)
-                // ~20 px across whatever the zoom: metres per pixel at this latitude and zoom.
-                val metresPerPx = 156_543.03 * kotlin.math.cos(Math.toRadians(head.latitude)) / Math.pow(2.0, m.zoomLevelDouble)
-                dot.points = Polygon.pointsAsCircle(head, metresPerPx * 20)
-                m.controller.setCenter(head)
-            }
-            when {
-                points.isEmpty() || replayAt != null -> Unit
-                follow -> m.controller.setCenter(points.last())
-                m.tag == null && points.size > 1 -> {
-                    m.tag = "fitted"
-                    fit(m, points)
+    Box(modifier.clipToBounds()) {
+        Box(
+            Modifier.fillMaxSize().graphicsLayer {
+                // Perspective tilt; scaled up so the far edge stays covered by map.
+                rotationX = tilt
+                cameraDistance = 7f * density
+                val grow = 1f + tilt / 55f * 0.7f
+                scaleX = grow
+                scaleY = grow
+                transformOrigin = TransformOrigin(0.5f, 0.6f)
+            },
+        ) {
+            AndroidView({ map }, Modifier.fillMaxSize()) { m ->
+                val points = track.map { GeoPoint(it.lat, it.lon) }
+                if (m.overlays.size != lines.size + 1 || m.overlays.firstOrNull() !== lines.firstOrNull()) {
+                    m.overlays.clear()
+                    m.overlays += lines
+                    m.overlays += dot
                 }
-                m.tag == null -> m.controller.setCenter(points.first())
+                if (replayAt != null && points.isNotEmpty()) {
+                    val i = replayAt.toInt().coerceIn(0, points.lastIndex)
+                    val j = minOf(i + 1, points.lastIndex)
+                    val f = (replayAt - i).toDouble()
+                    // The head sits between fixes, so the line and the camera move smoothly.
+                    val head = lerp(points[i], points[j], f)
+                    runs.forEachIndexed { k, (range, _) ->
+                        lines[k].setPoints(
+                            when {
+                                range.first > i -> emptyList()
+                                range.last <= i -> points.subList(range.first, range.last + 1)
+                                else -> points.subList(range.first, i + 1) + head
+                            },
+                        )
+                    }
+                    if (camera[1] == 0f) {
+                        camera[1] = 1f
+                        camera[0] = bearing(points, i, 0f)
+                        m.controller.setZoom(minOf(m.maxZoomLevel, 17.0))
+                    }
+                    // Heading-up, eased so GPS wiggles don't spin the camera.
+                    val target = bearing(points, i, camera[0])
+                    val diff = ((target - camera[0] + 540f) % 360f) - 180f
+                    camera[0] = (camera[0] + diff * 0.06f + 360f) % 360f
+                    m.mapOrientation = -camera[0]
+                    // ~20 px across whatever the zoom: metres per pixel at this latitude and zoom.
+                    val metresPerPx = 156_543.03 * kotlin.math.cos(Math.toRadians(head.latitude)) / Math.pow(2.0, m.zoomLevelDouble)
+                    dot.points = Polygon.pointsAsCircle(head, metresPerPx * 20)
+                    // Look ahead: centre the camera in front of the runner, which sits them low on screen.
+                    m.controller.setCenter(head.destinationPoint(metresPerPx * m.height * 0.18, camera[0].toDouble()))
+                } else {
+                    if (camera[1] == 1f) { // flyover over: back to the flat, north-up whole route
+                        camera[1] = 0f
+                        m.mapOrientation = 0f
+                        m.tag = null
+                    }
+                    runs.forEachIndexed { k, (range, _) -> lines[k].setPoints(points.subList(range.first, range.last + 1)) }
+                    dot.points = emptyList()
+                    when {
+                        points.isEmpty() -> Unit
+                        follow -> m.controller.setCenter(points.last())
+                        m.tag == null && points.size > 1 -> {
+                            m.tag = "fitted"
+                            fit(m, points)
+                        }
+                        m.tag == null -> m.controller.setCenter(points.first())
+                    }
+                }
+                m.invalidate()
             }
-            m.invalidate()
         }
         Attribution()
     }
+}
+
+private fun lerp(a: GeoPoint, b: GeoPoint, f: Double) =
+    GeoPoint(a.latitude + (b.latitude - a.latitude) * f, a.longitude + (b.longitude - a.longitude) * f)
+
+/** Direction of travel at fix [i], over the next ~30 m (one fix is too jittery); [fallback] when standing still. */
+private fun bearing(points: List<GeoPoint>, i: Int, fallback: Float): Float {
+    val from = points[i]
+    val to = points.subList(i, points.size).firstOrNull { it.distanceToAsDouble(from) >= 30 } ?: points.last()
+    if (to.distanceToAsDouble(from) < 3) return fallback
+    return from.bearingTo(to).toFloat()
 }
 
 /**
@@ -191,26 +253,26 @@ private fun androidx.compose.foundation.layout.BoxScope.Attribution() {
 /** Pace in one colour: faint where slower, strong where faster (6 steps). */
 private val PACE_ALPHA = floatArrayOf(0.25f, 0.4f, 0.55f, 0.7f, 0.85f, 1f)
 
-/** The route as one line, or as runs of pace-coloured segments. */
-private fun routeLines(m: MapView, track: List<Fix>, accent: Color, paceColours: Boolean, faded: Boolean): List<Polyline> {
-    fun line(pts: List<GeoPoint>, color: Int) = Polyline(m).apply {
-        setPoints(pts)
-        outlinePaint.color = if (faded) (color and 0x00FFFFFF) or 0x55000000 else color
-        outlinePaint.strokeWidth = 12f
-        outlinePaint.strokeCap = Paint.Cap.ROUND
-    }
-    val points = track.map { GeoPoint(it.lat, it.lon) }
-    if (!paceColours || track.size < 3) return listOf(line(points, accent.toArgb()))
+/** The route as fix ranges with a colour each: one range, or runs of equal pace. */
+private fun routeRuns(track: List<Fix>, accent: Color, paceColours: Boolean): List<Pair<IntRange, Int>> {
+    if (track.size < 2) return listOf(0..maxOf(0, track.lastIndex) to accent.toArgb())
+    if (!paceColours || track.size < 3) return listOf(0..track.lastIndex to accent.toArgb())
     val buckets = PaceColours.buckets(track, PACE_ALPHA.size)
-    val out = mutableListOf<Polyline>()
+    val out = mutableListOf<Pair<IntRange, Int>>()
     var start = 0
     for (i in 1..buckets.size) {
         if (i == buckets.size || buckets[i] != buckets[start]) {
-            out += line(points.subList(start, i + 1), accent.copy(alpha = PACE_ALPHA[buckets[start]]).toArgb())
+            out += (start..i) to accent.copy(alpha = PACE_ALPHA[buckets[start]]).toArgb()
             start = i
         }
     }
     return out
+}
+
+private fun routeLine(m: MapView, color: Int) = Polyline(m).apply {
+    outlinePaint.color = color
+    outlinePaint.strokeWidth = 12f
+    outlinePaint.strokeCap = Paint.Cap.ROUND
 }
 
 /**
