@@ -282,6 +282,18 @@ and MediaPipe can run it on the **GPU**, where llama.cpp here was CPU-only.
      AppFunctions (Gemini app can create Quiver items) both send data off the
      phone. Kept for now at the user's request; revisit with this work.
 
+- **3D terrain replay (parked 2026-10-26).** The replay ships as a 2D
+  flyover (osmdroid tilted in perspective, heading-up, saved as MP4). Tried
+  and parked:
+  1. MapLibre GL JS in a WebView + AWS open terrain tiles — on branch
+     `wip/maplibre-3d`. Rendered for one route, blank for another; debugging
+     was cut short. MapLibre Native has no official 3D terrain yet.
+  2. Google Maps 3D SDK (`play-services-maps3d`) — needs a billing-enabled
+     Google Cloud project and an API key; photorealistic buildings only in
+     some cities. If picked up: restrict the key to the app's package +
+     SHA-1, cap the API's daily quota, set a budget alert, and load 3D only
+     when the user taps it.
+
 - **Model retrain**: `finetune_lora.py` + `eval.py` + shipping a new GGUF and
   bumping `AiModel.FILE_NAME`. The dataset now covers `search_screenshots` and
   `add_rate_alert` and validates, but training needs a GPU — run it before
